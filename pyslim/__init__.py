@@ -44,6 +44,7 @@ import struct
 #     double migration_rate_;            // 8 bytes (double): the migration rate from source_subpop_id_, unused in nonWF models
 # } SubpopulationMigrationMetadataRec;
 
+mutation_struct = struct.Struct("<ifii")
 
 @attr.s
 class MutationMetadata(object):
@@ -55,10 +56,12 @@ class MutationMetadata(object):
 def decode_mutation(buff):
     if len(buff) != 16: # 4 + 4 + 4 + 4
         raise ValueError("Mutation metadata of incorrect format.")
-    mutation_type, selection_coeff, population, time = struct.unpack("ifii", buff)
+    mutation_type, selection_coeff, population, time = mutation_struct.unpack(buff)
     return MutationMetadata(mutation_type=mutation_type, selection_coeff=selection_coeff,
                             population=population, time=time)
 
+
+node_struct = struct.Struct("<qBB")
 
 @attr.s
 class NodeMetadata(object):
@@ -69,9 +72,11 @@ class NodeMetadata(object):
 def decode_node(buff):
     if len(buff) != 10: # 8 + 1 + 1
         raise ValueError("Node metadata of incorrect format.")
-    slim_id, is_null, genome_type = struct.unpack("qBB", buff)
+    slim_id, is_null, genome_type = node_struct.unpack(buff)
     return NodeMetadata(slim_id=slim_id, is_null=is_null, genome_type=genome_type)
 
+
+individual_struct = struct.Struct("<qii")
 
 @attr.s
 class IndividualMetadata(object):
@@ -82,7 +87,7 @@ class IndividualMetadata(object):
 def decode_individual(buff):
     if len(buff) != 16: # 8 + 4 + 4:
         raise ValueError("Individual metadata of incorrect format.")
-    age, pedigree_id, population = struct.unpack("qii", buff)
+    age, pedigree_id, population = individual_struct.unpack(buff)
     return IndividualMetadata(age=age, pedigree_id=pedigree_id, population=population)
 
 
@@ -112,7 +117,7 @@ def decode_population(buff):
     num_migration_records = int((len(buff) - 88) / 12) # 4 + 8
     if len(buff) != 88 + 12 * num_migration_records:
         raise ValueError("Population metadata of incorrect format.")
-    struct_string = "=i10di" + "id" * num_migration_records
+    struct_string = "<i10di" + "id" * num_migration_records
     metadata = struct.unpack(struct_string, buff)
     if metadata[11] != num_migration_records:
         raise ValueError("Inconsistent population metadata format.")
