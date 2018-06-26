@@ -1,16 +1,60 @@
 import pyslim
 import msprime
 
-ts = msprime.load("tests/simple.trees")
+ts = pyslim.load("simple.trees")
+tabs = ts.tables
+print(tabs)
+new_tabs = msprime.TableCollection()
 
-m = ts.mutation(0)
-pyslim.decode_mutation(m.metadata)
+# mutations
 
-n = ts.node(0)
-pyslim.decode_node(n.metadata)
+mut_metadata = []
+for md in msprime.unpack_bytes(tabs.mutations.metadata, 
+                               tabs.mutations.metadata_offset):
+    dm = pyslim.decode_mutation(md)
+    edm = pyslim.encode_mutation(dm)
+    assert(md == edm)
+    mut_metadata.append(dm)
 
-i = ts.individual(0)
-pyslim.decode_individual(i.metadata)
+pyslim.annotate_mutations(tabs, mut_metadata)
 
-p = ts.population(1)
-pyslim.decode_population(p.metadata)
+# nodes
+
+node_metadata = []
+for md in msprime.unpack_bytes(tabs.nodes.metadata, 
+                               tabs.nodes.metadata_offset):
+    dn = pyslim.decode_node(md)
+    edn = pyslim.encode_node(dn)
+    assert(md == edn)
+    node_metadata.append(dn)
+
+pyslim.annotate_nodes(tabs, node_metadata)
+
+# individuals
+
+individual_metadata = []
+for md in msprime.unpack_bytes(tabs.individuals.metadata,
+                               tabs.individuals.metadata_offset):
+    di = pyslim.decode_individual(md)
+    edi = pyslim.encode_individual(di)
+    assert(md == edi)
+    individual_metadata.append(di)
+
+pyslim.annotate_individuals(tabs, individual_metadata)
+
+# populations
+
+population_metadata = []
+for md in msprime.unpack_bytes(tabs.populations.metadata, 
+                               tabs.populations.metadata_offset):
+    if len(md) > 0:
+        dp = pyslim.decode_population(md)
+        edp = pyslim.encode_population(dp)
+        assert(md == edp)
+    else:
+        dp = None
+    population_metadata.append(dp)
+
+pyslim.annotate_populations(tabs, population_metadata)
+
+print(tabs)
