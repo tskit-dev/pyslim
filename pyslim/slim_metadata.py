@@ -179,15 +179,15 @@ def decode_population(buff):
         k += 1
         migration_rate = metadata[k]
         k += 1
-        migration_records.append(PopulationMigrationMetadata(source_subpop = source_subpop,
-                                                             migration_rate = migration_rate))
+        migration_records.append(PopulationMigrationMetadata(source_subpop=source_subpop,
+                                                             migration_rate=migration_rate))
 
-    return PopulationMetadata(slim_id = slim_id, selfing_fraction = selfing_fraction,
-                              female_cloning_fraction = female_cloning_fraction,
-                              male_cloning_fraction = male_cloning_fraction,
-                              sex_ratio = sex_ratio, bounds_x0 = bounds_x0, bounds_x1 = bounds_x1,
-                              bounds_y0 = bounds_y0, bounds_y1 = bounds_y1, bounds_z0 = bounds_z0,
-                              bounds_z1 = bounds_z1, migration_records = migration_records)
+    return PopulationMetadata(slim_id=slim_id, selfing_fraction=selfing_fraction,
+                              female_cloning_fraction=female_cloning_fraction,
+                              male_cloning_fraction=male_cloning_fraction,
+                              sex_ratio=sex_ratio, bounds_x0=bounds_x0, bounds_x1=bounds_x1,
+                              bounds_y0=bounds_y0, bounds_y1=bounds_y1, bounds_z0=bounds_z0,
+                              bounds_z1=bounds_z1, migration_records=migration_records)
 
 def encode_population(metadata_object):
     if metadata_object is None:

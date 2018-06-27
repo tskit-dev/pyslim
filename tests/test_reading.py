@@ -2,51 +2,50 @@ import pyslim
 import msprime
 
 ts = pyslim.load("simple.trees")
-tabs = ts.tables
-print(tabs)
-new_tabs = msprime.TableCollection()
+tables = ts.tables
+print(tables)
 
 # mutations
 
 mut_metadata = []
-for md in msprime.unpack_bytes(tabs.mutations.metadata, 
-                               tabs.mutations.metadata_offset):
+for md in msprime.unpack_bytes(tables.mutations.metadata, 
+                               tables.mutations.metadata_offset):
     dm = pyslim.decode_mutation(md)
     edm = pyslim.encode_mutation(dm)
     assert(md == edm)
     mut_metadata.append(dm)
 
-pyslim.annotate_mutations(tabs, mut_metadata)
+pyslim.annotate_mutations(tables, mut_metadata)
 
 # nodes
 
 node_metadata = []
-for md in msprime.unpack_bytes(tabs.nodes.metadata, 
-                               tabs.nodes.metadata_offset):
+for md in msprime.unpack_bytes(tables.nodes.metadata, 
+                               tables.nodes.metadata_offset):
     dn = pyslim.decode_node(md)
     edn = pyslim.encode_node(dn)
     assert(md == edn)
     node_metadata.append(dn)
 
-pyslim.annotate_nodes(tabs, node_metadata)
+pyslim.annotate_nodes(tables, node_metadata)
 
 # individuals
 
 individual_metadata = []
-for md in msprime.unpack_bytes(tabs.individuals.metadata,
-                               tabs.individuals.metadata_offset):
+for md in msprime.unpack_bytes(tables.individuals.metadata,
+                               tables.individuals.metadata_offset):
     di = pyslim.decode_individual(md)
     edi = pyslim.encode_individual(di)
     assert(md == edi)
     individual_metadata.append(di)
 
-pyslim.annotate_individuals(tabs, individual_metadata)
+pyslim.annotate_individuals(tables, individual_metadata)
 
 # populations
 
 population_metadata = []
-for md in msprime.unpack_bytes(tabs.populations.metadata, 
-                               tabs.populations.metadata_offset):
+for md in msprime.unpack_bytes(tables.populations.metadata, 
+                               tables.populations.metadata_offset):
     if len(md) > 0:
         dp = pyslim.decode_population(md)
         edp = pyslim.encode_population(dp)
@@ -55,6 +54,6 @@ for md in msprime.unpack_bytes(tabs.populations.metadata,
         dp = None
     population_metadata.append(dp)
 
-pyslim.annotate_populations(tabs, population_metadata)
+pyslim.annotate_populations(tables, population_metadata)
 
-print(tabs)
+print(tables)

@@ -2,19 +2,21 @@ import attr
 import struct
 import msprime
 
-def load(path, reference_time = 0.0):
+from .slim_tables import *
+
+def load(path, reference_time=0.0):
     '''
     Loads a standard msprime tree sequence, as produced by a SLiM simulation,
     and does the following things to it:
 
     - shifts time to start from `reference_time`
     - removes `sites.ancestral_state` and replaces with integers,
-        retaining these as the first entries in `self.slim_alleles`.
+        retaining these as the first entries in `self.alleles`.
     - removes `mutations.derived_state` and replaces with integers,
-        retaining these as the remaining entries in `self.slim_alleles`.
+        retaining these as the remaining entries in `self.alleles`.
 
     After this substitution, an allele `j` at site `k` has state
-    `self.slim_alleles[k][j]`.
+    `self.alleles[k][j]`.
 
     :param string path: The path to a .trees file.
     :param float reference_time: The time in tree_sequence that will correspond to zero
@@ -22,13 +24,33 @@ def load(path, reference_time = 0.0):
     '''
     ts = msprime.load(path)
     tables = ts.tables
-    return SlimTreeSequence.load_tables(tables, reference_time = reference_time)
+    return SlimTreeSequence.load_tables(tables, reference_time=reference_time)
+
+
+def load_tables(tables, reference_time=0.0):
+    '''
+    Loads the SlimTreeSequence defined by the tables.
+    '''
+    return SlimTreeSequence.load_tables(tables, reference_time)
+
+
+def annotate(tables):
+    '''
+    Takes a set of tables defining a tree sequence (as produced by msprime, for
+    instance), and adds in the information necessary for SLiM to use it as an
+    initial state, filling in mostly default values.
+    '''
+    set_nodes_individuals(tables)
+    set_populations(tables)
+    set_mutations(tables)
+    set_provenances(tables)
+    return tables
 
 
 class SlimTreeSequence(msprime.TreeSequence):
 
     @classmethod
-    def load_tables(cls, tables, reference_time = 0.0):
+    def load_tables(cls, tables, reference_time=0.0):
 
         # pull out ancestral states
         alleles = [[x] for x in msprime.unpack_bytes(tables.sites.ancestral_state,
@@ -49,29 +71,28 @@ class SlimTreeSequence(msprime.TreeSequence):
 
         # reset sites and mutations
         new_ds_column, new_ds_offset = msprime.pack_bytes(new_derived_state)
-        tables.mutations.set_columns(site = tables.mutations.site, node = tables.mutations.node, 
-                derived_state = new_ds_column, derived_state_offset = new_ds_offset, 
-                parent = tables.mutations.parent, metadata = tables.mutations.metadata, 
-                metadata_offset = tables.mutations.metadata_offset)
+        tables.mutations.set_columns(site=tables.mutations.site, node=tables.mutations.node, 
+                derived_state=new_ds_column, derived_state_offset=new_ds_offset, 
+                parent=tables.mutations.parent, metadata=tables.mutations.metadata, 
+                metadata_offset=tables.mutations.metadata_offset)
         new_as_column, new_as_offset = msprime.pack_bytes(new_ancestral_state)
-        tables.sites.set_columns(position = tables.sites.position, 
-                                 ancestral_state = new_as_column,
-                                 ancestral_state_offset = new_as_offset,
-                                 metadata = tables.sites.metadata,
-                                 metadata_offset = tables.sites.metadata_offset)
+        tables.sites.set_columns(position=tables.sites.position, 
+                                 ancestral_state=new_as_column,
+                                 ancestral_state_offset=new_as_offset,
+                                 metadata=tables.sites.metadata,
+                                 metadata_offset=tables.sites.metadata_offset)
 
         # reset time
-        tables.nodes.set_columns(flags = tables.nodes.flags, 
-                time = tables.nodes.time - reference_time, 
-                population = tables.nodes.population, individual = tables.nodes.individual, 
-                metadata = tables.nodes.metadata, metadata_offset = tables.nodes.metadata_offset)
-        tables.migrations.set_columns(left = tables.migrations.left, right = tables.migrations.right,
-                node = tables.migrations.node, source = tables.migrations.source, 
-                dest = tables.migrations.dest, time = tables.migrations.time - reference_time)
+        tables.nodes.set_columns(flags=tables.nodes.flags, 
+                time=tables.nodes.time - reference_time, 
+                population=tables.nodes.population, individual=tables.nodes.individual, 
+                metadata=tables.nodes.metadata, metadata_offset=tables.nodes.metadata_offset)
+        tables.migrations.set_columns(left=tables.migrations.left, right=tables.migrations.right,
+                node=tables.migrations.node, source=tables.migrations.source, 
+                dest=tables.migrations.dest, time=tables.migrations.time - reference_time)
 
         ts = tables.tree_sequence()
         ts.reference_time = reference_time
         ts.alleles = alleles
 
         return ts
-
