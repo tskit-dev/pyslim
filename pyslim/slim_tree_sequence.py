@@ -24,14 +24,14 @@ def load(path, reference_time=0.0):
     '''
     ts = msprime.load(path)
     tables = ts.tables
-    return SlimTreeSequence.load_tables(tables, reference_time=reference_time)
+    return _SlimTreeSequence.load_tables(tables, reference_time=reference_time)
 
 
 def load_tables(tables, reference_time=0.0):
     '''
     Loads the SlimTreeSequence defined by the tables.
     '''
-    return SlimTreeSequence.load_tables(tables, reference_time)
+    return _SlimTreeSequence.load_tables(tables, reference_time)
 
 
 def annotate(tables):
@@ -47,7 +47,7 @@ def annotate(tables):
     return tables
 
 
-class SlimTreeSequence(msprime.TreeSequence):
+class _SlimTreeSequence(msprime.TreeSequence):
 
     @classmethod
     def load_tables(cls, tables, reference_time=0.0):

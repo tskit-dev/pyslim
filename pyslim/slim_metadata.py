@@ -2,6 +2,8 @@ import attr
 import struct
 import msprime
 
+# TODO for maintainability might break this into several block comments above
+# the relevant pieces of python code below
 ## Here is how info is packed into objects:
 # from slim_sim.h
 #
@@ -88,7 +90,7 @@ def encode_mutation(metadata_object):
 #######
 # Nodes
 
-node_struct = struct.Struct("<qBB")
+_node_struct = struct.Struct("<qBB")
 
 @attr.s
 class NodeMetadata(object):
@@ -99,17 +101,17 @@ class NodeMetadata(object):
 def decode_node(buff):
     if len(buff) != 10: # 8 + 1 + 1
         raise ValueError("Node metadata of incorrect format.")
-    slim_id, is_null, genome_type = node_struct.unpack(buff)
+    slim_id, is_null, genome_type = _node_struct.unpack(buff)
     return NodeMetadata(slim_id=slim_id, is_null=is_null, genome_type=genome_type)
 
 def encode_node(metadata_object):
-    return node_struct.pack(metadata_object.slim_id, metadata_object.is_null, 
+    return _node_struct.pack(metadata_object.slim_id, metadata_object.is_null,
                             metadata_object.genome_type)
 
 #######
 # Individuals
 
-individual_struct = struct.Struct("<qii")
+_individual_struct = struct.Struct("<qii")
 
 @attr.s
 class IndividualMetadata(object):
@@ -120,11 +122,11 @@ class IndividualMetadata(object):
 def decode_individual(buff):
     if len(buff) != 16: # 8 + 4 + 4:
         raise ValueError("Individual metadata of incorrect format.")
-    age, pedigree_id, population = individual_struct.unpack(buff)
+    age, pedigree_id, population = _individual_struct.unpack(buff)
     return IndividualMetadata(age=age, pedigree_id=pedigree_id, population=population)
 
 def encode_individual(metadata_object):
-    return individual_struct.pack(metadata_object.age, metadata_object.pedigree_id, 
+    return _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id, 
                                   metadata_object.population)
 
 #######
