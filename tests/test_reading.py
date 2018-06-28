@@ -3,7 +3,6 @@ import msprime
 
 ts = pyslim.load("simple.trees")
 tables = ts.tables
-print(tables)
 
 # mutations
 

@@ -41,20 +41,20 @@ new_slim_ts = pyslim.load_tables(tables)
 3. The "remembered nodes" will be the *first* nodes.
 
 
+## TODO
+
+1. Make populations already extant in node tables propagate to individuals.
+
+2. Stop recording SLiM metadata for nodes that don't correspond to individuals.
+
+3. Save population metadata as ASCII somewhere.
+
+4. Check what happened to .alleles.
+
+5. Properly set (comma-separated) strings of mutation IDs in derived states, and set ancestral states to be ''.
+
 ## Questions
 
-1. Are we really using the individual.flags to record sex?
 
-2. Do we need to record SLiM metadata for nodes that don't correspond to individuals?
-
-3. Should population metadata be in ASCII? Currently tskit requires it to be so, which would be nice for readability.
-
-4. Should 'time' in pyslim be forwards time or backwards time?
+1. Should 'time' in pyslim be forwards time or backwards time?
     This is relevant for the "reference_time" argument and the "time" information in mutation metadata.
-
-5. Should there be more information in the provenance record, e.g., siulation type ("nonWF" or "WF")?
-
-6. Do we need to properly set comma-separated strings of mutation IDs in derived states?  Do we need to set ancestral states to be ''?
-
-7. What should be set in the provenance table? Two rows: one for pyslim, and then one for slim? 
-    How does slim extract information - by looking for the last row that says "SLiM"?

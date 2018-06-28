@@ -35,7 +35,7 @@ def decode_mutation(buff):
         selection_coeff = metadata[k * 4 + 1]
         population = metadata[k * 4 + 2]
         time = metadata[k * 4 + 3]
-        mut_structs.append(MutationMetadata(mutation_type=mutation_type, 
+        mut_structs.append(MutationMetadata(mutation_type=mutation_type,
                                             selection_coeff=selection_coeff,
                                             population=population, time=time))
     return mut_structs
@@ -57,7 +57,9 @@ def extract_mutation_metadata(tables):
     Returns an iterator over lists of MutationMetadata objects containing
     information about the mutations in the tables.
     '''
-    for md in tables.mutations.metadata:
+    metadata = msprime.unpack_bytes(tables.mutations.metadata,
+                                    tables.mutations.metadata_offset)
+    for md in metadata:
         yield decode_mutation(md)
 
 
@@ -75,7 +77,7 @@ def annotate_mutation_metadata(tables, metadata):
     tables.mutations.clear()
     for mut, md in zip(orig_mutations, metadata):
         metadata = encode_mutation(md)
-        tables.mutations.add_row(site=mut.site, node=mut.node, derived_state=mut.derived_state, 
+        tables.mutations.add_row(site=mut.site, node=mut.node, derived_state=mut.derived_state,
                                  parent=mut.parent, metadata=metadata)
 
 #######
@@ -107,13 +109,15 @@ def encode_node(metadata_object):
                             metadata_object.genome_type)
 
 
-def extract_node_metadata(tables, metadata):
+def extract_node_metadata(tables):
     '''
     Returns an iterator over lists of NodeMetadata objects containing
     information about the nodes in the tables.
     '''
-    for md in tables.nodes.metadata:
-        yield decode_nodes(md)
+    metadata = msprime.unpack_bytes(tables.nodes.metadata,
+                                    tables.nodes.metadata_offset)
+    for md in metadata:
+        yield decode_node(md)
 
 
 def annotate_node_metadata(tables, metadata):
@@ -130,7 +134,7 @@ def annotate_node_metadata(tables, metadata):
     tables.nodes.clear()
     for node, md in zip(orig_nodes, metadata):
         metadata = encode_node(md)
-        tables.nodes.add_row(flags=node.flags, time=node.time, population=node.population, 
+        tables.nodes.add_row(flags=node.flags, time=node.time, population=node.population,
                              individual=node.individual, metadata=metadata)
 
 
@@ -164,18 +168,20 @@ def decode_individual(buff):
                 sex=sex, flags=flags)
 
 def encode_individual(metadata_object):
-    return _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id, 
-                                  metadata_object.population, metadata_object.sex,
-                                  metadata_object.flags)
+    return _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id,
+                                   metadata_object.population, metadata_object.sex,
+                                   metadata_object.flags)
 
 
-def extract_individual_metadata(tables, metadata):
+def extract_individual_metadata(tables):
     '''
     Returns an iterator over lists of IndividualMetadata objects containing
     information about the individuals in the tables.
     '''
-    for md in tables.individuals.metadata:
-        yield decode_individuals(md)
+    metadata = msprime.unpack_bytes(tables.individuals.metadata,
+                                    tables.individuals.metadata_offset)
+    for md in metadata:
+        yield decode_individual(md)
 
 
 def annotate_individual_metadata(tables, metadata):
@@ -287,23 +293,25 @@ def encode_population(metadata_object):
                 raise ValueError("Migration records should be tuples of (source, rate).")
         mr_values = [a for b in metadata_object.migration_records for a in b]
         struct_string = "<i10di" + "id" * num_migration_records
-        metadata = struct.pack(struct_string, metadata_object.slim_id, 
-                               metadata_object.selfing_fraction, metadata_object.female_cloning_fraction, 
-                               metadata_object.male_cloning_fraction, metadata_object.sex_ratio, 
-                               metadata_object.bounds_x0, metadata_object.bounds_x1, 
-                               metadata_object.bounds_y0, metadata_object.bounds_y1, 
-                               metadata_object.bounds_z0, metadata_object.bounds_z1, 
+        metadata = struct.pack(struct_string, metadata_object.slim_id,
+                               metadata_object.selfing_fraction, metadata_object.female_cloning_fraction,
+                               metadata_object.male_cloning_fraction, metadata_object.sex_ratio,
+                               metadata_object.bounds_x0, metadata_object.bounds_x1,
+                               metadata_object.bounds_y0, metadata_object.bounds_y1,
+                               metadata_object.bounds_z0, metadata_object.bounds_z1,
                                num_migration_records, *mr_values)
     return metadata
 
 
-def extract_population_metadata(tables, metadata):
+def extract_population_metadata(tables):
     '''
     Returns an iterator over lists of PopulationMetadata objects containing
     information about the populations in the tables.
     '''
-    for md in tables.populations.metadata:
-        yield decode_populations(md)
+    metadata = msprime.unpack_bytes(tables.populations.metadata,
+                                    tables.populations.metadata_offset)
+    for md in metadata:
+        yield decode_population(md)
 
 
 def annotate_population_metadata(tables, metadata):
