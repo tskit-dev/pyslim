@@ -55,4 +55,3 @@ for md in msprime.unpack_bytes(tables.populations.metadata,
 
 pyslim.annotate_population_metadata(tables, population_metadata)
 
-print(tables)

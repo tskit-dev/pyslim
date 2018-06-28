@@ -1,24 +1,25 @@
 import pyslim
 import msprime
+import random
 
+# test defaults
 ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)
 tables = ts.tables
 
-print(tables)
-print("---Individuals---\n")
-print(tables.individuals)
-print("---Populations---\n")
-print(tables.populations)
+new_tables = pyslim.annotate(tables, model_type="nonWF", slim_generation=0)
 
-pyslim.annotate(tables, model_type="nonWF")
+new_ts = pyslim.load_tables(new_tables)
 
-print(tables)
-print("---Individuals---\n")
-print(tables.individuals)
-print("---Populations---\n")
-print(tables.populations)
+## test assignment
+ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)
+tables = ts.tables
+pyslim.annotate(tables, model_type="nonWF", slim_generation=0)
 
-new_ts = pyslim.load_tables(tables)
+individual_metadata = list(pyslim.extract_individual_metadata(tables))
 
-for t in new_ts.trees():
-    print(t)
+for j in range(len(individual_metadata)):
+    individual_metadata[j].sex = random.choice([0, 1])
+
+pyslim.annotate_individual_metadata(tables, individual_metadata)
+
+slim_ts = pyslim.load_tables(tables)

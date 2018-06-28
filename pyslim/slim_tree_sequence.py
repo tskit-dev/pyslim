@@ -1,15 +1,16 @@
 import attr
 import struct
 import msprime
+import json
 
 from .slim_metadata import *
 
-def load(path, reference_time=0.0):
+def load(path, slim_generation=0.0):
     '''
     Loads a standard msprime tree sequence, as produced by a SLiM simulation,
     and does the following things to it:
 
-    - shifts time to start from `reference_time`
+    - shifts time to start from `slim_generation`
     - removes `sites.ancestral_state` and replaces with integers,
         retaining these as the first entries in `self.alleles`.
     - removes `mutations.derived_state` and replaces with integers,
@@ -19,25 +20,27 @@ def load(path, reference_time=0.0):
     `self.alleles[k][j]`.
 
     :param string path: The path to a .trees file.
-    :param float reference_time: The time in tree_sequence that will correspond to zero
-        in the new tree sequence (this value will be subtracted from all node times).
+    :param float slim_generation: The time in SLiM time that will correspond to zero
+        in the new tree sequence (time in the tree sequence will be measured in generations
+        before this SLiM time).
     '''
     ts = msprime.load(path)
     tables = ts.tables
-    return load_tables(tables, reference_time=reference_time)
+    return load_tables(tables, slim_generation=slim_generation)
 
 
-def load_tables(tables, reference_time=0.0):
+def load_tables(tables, slim_generation=0.0):
     '''
     Loads the TreeSequence defined by the tables.
     '''
+    provenance = get_provenance(tables)
     # pull out ancestral states
-    alleles = [[x] for x in msprime.unpack_bytes(tables.sites.ancestral_state,
-                                                          tables.sites.ancestral_state_offset)]
-    derived_state = msprime.unpack_bytes(tables.mutations.derived_state,
-                                         tables.mutations.derived_state_offset)
-    new_ancestral_state = [b'0' for _ in range(tables.sites.num_rows)]
-    new_derived_state = [b'' for _ in derived_state]
+    alleles = [[x] for x in msprime.unpack_strings(tables.sites.ancestral_state,
+                                                   tables.sites.ancestral_state_offset)]
+    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
+                                           tables.mutations.derived_state_offset)
+    new_ancestral_state = ['0' for _ in range(tables.sites.num_rows)]
+    new_derived_state = ['' for _ in derived_state]
     for j in range(tables.mutations.num_rows):
         site = tables.mutations.site[j]
         try:
@@ -46,38 +49,31 @@ def load_tables(tables, reference_time=0.0):
             allele_index = len(alleles[site])
             alleles[site].append(derived_state[j])
 
-        new_derived_state[j] = bytes(str(allele_index), encoding='utf-8')
+        new_derived_state[j] = str(allele_index)
 
     # reset sites and mutations
-    new_ds_column, new_ds_offset = msprime.pack_bytes(new_derived_state)
+    new_ds_column, new_ds_offset = msprime.pack_strings(new_derived_state)
     tables.mutations.set_columns(site=tables.mutations.site, node=tables.mutations.node, 
             derived_state=new_ds_column, derived_state_offset=new_ds_offset, 
             parent=tables.mutations.parent, metadata=tables.mutations.metadata, 
             metadata_offset=tables.mutations.metadata_offset)
-    new_as_column, new_as_offset = msprime.pack_bytes(new_ancestral_state)
+    new_as_column, new_as_offset = msprime.pack_strings(new_ancestral_state)
     tables.sites.set_columns(position=tables.sites.position, 
                              ancestral_state=new_as_column,
                              ancestral_state_offset=new_as_offset,
                              metadata=tables.sites.metadata,
                              metadata_offset=tables.sites.metadata_offset)
 
-    # reset time
-    tables.nodes.set_columns(flags=tables.nodes.flags, 
-            time=tables.nodes.time - reference_time, 
-            population=tables.nodes.population, individual=tables.nodes.individual, 
-            metadata=tables.nodes.metadata, metadata_offset=tables.nodes.metadata_offset)
-    tables.migrations.set_columns(left=tables.migrations.left, right=tables.migrations.right,
-            node=tables.migrations.node, source=tables.migrations.source, 
-            dest=tables.migrations.dest, time=tables.migrations.time - reference_time)
+    _set_slim_generation(tables, slim_generation)
 
     ts = tables.tree_sequence()
-    ts.reference_time = reference_time
+    ts.provenance = provenance
+    ts.slim_generation = slim_generation
     ts.alleles = alleles
-
     return ts
 
 
-def annotate(tables, model_type):
+def annotate(tables, model_type, slim_generation):
     '''
     Takes a set of tables defining a tree sequence (as produced by msprime, for
     instance), and adds in the information necessary for SLiM to use it as an
@@ -87,8 +83,30 @@ def annotate(tables, model_type):
     _set_nodes_individuals(tables)
     _set_populations(tables)
     _set_sites_mutations(tables)
-    set_provenances(tables, model_type=model_type)
+    _set_slim_generation(tables, slim_generation=slim_generation)
+    set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
     return tables
+
+
+def write_slim_tree_sequence(ts):
+    '''
+    Write out the .trees file that can be read back in by SLiM.
+    '''
+
+
+def _set_slim_generation(tables, slim_generation):
+    '''
+    Shifts the "time ago" entries in the tables to be measured in units of time
+    *before* `slim_generation`, by adding this value to the `time` columns of
+    Node and Migration tables.
+    '''
+    tables.nodes.set_columns(flags=tables.nodes.flags, 
+            time=tables.nodes.time + slim_generation, 
+            population=tables.nodes.population, individual=tables.nodes.individual, 
+            metadata=tables.nodes.metadata, metadata_offset=tables.nodes.metadata_offset)
+    tables.migrations.set_columns(left=tables.migrations.left, right=tables.migrations.right,
+            node=tables.migrations.node, source=tables.migrations.source, 
+            dest=tables.migrations.dest, time=tables.migrations.time + slim_generation)
 
 
 def _set_nodes_individuals(
@@ -121,6 +139,7 @@ def _set_nodes_individuals(
             node_ind[j] = int(k/2)
 
     num_individuals = max(node_ind) + 1
+    num_nodes = tables.nodes.num_rows
 
     if type(location) is tuple:
         location = [location for _ in range(num_individuals)]
@@ -147,19 +166,19 @@ def _set_nodes_individuals(
     assert(len(ind_flags) == num_individuals)
 
     if node_id is None:
-        node_id = [-1 for _ in range(tables.nodes.num_rows)]
+        node_id = [-1 for _ in range(num_nodes)]
         for j, k in enumerate(list(samples)
-                              + sorted(list(set(range(tables.nodes.num_rows))
+                              + sorted(list(set(range(num_nodes))
                                             - set(samples)))):
             node_id[k] = j
-    assert(len(node_id) == tables.nodes.num_rows)
+    assert(len(node_id) == num_nodes)
 
     if type(node_is_null) is bool:
-        node_is_null = [node_is_null for _ in range(tables.nodes.num_rows)]
-    assert(len(node_is_null) == tables.nodes.num_rows)
+        node_is_null = [node_is_null for _ in range(num_nodes)]
+    assert(len(node_is_null) == num_nodes)
 
     if type(node_type) is int:
-        node_type = [node_type for _ in range(tables.nodes.num_rows)]
+        node_type = [node_type for _ in range(num_nodes)]
     assert(len(node_type) == tables.nodes.num_rows)
 
     if ind_population is None:
@@ -193,8 +212,10 @@ def _set_nodes_individuals(
 
     individual_metadata = [IndividualMetadata(*x) for x in
                            zip(age, ind_id, ind_population, ind_sex, slim_ind_flags)]
-    node_metadata = [NodeMetadata(i, n, t) for i, n, t in
-                     zip(node_id, node_is_null, node_type)]
+    node_metadata = [None for _ in range(num_nodes)]
+    for j in samples:
+        node_metadata[j] = NodeMetadata(slim_id=node_id[j], is_null=node_is_null[j],
+                                        genome_type=node_type[j])
 
     annotate_individual_metadata(tables, individual_metadata)
     annotate_node_metadata(tables, node_metadata)
@@ -319,35 +340,3 @@ def _set_sites_mutations(
     mutation_metadata = [[MutationMetadata(*x)] for x in
                          zip(mutation_type, selection_coeff, population, time)]
     annotate_mutation_metadata(tables, mutation_metadata)
-
-
-# The general structure of a Provenance entry is a JSON string:
-# {“program”=“SLiM”, “version”=“<version>“, “file_version”=“<file_version>“,
-#     “model_type”=“<model_type>“, “generation”=<generation>,
-#     “remembered_node_count”=<rem_count>}
-# The field values in angle brackets have the following meanings:
-# <version>: The version of SLiM that generated the file, such as 3.0.
-# <file_version>: The metadata format of the file; at present only 0.1 is supported.
-# <model_type>: This should be either WF or nonWF, depending upon the type of
-# model that generated the file.  This has some implications for the other
-# metadata; in particular, some of the population metadata is required for WF
-# models but unused in nonWF models, and individual ages in WF model data are
-# expected to be -1.  Note that SLiM will allow WF model data to be read into a
-# nonWF model, and vice versa, but since this is usually not intentional a
-# warning will be issued.  Moving data between model types has not been tested,
-# so be aware that issues may exist with doing so.
-# <generation>: The generation number, which will be set by SLiM upon loading.
-# <rem_count>: The number of remembered nodes, in addition to the sample.
-
-def set_provenances(tables, model_type, generation=0, remembered_node_count=0):
-    '''
-    Appends to the Provenance table of a TableCollection a record containing
-    the information that SLiM expects to find there.
-    '''
-    pyslim_record = '"program"="pyslim", "version"="{}"'
-    slim_record = '"program"="SLiM", "version"="3.0", "file_version"="0.1", ' \
-            + '"model_type"={}, "generation"={}, "remembered_node_count"={}'
-    tables.provenances.add_row('{' + pyslim_record.format(0.1) + '}')
-    tables.provenances.add_row('{' + slim_record.format(model_type, generation, 
-                                                        remembered_node_count) + '}')
-
