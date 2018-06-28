@@ -24,14 +24,57 @@ def load(path, reference_time=0.0):
     '''
     ts = msprime.load(path)
     tables = ts.tables
-    return SlimTreeSequence.load_tables(tables, reference_time=reference_time)
+    return load_tables(tables, reference_time=reference_time)
 
 
 def load_tables(tables, reference_time=0.0):
     '''
-    Loads the SlimTreeSequence defined by the tables.
+    Loads the TreeSequence defined by the tables.
     '''
-    return SlimTreeSequence.load_tables(tables, reference_time)
+    # pull out ancestral states
+    alleles = [[x] for x in msprime.unpack_bytes(tables.sites.ancestral_state,
+                                                          tables.sites.ancestral_state_offset)]
+    derived_state = msprime.unpack_bytes(tables.mutations.derived_state,
+                                         tables.mutations.derived_state_offset)
+    new_ancestral_state = [b'0' for _ in range(tables.sites.num_rows)]
+    new_derived_state = [b'' for _ in derived_state]
+    for j in range(tables.mutations.num_rows):
+        site = tables.mutations.site[j]
+        try:
+            allele_index = alleles[site].index(derived_state[j])
+        except ValueError:
+            allele_index = len(alleles[site])
+            alleles[site].append(derived_state[j])
+
+        new_derived_state[j] = bytes(str(allele_index), encoding='utf-8')
+
+    # reset sites and mutations
+    new_ds_column, new_ds_offset = msprime.pack_bytes(new_derived_state)
+    tables.mutations.set_columns(site=tables.mutations.site, node=tables.mutations.node, 
+            derived_state=new_ds_column, derived_state_offset=new_ds_offset, 
+            parent=tables.mutations.parent, metadata=tables.mutations.metadata, 
+            metadata_offset=tables.mutations.metadata_offset)
+    new_as_column, new_as_offset = msprime.pack_bytes(new_ancestral_state)
+    tables.sites.set_columns(position=tables.sites.position, 
+                             ancestral_state=new_as_column,
+                             ancestral_state_offset=new_as_offset,
+                             metadata=tables.sites.metadata,
+                             metadata_offset=tables.sites.metadata_offset)
+
+    # reset time
+    tables.nodes.set_columns(flags=tables.nodes.flags, 
+            time=tables.nodes.time - reference_time, 
+            population=tables.nodes.population, individual=tables.nodes.individual, 
+            metadata=tables.nodes.metadata, metadata_offset=tables.nodes.metadata_offset)
+    tables.migrations.set_columns(left=tables.migrations.left, right=tables.migrations.right,
+            node=tables.migrations.node, source=tables.migrations.source, 
+            dest=tables.migrations.dest, time=tables.migrations.time - reference_time)
+
+    ts = tables.tree_sequence()
+    ts.reference_time = reference_time
+    ts.alleles = alleles
+
+    return ts
 
 
 def annotate(tables):
@@ -45,54 +88,3 @@ def annotate(tables):
     set_mutations(tables)
     set_provenances(tables)
     return tables
-
-
-class SlimTreeSequence(msprime.TreeSequence):
-
-    @classmethod
-    def load_tables(cls, tables, reference_time=0.0):
-
-        # pull out ancestral states
-        alleles = [[x] for x in msprime.unpack_bytes(tables.sites.ancestral_state,
-                                                              tables.sites.ancestral_state_offset)]
-        derived_state = msprime.unpack_bytes(tables.mutations.derived_state,
-                                             tables.mutations.derived_state_offset)
-        new_ancestral_state = [b'0' for _ in range(tables.sites.num_rows)]
-        new_derived_state = [b'' for _ in derived_state]
-        for j in range(tables.mutations.num_rows):
-            site = tables.mutations.site[j]
-            try:
-                allele_index = alleles[site].index(derived_state[j])
-            except ValueError:
-                allele_index = len(alleles[site])
-                alleles[site].append(derived_state[j])
-
-            new_derived_state[j] = bytes(str(allele_index), encoding='utf-8')
-
-        # reset sites and mutations
-        new_ds_column, new_ds_offset = msprime.pack_bytes(new_derived_state)
-        tables.mutations.set_columns(site=tables.mutations.site, node=tables.mutations.node, 
-                derived_state=new_ds_column, derived_state_offset=new_ds_offset, 
-                parent=tables.mutations.parent, metadata=tables.mutations.metadata, 
-                metadata_offset=tables.mutations.metadata_offset)
-        new_as_column, new_as_offset = msprime.pack_bytes(new_ancestral_state)
-        tables.sites.set_columns(position=tables.sites.position, 
-                                 ancestral_state=new_as_column,
-                                 ancestral_state_offset=new_as_offset,
-                                 metadata=tables.sites.metadata,
-                                 metadata_offset=tables.sites.metadata_offset)
-
-        # reset time
-        tables.nodes.set_columns(flags=tables.nodes.flags, 
-                time=tables.nodes.time - reference_time, 
-                population=tables.nodes.population, individual=tables.nodes.individual, 
-                metadata=tables.nodes.metadata, metadata_offset=tables.nodes.metadata_offset)
-        tables.migrations.set_columns(left=tables.migrations.left, right=tables.migrations.right,
-                node=tables.migrations.node, source=tables.migrations.source, 
-                dest=tables.migrations.dest, time=tables.migrations.time - reference_time)
-
-        ts = tables.tree_sequence()
-        ts.reference_time = reference_time
-        ts.alleles = alleles
-
-        return ts
