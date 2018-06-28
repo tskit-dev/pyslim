@@ -1,14 +1,11 @@
 import msprime
 from .slim_metadata import *
 
-# these aren't exported by msprime
-MSP_INDIVIDUAL_MALE = 1
-MSP_INDIVIDUAL_FEMALE = 2
 
 def set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,
-        ind_flags=MSP_INDIVIDUAL_MALE | MSP_INDIVIDUAL_FEMALE, ind_population=0, 
-        node_id=None, node_is_null=False, node_type=0):
+        ind_population=0, ind_sex=-1, ind_flags=0, slim_ind_flags=0, node_id=None,
+        node_is_null=False, node_type=0):
     '''
     Adds to a TableCollection the information relevant to individuals required
     for SLiM to load in a tree sequence, that is found in Node and Individual
@@ -48,18 +45,26 @@ def set_nodes_individuals(
         ind_id = list(range(num_individuals))
     assert(len(ind_id) == num_individuals)
 
-    if type(ind_flags) is int:
-        ind_flags = [ind_flags for _ in range(num_individuals)]
-    assert(len(ind_flags) == num_individuals)
-
     if type(ind_population) is int:
         ind_population = [ind_population for _ in range(num_individuals)]
     assert(len(ind_population) == num_individuals)
 
+    if type(ind_sex) is int:
+        ind_sex = [ind_sex for _ in range(num_individuals)]
+    assert(len(ind_sex) == num_individuals)
+
+    if type(slim_ind_flags) is int:
+        slim_ind_flags = [slim_ind_flags for _ in range(num_individuals)]
+    assert(len(slim_ind_flags) == num_individuals)
+
+    if type(ind_flags) is int:
+        ind_flags = [ind_flags for _ in range(num_individuals)]
+    assert(len(ind_flags) == num_individuals)
+
     if node_id is None:
         node_id = [-1 for _ in range(tables.nodes.num_rows)]
-        for j, k in enumerate(list(samples) 
-                              + sorted(list(set(range(tables.nodes.num_rows)) 
+        for j, k in enumerate(list(samples)
+                              + sorted(list(set(range(tables.nodes.num_rows))
                                             - set(samples)))):
             node_id[k] = j
     assert(len(node_id) == tables.nodes.num_rows)
@@ -72,25 +77,28 @@ def set_nodes_individuals(
         node_type = [node_type for _ in range(tables.nodes.num_rows)]
     assert(len(node_type) == tables.nodes.num_rows)
 
-    tables.individuals.clear()
-    for j in range(num_individuals):
-        metadata_obj = IndividualMetadata(age=age[j], pedigree_id=ind_id[j],
-                                          population=ind_population[j])
-        tables.individuals.add_row(flags=ind_flags[j], location=location[j],
-                                   metadata=encode_individual(metadata_obj))
+    node_pop = [msprime.NULL_POPULATION
+                if (tables.nodes.flags[u] & msprime.NODE_IS_SAMPLE)
+                else ind_population[node_ind[u]]
+                for u in range(tables.nodes.num_rows)]
 
-    old_nodes = tables.nodes.copy()
-    tables.nodes.clear()
-    for j, node in enumerate(old_nodes):
-        metadata_obj = NodeMetadata(slim_id=node_id[j], is_null=node_is_null[j],
-                                    genome_type=node_type[j])
-        if node.flags & msprime.NODE_IS_SAMPLE:
-            pop = ind_population[node_ind[j]]
-        else:
-            pop = msprime.NULL_POPULATION
-        tables.nodes.add_row(flags=node.flags, time=node.time, 
-                             population=pop, individual=node_ind[j],
-                             metadata=encode_node(metadata_obj))
+    tables.nodes.set_columns(flags=tables.nodes.flags, time=tables.nodes.time,
+                             population=node_pop, individual=node_ind,
+                             metadata=tables.nodes.metadata,
+                             metadata_offset=tables.nodes.metadata_offset)
+
+    tables.individuals.set_columns(
+            flags=ind_flags, 
+            location=[x for y in location for x in y],
+            location_offset=[0] + [len(x) for x in location])
+
+    individual_metadata = [IndividualMetadata(*x) for x in
+                           zip(age, ind_id, ind_population, ind_sex, slim_ind_flags)]
+    node_metadata = [NodeMetadata(i, n, t) for i, n, t in
+                     zip(node_id, node_is_null, node_type)]
+
+    annotate_individual_metadata(tables, individual_metadata)
+    annotate_node_metadata(tables, node_metadata)
 
 
 def set_populations(
@@ -163,31 +171,33 @@ def set_populations(
         for mr in mrl:
             assert(type(mr) is PopulationMigrationMetadata)
 
-    tables.populations.clear()
-    for j in range(num_pops):
-        metadata_obj = PopulationMetadata(
-                            slim_id=pop_id[j],
-                            selfing_fraction=selfing_fraction[j],
-                            female_cloning_fraction=female_cloning_fraction[j],
-                            male_cloning_fraction=male_cloning_fraction[j],
-                            sex_ratio=sex_ratio[j], bounds_x0=bounds_x0[j],
-                            bounds_x1=bounds_x1[j], bounds_y0=bounds_y0[j],
-                            bounds_y1=bounds_y1[j], bounds_z0=bounds_z0[j],
-                            bounds_z1=bounds_z1[j],
-                            migration_records=migration_records[j])
-        tables.populations.add_row(metadata=encode_population(metadata_obj))
+    population_metadata = [PopulationMetadata(*x) for x in
+                           zip(pop_id, selfing_fraction, female_cloning_fraction,
+                               male_cloning_fraction, sex_ratio, bounds_x0,
+                               bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1,
+                               migration_records)]
+    annotate_population_metadata(tables, population_metadata)
 
 
-def set_mutations(
-        tables, mutation_type=1, selection_coeff=0.0,
-        population=msprime.NULL_POPULATION, time=-1):
+def set_sites_mutations(
+        tables, mutation_id=None, mutation_type=1, selection_coeff=0.0, sex=-1, flags=0,
+        population=msprime.NULL_POPULATION, time=None):
     '''
-    Adds to a TableCollection the information relevant to mutations requiredj
-    for SLiM to load in a tree sequence, that is found in the metadata column
-    of the Mutation table.  This will replace any information already in the
-    metadata column of the Mutation table.
+    Adds to a TableCollection the information relevant to mutations required
+    for SLiM to load in a tree sequence. This means adding to the metadata column
+    of the Mutation table,  It will also
+    - give SLiM IDs to each mutation
+    - round Site positions to integer values
+    - stack any mutations that end up at the same position as a result
+    - replace ancestral states with ""
+    This will replace any information already in the metadata or derived state
+    columns of the Mutation table.
     '''
     num_mutations = tables.mutations.num_rows
+
+    if mutation_id is None:
+        mutation_id = list(range(num_mutations))
+    assert(len(mutation_id) == num_mutations)
 
     if type(mutation_type) is int:
         mutation_type = [mutation_type for _ in range(num_mutations)]
@@ -201,29 +211,44 @@ def set_mutations(
         population = [population for _ in range(num_mutations)]
     assert(len(population) == num_mutations)
 
-    if type(time) is int:
-        time = [time for _ in range(num_mutations)]
+    if time is None:
+        ## This may *not* make sense because we have to round:
+        # time = [int(tables.nodes.time[u]) for u in tables.mutations.node]
+        time = [0 for _ in range(num_mutations)]
     assert(len(time) == num_mutations)
 
-    old_mutations = tables.mutations.copy()
-    tables.mutations.clear()
-    for j, mut in enumerate(old_mutations):
-        metadata_obj = [MutationMetadata(mutation_type=mutation_type[j],
-                                         selection_coeff=selection_coeff[j],
-                                         population=population[j],
-                                         time=time[j])]
-        tables.mutations.add_row(site=mut.site, node=mut.node, 
-                                 derived_state=mut.derived_state, parent=-1, 
-                                 metadata=encode_mutation(metadata_obj))
+    mutation_metadata = [[MutationMetadata(*x)] for x in
+                         zip(mutation_type, selection_coeff, population, time)]
+    annotate_mutation_metadata(tables, mutation_metadata)
 
 
-def set_provenances(tables, generation=0, remembered_node_count=0):
+# The general structure of a Provenance entry is a JSON string:
+# {“program”=“SLiM”, “version”=“<version>“, “file_version”=“<file_version>“,
+#     “model_type”=“<model_type>“, “generation”=<generation>,
+#     “remembered_node_count”=<rem_count>}
+# The field values in angle brackets have the following meanings:
+# <version>: The version of SLiM that generated the file, such as 3.0.
+# <file_version>: The metadata format of the file; at present only 0.1 is supported.
+# <model_type>: This should be either WF or nonWF, depending upon the type of
+# model that generated the file.  This has some implications for the other
+# metadata; in particular, some of the population metadata is required for WF
+# models but unused in nonWF models, and individual ages in WF model data are
+# expected to be -1.  Note that SLiM will allow WF model data to be read into a
+# nonWF model, and vice versa, but since this is usually not intentional a
+# warning will be issued.  Moving data between model types has not been tested,
+# so be aware that issues may exist with doing so.
+# <generation>: The generation number, which will be set by SLiM upon loading.
+# <rem_count>: The number of remembered nodes, in addition to the sample.
+
+def set_provenances(tables, model_type, generation=0, remembered_node_count=0):
     '''
     Appends to the Provenance table of a TableCollection a record containing
     the information that SLiM expects to find there.
     '''
-    pyslim_record = '{"program"="pyslim", "version"="{}"}'
-    slim_record = '{"program"="SLiM", "version"="pyslim", "file_version"="0.1", "generation"={}, "remembered_node_count"={}}'
-    tables.provenances.add_row(pyslim.record.format(0.1))
-    tables.provenances.add_row(slim.record.format(generation, remembered_node_count))
+    pyslim_record = '"program"="pyslim", "version"="{}"'
+    slim_record = '"program"="SLiM", "version"="3.0", "file_version"="0.1", ' \
+            + '"model_type"={}, "generation"={}, "remembered_node_count"={}'
+    tables.provenances.add_row('{' + pyslim_record.format(0.1) + '}')
+    tables.provenances.add_row('{' + slim_record.format(model_type, generation, 
+                                                        remembered_node_count) + '}')
 

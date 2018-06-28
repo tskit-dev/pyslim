@@ -77,7 +77,7 @@ def load_tables(tables, reference_time=0.0):
     return ts
 
 
-def annotate(tables):
+def annotate(tables, model_type):
     '''
     Takes a set of tables defining a tree sequence (as produced by msprime, for
     instance), and adds in the information necessary for SLiM to use it as an
@@ -85,6 +85,6 @@ def annotate(tables):
     '''
     set_nodes_individuals(tables)
     set_populations(tables)
-    set_mutations(tables)
-    set_provenances(tables)
+    set_sites_mutations(tables)
+    set_provenances(tables, model_type=model_type)
     return tables

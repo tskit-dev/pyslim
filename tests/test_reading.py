@@ -15,7 +15,7 @@ for md in msprime.unpack_bytes(tables.mutations.metadata,
     assert(md == edm)
     mut_metadata.append(dm)
 
-pyslim.annotate_mutations(tables, mut_metadata)
+pyslim.annotate_mutation_metadata(tables, mut_metadata)
 
 # nodes
 
@@ -27,7 +27,7 @@ for md in msprime.unpack_bytes(tables.nodes.metadata,
     assert(md == edn)
     node_metadata.append(dn)
 
-pyslim.annotate_nodes(tables, node_metadata)
+pyslim.annotate_node_metadata(tables, node_metadata)
 
 # individuals
 
@@ -39,7 +39,7 @@ for md in msprime.unpack_bytes(tables.individuals.metadata,
     assert(md == edi)
     individual_metadata.append(di)
 
-pyslim.annotate_individuals(tables, individual_metadata)
+pyslim.annotate_individual_metadata(tables, individual_metadata)
 
 # populations
 
@@ -54,6 +54,6 @@ for md in msprime.unpack_bytes(tables.populations.metadata,
         dp = None
     population_metadata.append(dp)
 
-pyslim.annotate_populations(tables, population_metadata)
+pyslim.annotate_population_metadata(tables, population_metadata)
 
 print(tables)

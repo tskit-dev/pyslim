@@ -2,11 +2,12 @@ import attr
 import struct
 import msprime
 
-# TODO for maintainability might break this into several block comments above
-# the relevant pieces of python code below
-## Here is how info is packed into objects:
-# from slim_sim.h
-#
+
+###########
+# Mutations
+#  The metadata for a Mutation is a *collection* of these structs,
+#  thanks to mutation stacking.
+###########
 # typedef struct __attribute__((__packed__)) {
 #     slim_objectid_t mutation_type_id_;    // 4 bytes (int32_t): the id of the mutation type the mutation belongs to
 #     slim_selcoeff_t selection_coeff_;     // 4 bytes (float): the selection coefficient
@@ -14,43 +15,6 @@ import msprime
 #     slim_generation_t origin_generation_; // 4 bytes (int32_t): the generation in which the mutation arose
 # } MutationMetadataRec;
 #
-# typedef struct __attribute__((__packed__)) {
-#     slim_genomeid_t genome_id_;   // 8 bytes (int64_t): the SLiM genome ID for this genome, assigned by pedigree rec
-#     uint8_t is_null_;             // 1 byte (uint8_t): true if this is a null genome (should never contain mutations)
-#     GenomeType type_;             // 1 byte (uint8_t): the type of the genome (A, X, Y)
-# } GenomeMetadataRec;
-#
-# typedef struct __attribute__((__packed__)) {
-#     slim_pedigreeid_t pedigree_id_;     // 8 bytes (int64_t): the SLiM pedigree ID for this individual, assigned by pedigree rec
-#     slim_age_t age_;                    // 4 bytes (int32_t): the age of the individual (-1 for WF models)
-#     slim_objectid_t subpopulation_id_;  // 4 bytes (int32_t): the subpopulation the individual belongs to
-# } IndividualMetadataRec;
-#
-# typedef struct __attribute__((__packed__)) {
-#     slim_objectid_t subpopulation_id_; // 4 bytes (int32_t): the id of this subpopulation
-#     double selfing_fraction_;          // 8 bytes (double): selfing fraction (unused in non-sexual models), unused in nonWF models
-#     double female_clone_fraction_;     // 8 bytes (double): cloning fraction (females / hermaphrodites), unused in nonWF models
-#     double male_clone_fraction_;       // 8 bytes (double): cloning fraction (males / hermaphrodites), unused in nonWF models
-#     double sex_ratio_;                 // 8 bytes (double): sex ratio (M:M+F), unused in nonWF models
-#     double bounds_x0_;                 // 8 bytes (double): spatial bounds, unused in non-spatial models
-#     double bounds_x1_;                 // 8 bytes (double): spatial bounds, unused in non-spatial models
-#     double bounds_y0_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D models
-#     double bounds_y1_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D models
-#     double bounds_z0_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D / 2D models
-#     double bounds_z1_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D / 2D models
-#     int32_t migration_rec_count_;      // 4 bytes (int32_t): the number of migration records, 0 in nonWF models
-#     // followed by migration_rec_count_ instances of SubpopulationMigrationMetadataRec
-# } SubpopulationMetadataRec;
-#
-# typedef struct __attribute__((__packed__)) {
-#     slim_objectid_t source_subpop_id_; // 4 bytes (int32_t): the id of the source subpopulation, unused in nonWF models
-#     double migration_rate_;            // 8 bytes (double): the migration rate from source_subpop_id_, unused in nonWF models
-# } SubpopulationMigrationMetadataRec;
-
-###########
-# Mutations
-#  The metadata for a Mutation is a *collection* of these structs,
-#  thanks to mutation stacking.
 
 @attr.s
 class MutationMetadata(object):
@@ -87,8 +51,42 @@ def encode_mutation(metadata_object):
     struct_string = "<" + "ifii" * len(metadata_object)
     return struct.pack(struct_string, *mr_values)
 
+
+def extract_mutation_metadata(tables):
+    '''
+    Returns an iterator over lists of MutationMetadata objects containing
+    information about the mutations in the tables.
+    '''
+    for md in tables.mutations.metadata:
+        yield decode_mutation(md)
+
+
+def annotate_mutation_metadata(tables, metadata):
+    '''
+    Revise the mutation table so that the metadata column is given by applying
+    `encode_metadata()` to the sources given.
+
+    :param TableCollection tables: a table collection to be modified
+    :param iterable metadata: a list of lists of MutationMetadata objects
+    '''
+    if len(metadata) != tables.mutations.num_rows:
+        raise ValueError("annotate mutations: metadata not the same length as the table.")
+    orig_mutations = tables.mutations.copy()
+    tables.mutations.clear()
+    for mut, md in zip(orig_mutations, metadata):
+        metadata = encode_mutation(md)
+        tables.mutations.add_row(site=mut.site, node=mut.node, derived_state=mut.derived_state, 
+                                 parent=mut.parent, metadata=metadata)
+
 #######
 # Nodes
+#######
+# typedef struct __attribute__((__packed__)) {
+#     slim_genomeid_t genome_id_; // 8 bytes (int64_t): the SLiM genome ID for this genome, assigned by pedigree rec
+#     uint8_t is_null_;           // 1 byte (uint8_t): true if this is a null genome (should never contain mutations)
+#     GenomeType type_;           // 1 byte (uint8_t): the type of the genome (A, X, Y)
+# } GenomeMetadataRec;
+#
 
 _node_struct = struct.Struct("<qBB")
 
@@ -108,29 +106,117 @@ def encode_node(metadata_object):
     return _node_struct.pack(metadata_object.slim_id, metadata_object.is_null,
                             metadata_object.genome_type)
 
+
+def extract_node_metadata(tables, metadata):
+    '''
+    Returns an iterator over lists of NodeMetadata objects containing
+    information about the nodes in the tables.
+    '''
+    for md in tables.nodes.metadata:
+        yield decode_nodes(md)
+
+
+def annotate_node_metadata(tables, metadata):
+    '''
+    Modify the NodeTable so that the metadata
+    column is given by applying `encode_nodes()` to the sources given.
+
+    :param TableCollection tables: a table collection to be modified
+    :param iterable metadata: a list of NodeMetadata objects
+    '''
+    if len(metadata) != tables.nodes.num_rows:
+        raise ValueError("annotate nodes: metadata not the same length as the table.")
+    orig_nodes = tables.nodes.copy()
+    tables.nodes.clear()
+    for node, md in zip(orig_nodes, metadata):
+        metadata = encode_node(md)
+        tables.nodes.add_row(flags=node.flags, time=node.time, population=node.population, 
+                             individual=node.individual, metadata=metadata)
+
+
 #######
 # Individuals
+#######
+# typedef struct __attribute__((__packed__)) {
+#   slim_pedigreeid_t pedigree_id_;    // 8 bytes (int64_t): the SLiM pedigree ID for this individual, assigned by pedigree rec
+#   slim_age_t age_;                   // 4 bytes (int32_t): the age of the individual (-1 for WF models)
+#   slim_objectid_t subpopulation_id_; // 4 bytes (int32_t): the subpopulation the individual belongs to
+#   IndividualSex sex_;    // 4 bytes (int32_t): the sex of the individual, as defined by the IndividualSex enum
+#   uint32_t flags_;       // 4 bytes (uint32_t): assorted flags, see below
+# } IndividualMetadataRec;
 
-_individual_struct = struct.Struct("<qii")
+_individual_struct = struct.Struct("<qiiiI")
 
 @attr.s
 class IndividualMetadata(object):
     age = attr.ib()
     pedigree_id = attr.ib()
     population = attr.ib()
+    sex = attr.ib()
+    flags = attr.ib()
 
 def decode_individual(buff):
-    if len(buff) != 16: # 8 + 4 + 4:
+    if len(buff) != 24: # 8 + 4 + 4 + 4 + 4:
         raise ValueError("Individual metadata of incorrect format.")
-    age, pedigree_id, population = _individual_struct.unpack(buff)
-    return IndividualMetadata(age=age, pedigree_id=pedigree_id, population=population)
+    age, pedigree_id, population, sex, flags = _individual_struct.unpack(buff)
+    return IndividualMetadata(
+                age=age, pedigree_id=pedigree_id, population=population,
+                sex=sex, flags=flags)
 
 def encode_individual(metadata_object):
     return _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id, 
-                                  metadata_object.population)
+                                  metadata_object.population, metadata_object.sex,
+                                  metadata_object.flags)
+
+
+def extract_individual_metadata(tables, metadata):
+    '''
+    Returns an iterator over lists of IndividualMetadata objects containing
+    information about the individuals in the tables.
+    '''
+    for md in tables.individuals.metadata:
+        yield decode_individuals(md)
+
+
+def annotate_individual_metadata(tables, metadata):
+    '''
+    Modify the IndividualTable so that the metadata
+    column is given by applying `encode_individuals()` to the sources given.
+
+    :param TableCollection tables: a table collection to be modified
+    :param iterable metadata: a list of IndividualMetadata objects
+    '''
+    if len(metadata) != tables.individuals.num_rows:
+        raise ValueError("annotate individuals: metadata not the same length as the table.")
+    orig_individuals = tables.individuals.copy()
+    tables.individuals.clear()
+    for ind, md in zip(orig_individuals, metadata):
+        metadata = encode_individual(md)
+        tables.individuals.add_row(flags=ind.flags, location=ind.location, metadata=metadata)
 
 #######
 # Populations
+####################
+# typedef struct __attribute__((__packed__)) {
+#     slim_objectid_t subpopulation_id_; // 4 bytes (int32_t): the id of this subpopulation
+#     double selfing_fraction_;          // 8 bytes (double): selfing fraction (unused in non-sexual models), unused in nonWF models
+#     double female_clone_fraction_;     // 8 bytes (double): cloning fraction (females / hermaphrodites), unused in nonWF models
+#     double male_clone_fraction_;       // 8 bytes (double): cloning fraction (males / hermaphrodites), unused in nonWF models
+#     double sex_ratio_;                 // 8 bytes (double): sex ratio (M:M+F), unused in nonWF models
+#     double bounds_x0_;                 // 8 bytes (double): spatial bounds, unused in non-spatial models
+#     double bounds_x1_;                 // 8 bytes (double): spatial bounds, unused in non-spatial models
+#     double bounds_y0_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D models
+#     double bounds_y1_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D models
+#     double bounds_z0_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D / 2D models
+#     double bounds_z1_;                 // 8 bytes (double): spatial bounds, unused in non-spatial / 1D / 2D models
+#     int32_t migration_rec_count_;      // 4 bytes (int32_t): the number of migration records, 0 in nonWF models
+#     // followed by migration_rec_count_ instances of SubpopulationMigrationMetadataRec
+# } SubpopulationMetadataRec;
+#
+# typedef struct __attribute__((__packed__)) {
+#     slim_objectid_t source_subpop_id_; // 4 bytes (int32_t): the id of the source subpopulation, unused in nonWF models
+#     double migration_rate_;            // 8 bytes (double): the migration rate from source_subpop_id_, unused in nonWF models
+# } SubpopulationMigrationMetadataRec;
 
 @attr.s
 class PopulationMigrationMetadata(object):
@@ -211,64 +297,16 @@ def encode_population(metadata_object):
     return metadata
 
 
-############
-# Annotation:
-#  These functions manipulate tables, rather than single entries.
-############
-
-def annotate_mutations(tables, metadata):
+def extract_population_metadata(tables, metadata):
     '''
-    Revise the mutation table so that the metadata column is given by applying
-    `encode_metadata()` to the sources given.
-
-    :param TableCollection tables: a table collection to be modified
-    :param iterable metadata: a list of lists of MutationMetadata objects
+    Returns an iterator over lists of PopulationMetadata objects containing
+    information about the populations in the tables.
     '''
-    if len(metadata) != tables.mutations.num_rows:
-        raise ValueError("annotate_mutations: metadata not the same length as the table.")
-    orig_mutations = tables.mutations.copy()
-    tables.mutations.clear()
-    for mut, md in zip(orig_mutations, metadata):
-        metadata = encode_mutation(md)
-        tables.mutations.add_row(site=mut.site, node=mut.node, derived_state=mut.derived_state, 
-                                 parent=mut.parent, metadata=metadata)
+    for md in tables.populations.metadata:
+        yield decode_populations(md)
 
 
-def annotate_nodes(tables, metadata):
-    '''
-    Modify the NodeTable so that the metadata
-    column is given by applying `encode_nodes()` to the sources given.
-
-    :param TableCollection tables: a table collection to be modified
-    :param iterable metadata: a list of NodeMetadata objects
-    '''
-    if len(metadata) != tables.nodes.num_rows:
-        raise ValueError("annotate_nodes: metadata not the same length as the table.")
-    orig_nodes = tables.nodes.copy()
-    tables.nodes.clear()
-    for node, md in zip(orig_nodes, metadata):
-        metadata = encode_node(md)
-        tables.nodes.add_row(flags=node.flags, time=node.time, population=node.population, 
-                             individual=node.individual, metadata=metadata)
-
-def annotate_individuals(tables, metadata):
-    '''
-    Modify the IndividualTable so that the metadata
-    column is given by applying `encode_individuals()` to the sources given.
-
-    :param TableCollection tables: a table collection to be modified
-    :param iterable metadata: a list of IndividualMetadata objects
-    '''
-    if len(metadata) != tables.individuals.num_rows:
-        raise ValueError("annotate_individuals: metadata not the same length as the table.")
-    orig_individuals = tables.individuals.copy()
-    tables.individuals.clear()
-    for ind, md in zip(orig_individuals, metadata):
-        metadata = encode_individual(md)
-        tables.individuals.add_row(flags=ind.flags, location=ind.location, metadata=metadata)
-
-
-def annotate_populations(tables, metadata):
+def annotate_population_metadata(tables, metadata):
     '''
     Modify the PopulationTable so that the metadata
     column is given by applying `encode_populations()` to the sources given.
@@ -278,10 +316,8 @@ def annotate_populations(tables, metadata):
     :param iterable metadata: a list of objects, each PopulationMetadata or None
     '''
     if len(metadata) != tables.populations.num_rows:
-        raise ValueError("annotate_populations: metadata not the same length as the table.")
+        raise ValueError("annotate populations: metadata not the same length as the table.")
     tables.populations.clear()
     for md in metadata:
         metadata = encode_population(md)
         tables.populations.add_row(metadata=metadata)
-
-
