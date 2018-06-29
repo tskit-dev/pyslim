@@ -53,9 +53,9 @@ def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
     :param string model_type: SLiM model type: either "WF" or "nonWF".
     :param int slim_generation: What generation number in SLiM correponds to
         ``time=0`` in the tree sequence.
-    :param int remembered_node_count: How many nodes in the tree sequence
-        will be marked as "ancestral samples" by SLiM (it must by the *first*
-        this many nodes).  
+    :param int remembered_node_count: (NOT SUPPORTED) How many nodes in the
+        tree sequence will be marked as "ancestral samples" by SLiM (it must by the
+        *first* this many nodes).  
     '''
     tables = ts.tables
     annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count)
@@ -68,6 +68,8 @@ def annotate_defaults_tables(tables, model_type, slim_generation, remembered_nod
     takes tables as produced by ``msprime``, and makes them look like the
     tables as output by SLiM. See :func:`annotate_defaults` for details.
     '''
+    if remembered_node_count != 0:
+        raise ValueError("Setting remembered node count not currently supported.")
     if (type(slim_generation) is not int) or (slim_generation < 1):
         raise ValueError("SLiM generation must be an integer and at least 1.")
     # set_nodes must come before set_populations
