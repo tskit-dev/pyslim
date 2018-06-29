@@ -73,7 +73,13 @@ def annotate_defaults_tables(tables, model_type, slim_generation, remembered_nod
     if (type(slim_generation) is not int) or (slim_generation < 1):
         raise ValueError("SLiM generation must be an integer and at least 1.")
     # set_nodes must come before set_populations
-    _set_nodes_individuals(tables)
+    if model_type == "WF":
+        default_ages = -1
+    elif model_type == "nonWF":
+        default_ages = 0
+    else:
+        raise ValueError("Model type must be 'WF' or 'nonWF'")
+    _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     _set_sites_mutations(tables)
     _set_slim_generation(tables, -1 * slim_generation)
