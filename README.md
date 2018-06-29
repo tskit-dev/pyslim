@@ -15,28 +15,32 @@ git clone https://github.com/tskit-dev/pyslim.git
 cd pyslim
 python setup.py install --user
 ```
+You'll also need an up-to-date [msprime](https://github.com/tskit-dev/msprime) and [SLiM](https://messerlab.org/slim/), of course.
+
+To run the tests to make sure everything is working, do:
+```
+cd tests/examples
+for x in *.slim; do slim $x; done
+cd -
+python -m nose tests
+```
+
+*Note:* if you use `python3` you may need to replace `python` with `python3` above.
 
 
-## Usage
+## Quickstart:
 
 The `pyslim.annotate()` command will add default information to a tree sequence, allowing
-it to be read in by SLiM. To further modify this information, you must extract the underlying
-tables and modify them, like so:
+it to be read in by SLiM. This will simulate a tree sequence with msprime, add SLiM information,
+and write it out to a `.trees` file:
 ```
 import msprime
 import pyslim
 
 # simulate a tree sequence of 12 nodes
 ts = msprime.simulate(12, mutation_rate=1.0, recombination_rate=1.0)
-tables = pyslim.annotate(ts.tables)
-
-# assign 3 females, 3 males
-orig_individuals = tables.individuals.copy()
-tables.individuals.clear()
-for sex, ind in zip([1, 1, 1, 2, 2, 2], orig_individuals):
-    tables.individuals.add_row(flags=sex, location=ind.location, metadata=ind.metadata)
-
-new_slim_ts = pyslim.load_tables(tables)
+new_ts = pyslim.annotate_defaults(ts)
+new_ts.dump("slim_ts.trees")
 ```
 
 
@@ -52,4 +56,4 @@ new_slim_ts = pyslim.load_tables(tables)
 
 ## TODO
 
-7. Check that remembered individuals/samples are dealt with correctly.
+1. Check that remembered individuals/samples are dealt with correctly.
