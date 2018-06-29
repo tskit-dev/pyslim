@@ -28,7 +28,7 @@ python -m nose tests
 *Note:* if you use `python3` you may need to replace `python` with `python3` above.
 
 
-## Quickstart:
+## Quickstart: coalescent simulation for SLiM
 
 The `pyslim.annotate()` command will add default information to a tree sequence, allowing
 it to be read in by SLiM. This will simulate a tree sequence with msprime, add SLiM information,
@@ -41,6 +41,16 @@ import pyslim
 ts = msprime.simulate(12, mutation_rate=1.0, recombination_rate=1.0)
 new_ts = pyslim.annotate_defaults(ts)
 new_ts.dump("slim_ts.trees")
+```
+
+## Quickstart: reading SLiM metadata
+
+To retrieve the extra information that SLiM stores in a tree sequence, use the `extract_X_metadata()`
+functions. For instance, to see the age of each Individual produced by annotation
+in the previous example:
+```
+for ind in extract_mutation_metadata(new_ts.tables):
+    print(ind.age)
 ```
 
 
