@@ -5,7 +5,6 @@ import random
 # Default annotation
 ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)
 new_ts = pyslim.annotate(ts, model_type="nonWF", slim_generation=1)
-# pyslim.dump(new_ts, "sim_annotated.trees")
 
 # Annotate, then modify
 ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)

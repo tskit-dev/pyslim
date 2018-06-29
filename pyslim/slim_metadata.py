@@ -22,9 +22,17 @@ class MutationMetadata(object):
     mutation_type = attr.ib()
     selection_coeff = attr.ib()
     population = attr.ib()
-    time = attr.ib()
+    slim_time = attr.ib()
 
 def decode_mutation(buff):
+    '''
+    Extracts the information stored in binary by SLiM in the ``metadata``
+    column of a :class:`MutationTable`.  If ``buff`` is empty, returns ``[]``.
+
+    :param bytes buff: The ``metadata`` entry of a row of a
+        :class:`MutationTable`, as stored by SLiM.
+    :rtype list:
+    '''
     # note that in the case that buff is of length zero
     # this returns [] instead of None, like the others do
     num_muts = int(len(buff) / 16) # 4 + 4 + 4 + 4
@@ -37,28 +45,37 @@ def decode_mutation(buff):
         mutation_type = metadata[k * 4]
         selection_coeff = metadata[k * 4 + 1]
         population = metadata[k * 4 + 2]
-        time = metadata[k * 4 + 3]
+        slim_time = metadata[k * 4 + 3]
         mut_structs.append(MutationMetadata(mutation_type=mutation_type,
                                             selection_coeff=selection_coeff,
-                                            population=population, time=time))
+                                            population=population,
+                                            slim_time=slim_time))
     return mut_structs
 
 def encode_mutation(metadata_object):
     '''
-    Encodes the list of mutation metadata objects as a bytes object,
-    suitable to be put in as metadata for a mutation.
+    Encodes the list of :class:`MutationMetadata` objects as a bytes object,
+    suitable to be put in as metadata for a mutation.  Unlike other ``encode_`
+    functions, this takes a *list* rather than a single value.
+
+    :param MutationMetadata metadata_object: The list of
+        :class:`MutationMetadata` objects to be encoded.  
+    :rtype bytes:
     '''
     mr_values = []
     for mr in metadata_object:
-        mr_values.extend([mr.mutation_type, mr.selection_coeff, mr.population, mr.time])
+        mr_values.extend([mr.mutation_type, mr.selection_coeff,
+                          mr.population, mr.slim_time])
     struct_string = "<" + "ifii" * len(metadata_object)
     return struct.pack(struct_string, *mr_values)
 
 
 def extract_mutation_metadata(tables):
     '''
-    Returns an iterator over lists of MutationMetadata objects containing
+    Returns an iterator over lists of :class:`MutationMetadata` objects containing
     information about the mutations in the tables.
+
+    :param TableCollection tables: The tables, as produced by SLiM.
     '''
     metadata = msprime.unpack_bytes(tables.mutations.metadata,
                                     tables.mutations.metadata_offset)
@@ -105,6 +122,15 @@ class NodeMetadata(object):
     genome_type = attr.ib()
 
 def decode_node(buff):
+    '''
+    Extracts the information stored in binary by SLiM in the ``metadata``
+    column of a :class:`NodeTable`. If ``buff`` is ``None``, returns an
+    empty bytes object.
+
+    :param bytes buff: The ``metadata`` entry of a row of a
+        :class:`NodeTable`, as stored by SLiM.
+    :rtype NodeMetadata:
+    '''
     if len(buff) == 0:
         md = None
     else:
@@ -115,14 +141,23 @@ def decode_node(buff):
     return md
 
 def encode_node(metadata_object):
+    '''
+    Encodes :class:`NodeMetadata` objects as a bytes object, suitable to be put
+    in as metadata for a node.
+
+    :param NodeMetadata metadata_object: The object to be encoded.
+    :rtype bytes:
+    '''
     return _node_struct.pack(metadata_object.slim_id, metadata_object.is_null,
                             metadata_object.genome_type)
 
 
 def extract_node_metadata(tables):
     '''
-    Returns an iterator over lists of NodeMetadata objects containing
+    Returns an iterator over lists of :class: `NodeMetadata` objects containing
     information about the nodes in the tables.
+
+    :param TableCollection tables: The tables, as produced by SLiM.
     '''
     metadata = msprime.unpack_bytes(tables.nodes.metadata,
                                     tables.nodes.metadata_offset)
@@ -173,6 +208,15 @@ class IndividualMetadata(object):
     flags = attr.ib()
 
 def decode_individual(buff):
+    '''
+    Extracts the information stored in binary by SLiM in the ``metadata``
+    column of a :class:`IndividualTable`. If ``buff`` is ``None``, returns an
+    empty bytes object.
+
+    :param bytes buff: The ``metadata`` entry of a row of a
+        :class:`IndividualTable`, as stored by SLiM.
+    :rtype IndividualMetadata:
+    '''
     if len(buff) == 0:
         md = None
     else:
@@ -185,6 +229,13 @@ def decode_individual(buff):
     return md
 
 def encode_individual(metadata_object):
+    '''
+    Encodes :class:`IndividualMetadata` objects as a bytes object, suitable to be put
+    in as metadata for an individual.
+
+    :param IndividualMetadata metadata_object: The object to be encoded.
+    :rtype bytes:
+    '''
     return _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id,
                                    metadata_object.population, metadata_object.sex,
                                    metadata_object.flags)
@@ -192,8 +243,10 @@ def encode_individual(metadata_object):
 
 def extract_individual_metadata(tables):
     '''
-    Returns an iterator over lists of IndividualMetadata objects containing
-    information about the individuals in the tables.
+    Returns an iterator over lists of :class:`IndividualMetadata` objects
+    containing information about the individuals in the tables.
+
+    :param TableCollection tables: The tables, as produced by SLiM.
     '''
     metadata = msprime.unpack_bytes(tables.individuals.metadata,
                                     tables.individuals.metadata_offset)
@@ -265,6 +318,15 @@ class PopulationMetadata(object):
     migration_records = attr.ib()
 
 def decode_population(buff):
+    '''
+    Extracts the information stored in binary by SLiM in the ``metadata``
+    column of a :class:`PopulationTable`. If ``buff`` is ``None``, returns an
+    empty bytes object.
+
+    :param bytes buff: The ``metadata`` entry of a row of a
+        :class:`PopulationTable`, as stored by SLiM.
+    :rtype PopulationMetadata:
+    '''
     if len(buff) == 0:
         md = None
     else:
@@ -308,6 +370,13 @@ def decode_population(buff):
     return md
 
 def encode_population(metadata_object):
+    '''
+    Encodes :class:`PopulationMetadata` objects as a bytes object, suitable to be put
+    in as metadata for a population.
+
+    :param PopulationMetadata metadata_object: The object to be encoded.
+    :rtype bytes:
+    '''
     num_migration_records = len(metadata_object.migration_records)
     for mr in metadata_object.migration_records:
         if len(mr) != 2:
@@ -326,8 +395,10 @@ def encode_population(metadata_object):
 
 def extract_population_metadata(tables):
     '''
-    Returns an iterator over lists of PopulationMetadata objects containing
-    information about the populations in the tables.
+    Returns an iterator over lists of :class:`PopulationMetadata` objects
+    containing information about the populations in the tables.
+
+    :param TableCollection tables: The tables, as produced by SLiM.
     '''
     metadata = msprime.unpack_bytes(tables.populations.metadata,
                                     tables.populations.metadata_offset)
@@ -353,59 +424,3 @@ def annotate_population_metadata(tables, metadata):
         else:
             metadata = encode_population(md)
         tables.populations.add_row(metadata=metadata)
-
-#######
-# Provenance
-####################
-# The general structure of a Provenance entry is a JSON string:
-# {“program”:“SLiM”, “version”:“<version>“, “file_version”:“<file_version>“,
-#     “model_type”:“<model_type>“, “generation”:<generation>,
-#     “remembered_node_count”:<rem_count>}
-# The field values in angle brackets have the following meanings:
-# <version>: The version of SLiM that generated the file, such as 3.0.
-# <file_version>: The metadata format of the file; at present only 0.1 is supported.
-# <model_type>: This should be either WF or nonWF, depending upon the type of
-# model that generated the file.  This has some implications for the other
-# metadata; in particular, some of the population metadata is required for WF
-# models but unused in nonWF models, and individual ages in WF model data are
-# expected to be -1.  Note that SLiM will allow WF model data to be read into a
-# nonWF model, and vice versa, but since this is usually not intentional a
-# warning will be issued.  Moving data between model types has not been tested,
-# so be aware that issues may exist with doing so.
-# <generation>: The generation number, which will be set by SLiM upon loading.
-# <rem_count>: The number of remembered nodes, in addition to the sample.
-
-
-@attr.s
-class ProvenanceMetadata(object):
-    model_type = attr.ib()
-    slim_generation = attr.ib()
-    remembered_node_count = attr.ib()
-
-
-def get_provenance(tables):
-    '''
-    Extracts model type, slim generation, and remembmered node count from the last
-    entry in the provenance table that is tagged with "program"="SLiM".
-    '''
-    prov = [json.loads(x.record) for x in tables.provenances]
-    slim_prov = [u for u in prov if ('program' in u and u['program'] == "SLiM")]
-    if len(slim_prov) == 0:
-        raise ValueError("Tree sequence contains no SLiM provenance entries.")
-    last_slim_prov = slim_prov[len(slim_prov)-1]
-    return ProvenanceMetadata(last_slim_prov["model_type"], last_slim_prov["generation"],
-                              last_slim_prov["remembered_node_count"])
-
-
-def set_provenance(tables, model_type, slim_generation, remembered_node_count=0):
-    '''
-    Appends to the Provenance table of a TableCollection a record containing
-    the information that SLiM expects to find there.
-    '''
-    pyslim_dict = {"program":"pyslim", "version":0.1}
-    slim_dict = {"program":"SLiM", "version":"3.0", "file_version":"0.1",
-                 "model_type":model_type, "generation":slim_generation,
-                 "remembered_node_count":remembered_node_count}
-    tables.provenances.add_row(json.dumps(pyslim_dict))
-    tables.provenances.add_row(json.dumps(slim_dict))
-

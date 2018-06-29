@@ -13,97 +13,170 @@ INDIVIDUAL_TYPE_FEMALE = 0
 INDIVIDUAL_TYPE_MALE = 1
 INDIVIDUAL_FLAG_MIGRATED = 0x01
 
+
 def load(path, slim_format):
     '''
-    Loads a tree sequence, and if slim_format is True, then
-    do the following things to it:
-
-    - shifts time to start from the `generation` entry in the provenance table
-    - removes `sites.ancestral_state` and `mutations.derived_state`, replacing
-      these with integers, and storing translation tables in sites.metadata.
-
-    After this substitution, the original allele `j` at site `k` can be obtained
-    by doing
-    ```
-    alleles = extract_alleles(tables)
-    alleles[k][j]
-    ```
-
-    These two operations are not necessary for working with the tree sequence,
-    but are more convenient.
+    Load the tree sequence found in the .trees file at ``path``. If the .trees
+    file is SLiM-compatible, set ``slim_format`` to ``True`` (in which case
+    this returns a :class:`SlimTreeSequence`); otherwise, this just calls
+    :meth:`msprime.load`.
 
     :param string path: The path to a .trees file.
     :param bool slim_format: Whether the .trees file should be coverted from
         SLiM format.
     '''
-    ts = msprime.load(path)
     if slim_format:
-        tables = ts.tables
-        ts = load_tables(tables, slim_format)
+        ts = SlimTreeSequence.load(path)
+    else:
+        ts = msprime.load(path)
     return ts
-
-
-def dump(ts, path, slim_format):
-    '''
-    Write out the .trees file that can be read back in by SLiM.
-    '''
-    if slim_format:
-        tables = ts.tables
-        provenance = get_provenance(tables)
-        _set_slim_generation(tables, -1 * provenance.slim_generation)
-        _relabel_alleles(tables)
-    ts.dump(path)
 
 
 def load_tables(tables, slim_format):
     '''
-    Loads the TreeSequence defined by the tables: see `pyslim.load()`.
+    See :func:`load`.
+
+    :param TableCollection tables: A set of tables.
+    :param bool slim_format: Whether the tables should be coverted from
+        SLiM format.
     '''
     if slim_format:
-        provenance = get_provenance(tables)
-        _set_slim_generation(tables, provenance.slim_generation)
-        _delabel_alleles(tables)
-    ts = tables.tree_sequence()
+        ts = SlimTreeSequence.load_tables(tables)
+    else:
+        ts = msprime.load_tables(path)
     return ts
 
 
 def annotate(ts, model_type, slim_generation, remembered_node_count=0):
     '''
-    Takes tree sequence (as produced by msprime, for instance), and adds in the
+    Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
-    mostly default values.
+    mostly default values. Returns a :class:`SlimTreeSequence`.
+
+    :param TreeSequence ts: A :class:`TreeSequence`.
+    :param string model_type: SLiM model type: either "WF" or "nonWF".
+    :param int slim_generation: What generation number in SLiM correponds to
+        ``time=0`` in the tree sequence.
+    :param int remembered_node_count: How many nodes in the tree sequence
+        will be marked as "ancestral samples" by SLiM (it must by the *first*
+        this many nodes).  
     '''
     tables = ts.tables
     annotate_tables(tables, model_type, slim_generation, remembered_node_count)
-    ts = tables.tree_sequence()
-    return ts
+    return SlimTreeSequence.load_tables(tables)
 
 
 def annotate_tables(tables, model_type, slim_generation, remembered_node_count=0):
     '''
-    Does the work of `annotate()`, but modifies the tables in place.
+    Does the work of :func:`annotate()`, but modifies the tables in place: so,
+    takes tables as produced by ``msprime``, and makes them look like the
+    tables as output by SLiM. See :func:`annotate` for details.
     '''
     if (type(slim_generation) is not int) or (slim_generation < 1):
         raise ValueError("SLiM generation must be an integer and at least 1.")
-    # nodes must come before populations
+    # set_nodes must come before set_populations
     _set_nodes_individuals(tables)
     _set_populations(tables)
     _set_sites_mutations(tables)
-    set_provenance(tables, model_type=model_type, slim_generation=slim_generation,
+    _set_slim_generation(tables, -1 * slim_generation)
+    _set_provenance(tables, model_type=model_type, slim_generation=slim_generation,
                    remembered_node_count=remembered_node_count)
-    ancestral_state = msprime.unpack_strings(tables.sites.ancestral_state,
-                                             tables.sites.ancestral_state_offset)
-    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
-                                           tables.mutations.derived_state_offset)
     alleles = _make_allele_map(tables)
     _store_alleles(tables, alleles)
 
 
-def extract_alleles(tables, keep=True):
+class SlimTreeSequence(msprime.TreeSequence):
+    '''
+    This is just like a :class:`TreeSequence`, except for two things:
+        1. Times are shifted by the `generation` in the last SLiM entry
+            of the Provenance table.
+        2. Alleles (ancestral and derived states) are replaced with digits
+            (which will be single digits if there are ten or less of them 
+            per site); see :metho:`SlimTreeSequence.alleles` for how to recover
+            the original alleles.
+    You should create a :class:`SlimTreeSequence` using one of
+    :meth:`SlimTreeSequence.load_tables` :meth:`SlimTreeSequence.load`,
+    :func:`load`, or :func:`load_tables`.
+
+    :ivar slim_generation: The amount by which times have been shifted.
+    :vartype slim_generation: int
+    '''
+
+    def __init__(self):
+        pass
+
+    @property
+    def alleles(self):
+        '''
+        Returns a list of dictionaries allowing translation of alleles in this
+        :class:`SlimTreeSequence` to the original alleles as output by SLiM.  The
+        original allele ``j`` at site ``k``, before relabeling, is:
+        ```
+        self.alleles[k][j]
+        ```
+        :rtype list:
+        '''
+        return _extract_alleles(msprime.TreeSequence.tables.fget(self), keep=True)
+
+    @classmethod
+    def load(cls, path):
+        '''
+        Load a :class:`SlimTreeSequence` from a .trees file on disk.
+
+        :param string path: The path to a .trees file.
+        :rtype SlimTreeSequence:
+        '''
+        ts = msprime.load(path)
+        tables = ts.tables
+        return cls.load_tables(tables)
+
+    @classmethod
+    def load_tables(cls, tables):
+        '''
+        Creates the :class:`SlimTreeSequence` defined by the tables.
+
+        :param TableCollection tables: A set of tables, as produced by SLiM
+            or by annotate().
+        :rtype SlimTreeSequence:
+        '''
+        provenance = get_provenance(tables)
+        _set_slim_generation(tables, provenance.slim_generation)
+        _delabel_alleles(tables)
+        ts = msprime.TableCollection.tree_sequence(tables)
+        ts.slim_generation = provenance.slim_generation
+        return ts
+
+    def dump(self, path, **kwargs):
+        '''
+        Write out the .trees file that can be read back in by SLiM. See
+        :meth:`msprime.TreeSequence.dump()` for other arguments.
+
+        :param string path: The path to a .trees file.
+        '''
+        # This would be simpler if there were a python-level TableCollection.dump
+        # method: https://github.com/tskit-dev/msprime/issues/547
+        tables = self.tables
+        temp_ts = msprime.TableCollection.tree_sequence(tables)
+        msprime.TreeSequence.dump(temp_ts, path, **kwargs)
+
+    @property
+    def tables(self):
+        '''
+        This method ensures that any time we look at the tables of a SlimTreeSequence,
+        they look just like the ones we put in, having reversed the operations we did
+        to put them in (except that any metadata previously in the Site table will be gone).
+        '''
+        tables = msprime.TreeSequence.tables.fget(self)
+        _set_slim_generation(tables, -1 * self.slim_generation)
+        _relabel_alleles(tables)
+        return tables
+
+
+def _extract_alleles(tables, keep=True):
     '''
     Decodes the list of dictionaries giving translations for each allele
     stored in the metadata column of the site table when reading a SLiM tree sequence.
-    If `keep` is False, will clear the metadata column.
+    If ``keep`` is False, will clear the metadata column.
     '''
     md = msprime.unpack_strings(tables.sites.metadata, tables.sites.metadata_offset)
     alleles = [json.loads(x) for x in md]
@@ -150,9 +223,10 @@ def _make_allele_map(tables):
 
 def _delabel_alleles(tables):
     '''
-    Replaces alleles at each site by integers, starting with '0' for the ancestral state,
-    placing the resulting list of dictionaries in the metadata column of the site table
-    (and removing anything already there).  Can be inverted by 
+    Replaces alleles at each site by integers, starting with ``'0'`` for the
+    ancestral state, placing the resulting list of dictionaries in the metadata
+    column of the site table (and removing anything already there).  Can be
+    inverted by
     ```
        _relabel_alleles(tables)
     ```
@@ -167,12 +241,13 @@ def _delabel_alleles(tables):
 
 def _relabel_alleles(tables, alleles=None):
     '''
-    Replace ancestral and derived state x at site j by alleles[j][x].
-    `alleles` should be a list of dicts. If alleles are not provided,
-    extract them from the tables (removing them from the metadata).
+    Modifying ``tables`` in place, replace ancestral and derived state ``x`` at
+    site ``j`` by ``alleles[j][x]``, where  ``alleles`` is a list of dicts. If
+    ``alleles`` is ``None``, not provided, extract them from the tables
+    (by removing them from the metadata column).
     '''
     if alleles is None:
-        alleles = extract_alleles(tables, keep=False)
+        alleles = _extract_alleles(tables, keep=False)
     ancestral_state = msprime.unpack_strings(tables.sites.ancestral_state,
                                              tables.sites.ancestral_state_offset)
     derived_state = msprime.unpack_strings(tables.mutations.derived_state,
@@ -202,9 +277,10 @@ def _relabel_alleles(tables, alleles=None):
 
 def _set_slim_generation(tables, slim_generation):
     '''
-    Shifts the "time ago" entries in the tables to be measured in units of time
-    *before* `slim_generation`, by adding this value to the `time` columns of
-    Node and Migration tables.
+    Modifying ``tables`` in place, shifts the "time ago" entries in the tables
+    to be measured in units of time *before* `slim_generation`, by adding
+    ``slim_generation`` to the ``time`` columns of Node and Migration tables.
+    Can be inverted by passing in ``-1 * slim_generation``.
     '''
     tables.nodes.set_columns(flags=tables.nodes.flags,
             time=tables.nodes.time + slim_generation,
@@ -446,3 +522,67 @@ def _set_sites_mutations(
     mutation_metadata = [[MutationMetadata(*x)] for x in
                          zip(mutation_type, selection_coeff, population, slim_time)]
     annotate_mutation_metadata(tables, mutation_metadata)
+
+#######
+# Provenance
+####################
+# The general structure of a Provenance entry is a JSON string:
+# {“program”:“SLiM”, “version”:“<version>“, “file_version”:“<file_version>“,
+#     “model_type”:“<model_type>“, “generation”:<generation>,
+#     “remembered_node_count”:<rem_count>}
+# The field values in angle brackets have the following meanings:
+# <version>: The version of SLiM that generated the file, such as 3.0.
+# <file_version>: The metadata format of the file; at present only 0.1 is supported.
+# <model_type>: This should be either WF or nonWF, depending upon the type of
+# model that generated the file.  This has some implications for the other
+# metadata; in particular, some of the population metadata is required for WF
+# models but unused in nonWF models, and individual ages in WF model data are
+# expected to be -1.  Note that SLiM will allow WF model data to be read into a
+# nonWF model, and vice versa, but since this is usually not intentional a
+# warning will be issued.  Moving data between model types has not been tested,
+# so be aware that issues may exist with doing so.
+# <generation>: The generation number, which will be set by SLiM upon loading.
+# <rem_count>: The number of remembered nodes, in addition to the sample.
+
+
+@attr.s
+class ProvenanceMetadata(object):
+    model_type = attr.ib()
+    slim_generation = attr.ib()
+    remembered_node_count = attr.ib()
+
+
+def get_provenance(tables):
+    '''
+    Extracts model type, slim generation, and remembmered node count from the last
+    entry in the provenance table that is tagged with "program"="SLiM".
+
+    :param TableCollection tables: The tables.
+    :rtype ProvenanceMetadata:
+    '''
+    prov = [json.loads(x.record) for x in tables.provenances]
+    slim_prov = [u for u in prov if ('program' in u and u['program'] == "SLiM")]
+    if len(slim_prov) == 0:
+        raise ValueError("Tree sequence contains no SLiM provenance entries.")
+    last_slim_prov = slim_prov[len(slim_prov)-1]
+    return ProvenanceMetadata(last_slim_prov["model_type"], last_slim_prov["generation"],
+                              last_slim_prov["remembered_node_count"])
+
+
+def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0):
+    '''
+    Appends to the provenance table of a :class:`TableCollection` a record containing
+    the information that SLiM expects to find there.
+
+    :param TableCollection tables: The table collection.
+    :param string model_type: The model type: either "WF" or "nonWF".
+    :param int slim_generation: The "current" generation in the SLiM simulation.
+    :param int remembered_node_count: The number of nodes that will be "remembered".
+    '''
+    pyslim_dict = {"program":"pyslim", "version":0.1}
+    slim_dict = {"program":"SLiM", "version":"3.0", "file_version":"0.1",
+                 "model_type":model_type, "generation":slim_generation,
+                 "remembered_node_count":remembered_node_count}
+    tables.provenances.add_row(json.dumps(pyslim_dict))
+    tables.provenances.add_row(json.dumps(slim_dict))
+

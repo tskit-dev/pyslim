@@ -15,6 +15,6 @@ for j in range(len(individual_metadata)):
 
 pyslim.annotate_individual_metadata(tables, individual_metadata)
 slim_ts = pyslim.load_tables(tables, slim_format=True)
-pyslim.dump(slim_ts, "new_msprime.trees", slim_format=True)
+slim_ts.dump("new_msprime.trees")
 
 slim_ts2 = pyslim.load("new_msprime.trees", slim_format=True)
