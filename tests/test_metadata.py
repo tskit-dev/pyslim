@@ -9,14 +9,17 @@ import msprime
 import tests
 import unittest
 
-
-def get_slim_examples():
+def get_slim_example_files():
     for filename in ["tests/examples/recipe_WF.trees",
                      "tests/examples/recipe_nonWF.trees"]:
+        yield filename
+
+def get_slim_examples():
+    for filename in get_slim_example_files():
         yield pyslim.load(filename, slim_format=True)
 
 
-class TestEncodeDecode(unittest.TestCase):
+class TestEncodeDecode(tests.PyslimTestCase):
     '''
     Tests for conversion to/from binary representations of metadata.
     '''
@@ -126,3 +129,65 @@ class TestAnnotate(unittest.TestCase):
 
             pyslim.annotate_population_metadata(new_tables, metadata)
             self.assertEqual(tables, new_tables)
+
+
+class TestDumpLoad(tests.PyslimTestCase):
+    '''
+    Test reading and writing.
+    '''
+
+    def verify_time_offset(self, ts, slim_ts):
+        gen = slim_ts.slim_generation
+        self.assertEqual(ts.num_nodes, slim_ts.num_nodes)
+        for n1, n2 in zip(ts.nodes(), slim_ts.nodes()):
+            self.assertEqual(n1.time, n2.time - gen)
+
+    def test_load_tables(self):
+        for ts in get_slim_examples():
+            self.assertTrue(type(ts) is pyslim.SlimTreeSequence)
+            tables = ts.tables
+            new_ts = pyslim.load_tables(tables, slim_format=True)
+            self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
+            new_tables = new_ts.tables
+            self.assertTablesAlmostEqual(tables, new_tables)
+
+    def test_load(self):
+        for fn in get_slim_example_files():
+            msp_ts = pyslim.load(fn, slim_format=False)
+            self.assertTrue(type(msp_ts) is msprime.TreeSequence)
+            tables = msp_ts.tables
+            new_ts = pyslim.load_tables(tables, slim_format=True)
+            self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
+            self.verify_time_offset(msp_ts, new_ts)
+            new_tables = new_ts.tables
+            self.assertTablesAlmostEqual(tables, new_tables)
+            slim_ts = pyslim.load(fn, slim_format=True)
+            self.assertTrue(type(slim_ts) is pyslim.SlimTreeSequence)
+            slim_tables = slim_ts.tables
+            self.assertTablesAlmostEqual(slim_tables, new_tables)
+            new_msp_ts = pyslim.load_tables(tables, slim_format=False)
+            self.assertTrue(type(new_msp_ts) is msprime.TreeSequence)
+            self.assertTablesAlmostEqual(tables, new_msp_ts.tables)
+
+
+class TestAlleles(tests.PyslimTestCase):
+    '''
+    Test allele translation.
+    '''
+
+    def verify_haplotype_equality(self, ts, slim_ts):
+        alleles = slim_ts.alleles
+        self.assertEqual(ts.num_sites, slim_ts.num_sites)
+        self.assertEqual(ts.num_sites, len(alleles))
+        for j, v1, v2 in zip(range(ts.num_sites), ts.variants(),
+                             slim_ts.variants()):
+            g1 = [v1.alleles[x] for x in v1.genotypes]
+            g2 = [alleles[j][v2.alleles[x]] for x in v2.genotypes]
+            self.assertArrayEqual(g1, g2)
+
+    def test_haplotypes(self):
+        for slim_ts in get_slim_examples():
+            tables = slim_ts.tables
+            ts = tables.tree_sequence()
+            self.verify_haplotype_equality(ts, slim_ts)
+

@@ -4,11 +4,11 @@ import random
 
 # Default annotation
 ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)
-new_ts = pyslim.annotate(ts, model_type="nonWF", slim_generation=1)
+new_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
 
 # Annotate, then modify
 ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)
-new_ts = pyslim.annotate(ts, model_type="nonWF", slim_generation=1)
+new_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
 tables = new_ts.tables
 
 individual_metadata = list(pyslim.extract_individual_metadata(tables))

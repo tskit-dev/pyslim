@@ -7,6 +7,15 @@ history as a tree sequence, and in so doing it records extra information in meta
 This package makes it easy to add the relevant metadata to a tree sequence so that SLiM
 can use it, and to read the metadata in a SLiM-produced tree sequence.
 
+## Installation
+
+To install `pyslim`, do
+```
+git clone https://github.com/tskit-dev/pyslim.git
+cd pyslim
+python setup.py install --user
+```
+
 
 ## Usage
 

@@ -38,7 +38,7 @@ def load_tables(tables, slim_format):
     if slim_format:
         ts = SlimTreeSequence.load_tables(tables)
     else:
-        ts = msprime.load_tables(path)
+        ts = tables.tree_sequence()
     return ts
 
 
@@ -97,8 +97,9 @@ class SlimTreeSequence(msprime.TreeSequence):
     :vartype slim_generation: int
     '''
 
-    def __init__(self):
-        pass
+    def __init__(self, ts, slim_generation):
+        self._ll_tree_sequence = ts._ll_tree_sequence
+        self.slim_generation = slim_generation
 
     @property
     def alleles(self):
@@ -134,12 +135,14 @@ class SlimTreeSequence(msprime.TreeSequence):
             or by annotate_defaults().
         :rtype SlimTreeSequence:
         '''
-        provenance = get_provenance(tables)
-        _set_slim_generation(tables, provenance.slim_generation)
-        _delabel_alleles(tables)
-        ts = msprime.TableCollection.tree_sequence(tables)
-        ts.slim_generation = provenance.slim_generation
-        return ts
+        # a roundabout way to copy the tables
+        ts = tables.tree_sequence()
+        new_tables = ts.tables
+        provenance = get_provenance(new_tables)
+        _set_slim_generation(new_tables, provenance.slim_generation)
+        _delabel_alleles(new_tables)
+        ts = msprime.TableCollection.tree_sequence(new_tables)
+        return cls(ts, provenance.slim_generation)
 
     def dump(self, path, **kwargs):
         '''
