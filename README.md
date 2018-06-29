@@ -43,13 +43,4 @@ new_slim_ts = pyslim.load_tables(tables)
 
 ## TODO
 
-3. Save population metadata as ASCII somewhere.
-
-5. Properly set (comma-separated) strings of mutation IDs in derived states, and set ancestral states to be ''.
-
-6. 'time' in pyslim should be "time ago"; but all arguments should say "time_since_start" or "time_before_end".
-    This is relevant for the "reference_time" argument and the "time" information in mutation metadata.
-
 7. Check that remembered individuals/samples are dealt with correctly.
-
-8. Assign mutation IDs in annotate().

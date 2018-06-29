@@ -407,7 +407,7 @@ def _set_populations(
 
 def _set_sites_mutations(
         tables, mutation_id=None, mutation_type=1, selection_coeff=0.0,
-        population=msprime.NULL_POPULATION, time=None):
+        population=msprime.NULL_POPULATION, slim_time=None):
     '''
     Adds to a TableCollection the information relevant to mutations required
     for SLiM to load in a tree sequence. This means adding to the metadata column
@@ -437,12 +437,12 @@ def _set_sites_mutations(
         population = [population for _ in range(num_mutations)]
     assert(len(population) == num_mutations)
 
-    if time is None:
+    if slim_time is None:
         ## This may *not* make sense because we have to round:
-        # time = [int(tables.nodes.time[u]) for u in tables.mutations.node]
-        time = [0 for _ in range(num_mutations)]
-    assert(len(time) == num_mutations)
+        # slim_time = [(-1) * int(tables.nodes.time[u]) for u in tables.mutations.node]
+        slim_time = [0 for _ in range(num_mutations)]
+    assert(len(slim_time) == num_mutations)
 
     mutation_metadata = [[MutationMetadata(*x)] for x in
-                         zip(mutation_type, selection_coeff, population, time)]
+                         zip(mutation_type, selection_coeff, population, slim_time)]
     annotate_mutation_metadata(tables, mutation_metadata)
