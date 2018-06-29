@@ -2,6 +2,7 @@ import attr
 import struct
 import msprime
 import json
+from collections import OrderedDict
 
 from .slim_metadata import *
 
@@ -577,11 +578,13 @@ def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0
     :param int slim_generation: The "current" generation in the SLiM simulation.
     :param int remembered_node_count: The number of nodes that will be "remembered".
     '''
-    pyslim_dict = {"program" : "pyslim", "version" : PYSLIM_VERSION}
-    slim_dict = {"program" : "SLiM", "version" : SLIM_VERSION,
-                 "file_version" : SLIM_FILE_VERSION,
-                 "model_type" : model_type, "generation" : slim_generation,
-                 "remembered_node_count" : remembered_node_count}
+    pyslim_dict = OrderedDict([("program", "pyslim"),
+                               ("version", PYSLIM_VERSION)])
+    slim_dict = OrderedDict([
+                 ("program", "SLiM"), ("version", SLIM_VERSION),
+                 ("file_version", SLIM_FILE_VERSION),
+                 ("model_type", model_type), ("generation", slim_generation),
+                 ("remembered_node_count", remembered_node_count)])
     tables.provenances.add_row(json.dumps(pyslim_dict))
     tables.provenances.add_row(json.dumps(slim_dict))
 
