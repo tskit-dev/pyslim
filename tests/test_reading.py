@@ -1,7 +1,7 @@
 import pyslim
 import msprime
 
-ts = pyslim.load("simple.trees")
+ts = pyslim.load("simple.trees", slim_format=True)
 tables = ts.tables
 
 # mutations

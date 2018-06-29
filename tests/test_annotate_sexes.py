@@ -1,22 +1,20 @@
-import pyslim
 import msprime
+import pyslim
 import random
 
-# Default annotation
 ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)
-new_ts = pyslim.annotate(ts, model_type="nonWF", slim_generation=1)
-# pyslim.dump(new_ts, "sim_annotated.trees")
+ts.dump("msprime.trees")
 
-# Annotate, then modify
-ts = msprime.simulate(10, mutation_rate = 0.0, recombination_rate = 1.0)
-new_ts = pyslim.annotate(ts, model_type="nonWF", slim_generation=1)
-tables = new_ts.tables
-
+ts = pyslim.load("msprime.trees", slim_format=False)
+# now we will be editing it so we need to switch to tables
+tables = ts.tables
+pyslim.annotate_tables(tables, model_type="nonWF", slim_generation=1)
 individual_metadata = list(pyslim.extract_individual_metadata(tables))
-
 for j in range(len(individual_metadata)):
     individual_metadata[j].sex = random.choice([0, 1])
 
 pyslim.annotate_individual_metadata(tables, individual_metadata)
-
 slim_ts = pyslim.load_tables(tables, slim_format=True)
+pyslim.dump(slim_ts, "new_msprime.trees", slim_format=True)
+
+slim_ts2 = pyslim.load("new_msprime.trees", slim_format=True)

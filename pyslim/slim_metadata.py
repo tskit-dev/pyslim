@@ -25,6 +25,8 @@ class MutationMetadata(object):
     time = attr.ib()
 
 def decode_mutation(buff):
+    # note that in the case that buff is of length zero
+    # this returns [] instead of None, like the others do
     num_muts = int(len(buff) / 16) # 4 + 4 + 4 + 4
     if len(buff) != num_muts * 16:
         raise ValueError("Mutation metadata of incorrect format.")
@@ -103,10 +105,14 @@ class NodeMetadata(object):
     genome_type = attr.ib()
 
 def decode_node(buff):
-    if len(buff) != 10: # 8 + 1 + 1
-        raise ValueError("Node metadata of incorrect format.")
-    slim_id, is_null, genome_type = _node_struct.unpack(buff)
-    return NodeMetadata(slim_id=slim_id, is_null=is_null, genome_type=genome_type)
+    if len(buff) == 0:
+        md = None
+    else:
+        if len(buff) != 10: # 8 + 1 + 1
+            raise ValueError("Node metadata of incorrect format.")
+        slim_id, is_null, genome_type = _node_struct.unpack(buff)
+        md = NodeMetadata(slim_id=slim_id, is_null=is_null, genome_type=genome_type)
+    return md
 
 def encode_node(metadata_object):
     return _node_struct.pack(metadata_object.slim_id, metadata_object.is_null,
@@ -167,12 +173,16 @@ class IndividualMetadata(object):
     flags = attr.ib()
 
 def decode_individual(buff):
-    if len(buff) != 24: # 8 + 4 + 4 + 4 + 4:
-        raise ValueError("Individual metadata of incorrect format.")
-    age, pedigree_id, population, sex, flags = _individual_struct.unpack(buff)
-    return IndividualMetadata(
-                age=age, pedigree_id=pedigree_id, population=population,
-                sex=sex, flags=flags)
+    if len(buff) == 0:
+        md = None
+    else:
+        if len(buff) != 24: # 8 + 4 + 4 + 4 + 4:
+            raise ValueError("Individual metadata of incorrect format.")
+        age, pedigree_id, population, sex, flags = _individual_struct.unpack(buff)
+        md = IndividualMetadata(
+                    age=age, pedigree_id=pedigree_id, population=population,
+                    sex=sex, flags=flags)
+    return md
 
 def encode_individual(metadata_object):
     return _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id,
@@ -255,43 +265,47 @@ class PopulationMetadata(object):
     migration_records = attr.ib()
 
 def decode_population(buff):
-    if len(buff) < 88: # 4 + 8 * 10 + 4
-        raise ValueError("Population metadata of incorrect format.")
-    num_migration_records = int((len(buff) - 88) / 12) # 4 + 8
-    if len(buff) != 88 + 12 * num_migration_records:
-        raise ValueError("Population metadata of incorrect format.")
-    struct_string = "<i10di" + "id" * num_migration_records
-    metadata = struct.unpack(struct_string, buff)
-    if metadata[11] != num_migration_records:
-        raise ValueError("Inconsistent population metadata format.")
-    slim_id = metadata[0]
-    selfing_fraction = metadata[1]
-    female_cloning_fraction = metadata[2]
-    male_cloning_fraction = metadata[3]
-    sex_ratio = metadata[4]
-    bounds_x0 = metadata[5]
-    bounds_x1 = metadata[6]
-    bounds_y0 = metadata[7]
-    bounds_y1 = metadata[8]
-    bounds_z0 = metadata[9]
-    bounds_z1 = metadata[10]
-    # num_migration_records = metadata[11]
-    migration_records = []
-    k = 12
-    for j in range(num_migration_records):
-        source_subpop = metadata[k]
-        k += 1
-        migration_rate = metadata[k]
-        k += 1
-        migration_records.append(PopulationMigrationMetadata(source_subpop=source_subpop,
-                                                             migration_rate=migration_rate))
+    if len(buff) == 0:
+        md = None
+    else:
+        if len(buff) < 88: # 4 + 8 * 10 + 4
+            raise ValueError("Population metadata of incorrect format.")
+        num_migration_records = int((len(buff) - 88) / 12) # 4 + 8
+        if len(buff) != 88 + 12 * num_migration_records:
+            raise ValueError("Population metadata of incorrect format.")
+        struct_string = "<i10di" + "id" * num_migration_records
+        metadata = struct.unpack(struct_string, buff)
+        if metadata[11] != num_migration_records:
+            raise ValueError("Inconsistent population metadata format.")
+        slim_id = metadata[0]
+        selfing_fraction = metadata[1]
+        female_cloning_fraction = metadata[2]
+        male_cloning_fraction = metadata[3]
+        sex_ratio = metadata[4]
+        bounds_x0 = metadata[5]
+        bounds_x1 = metadata[6]
+        bounds_y0 = metadata[7]
+        bounds_y1 = metadata[8]
+        bounds_z0 = metadata[9]
+        bounds_z1 = metadata[10]
+        # num_migration_records = metadata[11]
+        migration_records = []
+        k = 12
+        for j in range(num_migration_records):
+            source_subpop = metadata[k]
+            k += 1
+            migration_rate = metadata[k]
+            k += 1
+            migration_records.append(PopulationMigrationMetadata(source_subpop=source_subpop,
+                                                                 migration_rate=migration_rate))
 
-    return PopulationMetadata(slim_id=slim_id, selfing_fraction=selfing_fraction,
-                              female_cloning_fraction=female_cloning_fraction,
-                              male_cloning_fraction=male_cloning_fraction,
-                              sex_ratio=sex_ratio, bounds_x0=bounds_x0, bounds_x1=bounds_x1,
-                              bounds_y0=bounds_y0, bounds_y1=bounds_y1, bounds_z0=bounds_z0,
-                              bounds_z1=bounds_z1, migration_records=migration_records)
+        md = PopulationMetadata(slim_id=slim_id, selfing_fraction=selfing_fraction,
+                                  female_cloning_fraction=female_cloning_fraction,
+                                  male_cloning_fraction=male_cloning_fraction,
+                                  sex_ratio=sex_ratio, bounds_x0=bounds_x0, bounds_x1=bounds_x1,
+                                  bounds_y0=bounds_y0, bounds_y1=bounds_y1, bounds_z0=bounds_z0,
+                                  bounds_z1=bounds_z1, migration_records=migration_records)
+    return md
 
 def encode_population(metadata_object):
     num_migration_records = len(metadata_object.migration_records)

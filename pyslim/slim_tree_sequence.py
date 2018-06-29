@@ -5,93 +5,199 @@ import json
 
 from .slim_metadata import *
 
-def load(path, slim_generation=0.0):
+GENOME_TYPE_AUTOSOME = 0
+GENOME_TYPE_X = 1
+GENOME_TYPE_Y = 2
+INDIVIDUAL_TYPE_HERMAPHRODITE = -1
+INDIVIDUAL_TYPE_FEMALE = 0
+INDIVIDUAL_TYPE_MALE = 1
+INDIVIDUAL_FLAG_MIGRATED = 0x01
+
+def load(path, slim_format):
     '''
-    Loads a standard msprime tree sequence, as produced by a SLiM simulation,
-    and does the following things to it:
+    Loads a tree sequence, and if slim_format is True, then
+    do the following things to it:
 
-    - shifts time to start from `slim_generation`
-    - removes `sites.ancestral_state` and replaces with integers,
-        retaining these as the first entries in `self.alleles`.
-    - removes `mutations.derived_state` and replaces with integers,
-        retaining these as the remaining entries in `self.alleles`.
+    - shifts time to start from the `generation` entry in the provenance table
+    - removes `sites.ancestral_state` and `mutations.derived_state`, replacing
+      these with integers, and storing translation tables in sites.metadata.
 
-    After this substitution, an allele `j` at site `k` has state
-    `self.alleles[k][j]`.
+    After this substitution, the original allele `j` at site `k` can be obtained
+    by doing
+    ```
+    alleles = extract_alleles(tables)
+    alleles[k][j]
+    ```
+
+    These two operations are not necessary for working with the tree sequence,
+    but are more convenient.
 
     :param string path: The path to a .trees file.
-    :param float slim_generation: The time in SLiM time that will correspond to zero
-        in the new tree sequence (time in the tree sequence will be measured in generations
-        before this SLiM time).
+    :param bool slim_format: Whether the .trees file should be coverted from
+        SLiM format.
     '''
     ts = msprime.load(path)
-    tables = ts.tables
-    return load_tables(tables, slim_generation=slim_generation)
-
-
-def load_tables(tables, slim_generation=0.0):
-    '''
-    Loads the TreeSequence defined by the tables.
-    '''
-    provenance = get_provenance(tables)
-    # pull out ancestral states
-    alleles = [[x] for x in msprime.unpack_strings(tables.sites.ancestral_state,
-                                                   tables.sites.ancestral_state_offset)]
-    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
-                                           tables.mutations.derived_state_offset)
-    new_ancestral_state = ['0' for _ in range(tables.sites.num_rows)]
-    new_derived_state = ['' for _ in derived_state]
-    for j in range(tables.mutations.num_rows):
-        site = tables.mutations.site[j]
-        try:
-            allele_index = alleles[site].index(derived_state[j])
-        except ValueError:
-            allele_index = len(alleles[site])
-            alleles[site].append(derived_state[j])
-
-        new_derived_state[j] = str(allele_index)
-
-    # reset sites and mutations
-    new_ds_column, new_ds_offset = msprime.pack_strings(new_derived_state)
-    tables.mutations.set_columns(site=tables.mutations.site, node=tables.mutations.node, 
-            derived_state=new_ds_column, derived_state_offset=new_ds_offset, 
-            parent=tables.mutations.parent, metadata=tables.mutations.metadata, 
-            metadata_offset=tables.mutations.metadata_offset)
-    new_as_column, new_as_offset = msprime.pack_strings(new_ancestral_state)
-    tables.sites.set_columns(position=tables.sites.position, 
-                             ancestral_state=new_as_column,
-                             ancestral_state_offset=new_as_offset,
-                             metadata=tables.sites.metadata,
-                             metadata_offset=tables.sites.metadata_offset)
-
-    _set_slim_generation(tables, slim_generation)
-
-    ts = tables.tree_sequence()
-    ts.provenance = provenance
-    ts.slim_generation = slim_generation
-    ts.alleles = alleles
+    if slim_format:
+        tables = ts.tables
+        ts = load_tables(tables, slim_format)
     return ts
 
 
-def annotate(tables, model_type, slim_generation):
+def dump(ts, path, slim_format):
     '''
-    Takes a set of tables defining a tree sequence (as produced by msprime, for
-    instance), and adds in the information necessary for SLiM to use it as an
-    initial state, filling in mostly default values.
+    Write out the .trees file that can be read back in by SLiM.
     '''
+    if slim_format:
+        tables = ts.tables
+        provenance = get_provenance(tables)
+        _set_slim_generation(tables, -1 * provenance.slim_generation)
+        _relabel_alleles(tables)
+    ts.dump(path)
+
+
+def load_tables(tables, slim_format):
+    '''
+    Loads the TreeSequence defined by the tables: see `pyslim.load()`.
+    '''
+    if slim_format:
+        provenance = get_provenance(tables)
+        _set_slim_generation(tables, provenance.slim_generation)
+        _delabel_alleles(tables)
+    ts = tables.tree_sequence()
+    return ts
+
+
+def annotate(ts, model_type, slim_generation, remembered_node_count=0):
+    '''
+    Takes tree sequence (as produced by msprime, for instance), and adds in the
+    information necessary for SLiM to use it as an initial state, filling in
+    mostly default values.
+    '''
+    tables = ts.tables
+    annotate_tables(tables, model_type, slim_generation, remembered_node_count)
+    ts = tables.tree_sequence()
+    return ts
+
+
+def annotate_tables(tables, model_type, slim_generation, remembered_node_count=0):
+    '''
+    Does the work of `annotate()`, but modifies the tables in place.
+    '''
+    if (type(slim_generation) is not int) or (slim_generation < 1):
+        raise ValueError("SLiM generation must be an integer and at least 1.")
     # nodes must come before populations
     _set_nodes_individuals(tables)
     _set_populations(tables)
     _set_sites_mutations(tables)
-    _set_slim_generation(tables, slim_generation=slim_generation)
-    set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
-    return tables
+    set_provenance(tables, model_type=model_type, slim_generation=slim_generation,
+                   remembered_node_count=remembered_node_count)
+    ancestral_state = msprime.unpack_strings(tables.sites.ancestral_state,
+                                             tables.sites.ancestral_state_offset)
+    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
+                                           tables.mutations.derived_state_offset)
+    alleles = _make_allele_map(tables)
+    _store_alleles(tables, alleles)
 
 
-def write_slim_tree_sequence(ts):
+def extract_alleles(tables, keep=True):
     '''
-    Write out the .trees file that can be read back in by SLiM.
+    Decodes the list of dictionaries giving translations for each allele
+    stored in the metadata column of the site table when reading a SLiM tree sequence.
+    If `keep` is False, will clear the metadata column.
     '''
+    md = msprime.unpack_strings(tables.sites.metadata, tables.sites.metadata_offset)
+    alleles = [json.loads(x) for x in md]
+    if not keep:
+        tables.sites.set_columns(
+                position=tables.sites.position,
+                ancestral_state=tables.sites.ancestral_state,
+                ancestral_state_offset=tables.sites.ancestral_state_offset,
+                metadata=None, metadata_offset=None)
+    return alleles
+
+
+def _store_alleles(tables, alleles):
+    '''
+    Stores an allele map in the metadata column of a site table, overwriting
+    anything already there.
+    '''
+    alleles_text = [json.dumps(x) for x in alleles]
+    md_val, md_off = msprime.pack_strings(alleles_text)
+    tables.sites.set_columns(
+            position=tables.sites.position,
+            ancestral_state=tables.sites.ancestral_state,
+            ancestral_state_offset=tables.sites.ancestral_state_offset,
+            metadata=md_val, metadata_offset=md_off)
+
+
+def _make_allele_map(tables):
+    '''
+    Make a list of dicts whose keys are the alleles at each site and whose
+    values are a sequence of integers, starting from 0, as strings.  Used to
+    make an allele map for an msprime-produced tree sequence that can later be
+    used to produce a SLiM-like tree sequence.
+    '''
+    inv_alleles = [{x:'0'} for x in msprime.unpack_strings(tables.sites.ancestral_state,
+                                                           tables.sites.ancestral_state_offset)]
+    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
+                                           tables.mutations.derived_state_offset)
+    for j in range(tables.mutations.num_rows):
+        site = tables.mutations.site[j]
+        if derived_state[j] not in inv_alleles[site]:
+            inv_alleles[site][derived_state[j]] = str(len(inv_alleles[site]))
+    return inv_alleles
+
+
+def _delabel_alleles(tables):
+    '''
+    Replaces alleles at each site by integers, starting with '0' for the ancestral state,
+    placing the resulting list of dictionaries in the metadata column of the site table
+    (and removing anything already there).  Can be inverted by 
+    ```
+       _relabel_alleles(tables)
+    ```
+    Used to make SLiM-produced alleles nice to look at.
+    '''
+    inv_alleles = _make_allele_map(tables)
+    alleles = [dict((v, k) for k, v in x.items()) for x in inv_alleles]
+    _relabel_alleles(tables, inv_alleles)
+    _store_alleles(tables, alleles)
+    return alleles
+
+
+def _relabel_alleles(tables, alleles=None):
+    '''
+    Replace ancestral and derived state x at site j by alleles[j][x].
+    `alleles` should be a list of dicts. If alleles are not provided,
+    extract them from the tables (removing them from the metadata).
+    '''
+    if alleles is None:
+        alleles = extract_alleles(tables, keep=False)
+    ancestral_state = msprime.unpack_strings(tables.sites.ancestral_state,
+                                             tables.sites.ancestral_state_offset)
+    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
+                                           tables.mutations.derived_state_offset)
+    for j, x in enumerate(ancestral_state):
+        if x not in alleles[j]:
+            raise ValueError("Ancestral state {} not present in alleles at site {}.".format(x, j))
+    for j, x in enumerate(derived_state):
+        if x not in alleles[tables.mutations.site[j]]:
+            raise ValueError("Derived state {} not present in alleles " \
+                    + "at site {}.".format(x, tables.mutations.site[j]))
+    new_ancestral_state = [alleles[j][x] for j, x in enumerate(ancestral_state)]
+    new_derived_state = [alleles[j][x] for j, x in zip(tables.mutations.site, derived_state)]
+    # reset sites and mutations
+    new_ds_column, new_ds_offset = msprime.pack_strings(new_derived_state)
+    tables.mutations.set_columns(site=tables.mutations.site, node=tables.mutations.node,
+            derived_state=new_ds_column, derived_state_offset=new_ds_offset,
+            parent=tables.mutations.parent, metadata=tables.mutations.metadata,
+            metadata_offset=tables.mutations.metadata_offset)
+    new_as_column, new_as_offset = msprime.pack_strings(new_ancestral_state)
+    tables.sites.set_columns(position=tables.sites.position,
+                             ancestral_state=new_as_column,
+                             ancestral_state_offset=new_as_offset,
+                             metadata=tables.sites.metadata,
+                             metadata_offset=tables.sites.metadata_offset)
 
 
 def _set_slim_generation(tables, slim_generation):
@@ -100,19 +206,20 @@ def _set_slim_generation(tables, slim_generation):
     *before* `slim_generation`, by adding this value to the `time` columns of
     Node and Migration tables.
     '''
-    tables.nodes.set_columns(flags=tables.nodes.flags, 
-            time=tables.nodes.time + slim_generation, 
-            population=tables.nodes.population, individual=tables.nodes.individual, 
+    tables.nodes.set_columns(flags=tables.nodes.flags,
+            time=tables.nodes.time + slim_generation,
+            population=tables.nodes.population, individual=tables.nodes.individual,
             metadata=tables.nodes.metadata, metadata_offset=tables.nodes.metadata_offset)
     tables.migrations.set_columns(left=tables.migrations.left, right=tables.migrations.right,
-            node=tables.migrations.node, source=tables.migrations.source, 
+            node=tables.migrations.node, source=tables.migrations.source,
             dest=tables.migrations.dest, time=tables.migrations.time + slim_generation)
 
 
 def _set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,
-        ind_population=None, ind_sex=-1, ind_flags=0, slim_ind_flags=0, node_id=None,
-        node_is_null=False, node_type=0):
+        ind_population=None, ind_sex=INDIVIDUAL_TYPE_HERMAPHRODITE,
+        ind_flags=0, slim_ind_flags=0, node_id=None,
+        node_is_null=False, node_type=GENOME_TYPE_AUTOSOME):
     '''
     Adds to a TableCollection the information relevant to individuals required
     for SLiM to load in a tree sequence, that is found in Node and Individual
@@ -206,8 +313,7 @@ def _set_nodes_individuals(
                              metadata_offset=tables.nodes.metadata_offset)
 
     tables.individuals.set_columns(
-            flags=ind_flags, 
-            location=[x for y in location for x in y],
+            flags=ind_flags, location=[x for y in location for x in y],
             location_offset=[0] + [len(x) for x in location])
 
     individual_metadata = [IndividualMetadata(*x) for x in
@@ -300,7 +406,7 @@ def _set_populations(
 
 
 def _set_sites_mutations(
-        tables, mutation_id=None, mutation_type=1, selection_coeff=0.0, sex=-1, flags=0,
+        tables, mutation_id=None, mutation_type=1, selection_coeff=0.0,
         population=msprime.NULL_POPULATION, time=None):
     '''
     Adds to a TableCollection the information relevant to mutations required

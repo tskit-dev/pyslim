@@ -43,13 +43,7 @@ new_slim_ts = pyslim.load_tables(tables)
 
 ## TODO
 
-1. Make populations already extant in node tables propagate to individuals.
-
-2. Stop recording SLiM metadata for nodes that don't correspond to individuals.
-
 3. Save population metadata as ASCII somewhere.
-
-4. Check what happened to .alleles.
 
 5. Properly set (comma-separated) strings of mutation IDs in derived states, and set ancestral states to be ''.
 
@@ -58,5 +52,4 @@ new_slim_ts = pyslim.load_tables(tables)
 
 7. Check that remembered individuals/samples are dealt with correctly.
 
-## Questions
-
+8. Assign mutation IDs in annotate().
