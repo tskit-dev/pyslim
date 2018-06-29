@@ -5,14 +5,9 @@ import json
 
 from .slim_metadata import *
 
-GENOME_TYPE_AUTOSOME = 0
-GENOME_TYPE_X = 1
-GENOME_TYPE_Y = 2
-INDIVIDUAL_TYPE_HERMAPHRODITE = -1
-INDIVIDUAL_TYPE_FEMALE = 0
-INDIVIDUAL_TYPE_MALE = 1
-INDIVIDUAL_FLAG_MIGRATED = 0x01
-
+SLIM_VERSION = "3.0"
+SLIM_FILE_VERSION = "0.1"
+PYSLIM_VERSION = "0.1"
 
 def load(path, slim_format):
     '''
@@ -47,7 +42,7 @@ def load_tables(tables, slim_format):
     return ts
 
 
-def annotate(ts, model_type, slim_generation, remembered_node_count=0):
+def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
@@ -62,15 +57,15 @@ def annotate(ts, model_type, slim_generation, remembered_node_count=0):
         this many nodes).  
     '''
     tables = ts.tables
-    annotate_tables(tables, model_type, slim_generation, remembered_node_count)
+    annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count)
     return SlimTreeSequence.load_tables(tables)
 
 
-def annotate_tables(tables, model_type, slim_generation, remembered_node_count=0):
+def annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count=0):
     '''
-    Does the work of :func:`annotate()`, but modifies the tables in place: so,
+    Does the work of :func:`annotate_defaults()`, but modifies the tables in place: so,
     takes tables as produced by ``msprime``, and makes them look like the
-    tables as output by SLiM. See :func:`annotate` for details.
+    tables as output by SLiM. See :func:`annotate_defaults` for details.
     '''
     if (type(slim_generation) is not int) or (slim_generation < 1):
         raise ValueError("SLiM generation must be an integer and at least 1.")
@@ -136,7 +131,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         Creates the :class:`SlimTreeSequence` defined by the tables.
 
         :param TableCollection tables: A set of tables, as produced by SLiM
-            or by annotate().
+            or by annotate_defaults().
         :rtype SlimTreeSequence:
         '''
         provenance = get_provenance(tables)
@@ -579,10 +574,11 @@ def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0
     :param int slim_generation: The "current" generation in the SLiM simulation.
     :param int remembered_node_count: The number of nodes that will be "remembered".
     '''
-    pyslim_dict = {"program":"pyslim", "version":0.1}
-    slim_dict = {"program":"SLiM", "version":"3.0", "file_version":"0.1",
-                 "model_type":model_type, "generation":slim_generation,
-                 "remembered_node_count":remembered_node_count}
+    pyslim_dict = {"program" : "pyslim", "version" : PYSLIM_VERSION}
+    slim_dict = {"program" : "SLiM", "version" : SLIM_VERSION,
+                 "file_version" : SLIM_FILE_VERSION,
+                 "model_type" : model_type, "generation" : slim_generation,
+                 "remembered_node_count" : remembered_node_count}
     tables.provenances.add_row(json.dumps(pyslim_dict))
     tables.provenances.add_row(json.dumps(slim_dict))
 

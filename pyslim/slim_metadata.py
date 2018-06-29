@@ -3,6 +3,13 @@ import struct
 import msprime
 import json
 
+GENOME_TYPE_AUTOSOME = 0
+GENOME_TYPE_X = 1
+GENOME_TYPE_Y = 2
+INDIVIDUAL_TYPE_HERMAPHRODITE = -1
+INDIVIDUAL_TYPE_FEMALE = 0
+INDIVIDUAL_TYPE_MALE = 1
+INDIVIDUAL_FLAG_MIGRATED = 0x01
 
 ###########
 # Mutations
@@ -23,6 +30,12 @@ class MutationMetadata(object):
     selection_coeff = attr.ib()
     population = attr.ib()
     slim_time = attr.ib()
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 def decode_mutation(buff):
     '''
@@ -121,11 +134,16 @@ class NodeMetadata(object):
     is_null = attr.ib()
     genome_type = attr.ib()
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 def decode_node(buff):
     '''
     Extracts the information stored in binary by SLiM in the ``metadata``
-    column of a :class:`NodeTable`. If ``buff`` is ``None``, returns an
-    empty bytes object.
+    column of a :class:`NodeTable`.  If the buffer is empty, returns None.
 
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`NodeTable`, as stored by SLiM.
@@ -143,13 +161,18 @@ def decode_node(buff):
 def encode_node(metadata_object):
     '''
     Encodes :class:`NodeMetadata` objects as a bytes object, suitable to be put
-    in as metadata for a node.
+    in as metadata for a node. If ``metadata_object`` is ``None``, returns an
+    empty bytes object.
 
     :param NodeMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
-    return _node_struct.pack(metadata_object.slim_id, metadata_object.is_null,
-                            metadata_object.genome_type)
+    if metadata_object is None:
+        md = b''
+    else:
+        md = _node_struct.pack(metadata_object.slim_id, metadata_object.is_null,
+                               metadata_object.genome_type)
+    return md
 
 
 def extract_node_metadata(tables):
@@ -207,11 +230,16 @@ class IndividualMetadata(object):
     sex = attr.ib()
     flags = attr.ib()
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 def decode_individual(buff):
     '''
     Extracts the information stored in binary by SLiM in the ``metadata``
-    column of a :class:`IndividualTable`. If ``buff`` is ``None``, returns an
-    empty bytes object.
+    column of a :class:`IndividualTable`. If the buffer is empty, returns None.
 
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`IndividualTable`, as stored by SLiM.
@@ -231,14 +259,19 @@ def decode_individual(buff):
 def encode_individual(metadata_object):
     '''
     Encodes :class:`IndividualMetadata` objects as a bytes object, suitable to be put
-    in as metadata for an individual.
+    in as metadata for an individual.  If ``buff`` is ``None``, returns an
+    empty bytes object. 
 
     :param IndividualMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
-    return _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id,
-                                   metadata_object.population, metadata_object.sex,
-                                   metadata_object.flags)
+    if metadata_object is None:
+        md = b''
+    else:
+        md = _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id,
+                                     metadata_object.population, metadata_object.sex,
+                                     metadata_object.flags)
+    return md
 
 
 def extract_individual_metadata(tables):
@@ -302,6 +335,16 @@ class PopulationMigrationMetadata(object):
     source_subpop = attr.ib()
     migration_rate = attr.ib()
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __iter__(self):
+        for a in (self.source_subpop, self.migration_rate):
+            yield a
+
 @attr.s
 class PopulationMetadata(object):
     slim_id = attr.ib()
@@ -317,11 +360,16 @@ class PopulationMetadata(object):
     bounds_z1 = attr.ib()
     migration_records = attr.ib()
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 def decode_population(buff):
     '''
     Extracts the information stored in binary by SLiM in the ``metadata``
-    column of a :class:`PopulationTable`. If ``buff`` is ``None``, returns an
-    empty bytes object.
+    column of a :class:`PopulationTable`. If the buffer is empty, returns None.
 
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`PopulationTable`, as stored by SLiM.
@@ -372,25 +420,29 @@ def decode_population(buff):
 def encode_population(metadata_object):
     '''
     Encodes :class:`PopulationMetadata` objects as a bytes object, suitable to be put
-    in as metadata for a population.
+    in as metadata for a population.  If ``buff`` is ``None``, returns an empty
+    bytes object.
 
     :param PopulationMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
-    num_migration_records = len(metadata_object.migration_records)
-    for mr in metadata_object.migration_records:
-        if len(mr) != 2:
-            raise ValueError("Migration records should be tuples of (source, rate).")
-    mr_values = [a for b in metadata_object.migration_records for a in b]
-    struct_string = "<i10di" + "id" * num_migration_records
-    metadata = struct.pack(struct_string, metadata_object.slim_id,
-                           metadata_object.selfing_fraction, metadata_object.female_cloning_fraction,
-                           metadata_object.male_cloning_fraction, metadata_object.sex_ratio,
-                           metadata_object.bounds_x0, metadata_object.bounds_x1,
-                           metadata_object.bounds_y0, metadata_object.bounds_y1,
-                           metadata_object.bounds_z0, metadata_object.bounds_z1,
-                           num_migration_records, *mr_values)
-    return metadata
+    if metadata_object is None:
+        md = b''
+    else:
+        num_migration_records = len(metadata_object.migration_records)
+        for mr in metadata_object.migration_records:
+            if type(mr) is not PopulationMigrationMetadata:
+                raise ValueError("Migration records should PopulationMigrationMetadata objects.")
+        mr_values = [a for b in metadata_object.migration_records for a in b]
+        struct_string = "<i10di" + "id" * num_migration_records
+        md = struct.pack(struct_string, metadata_object.slim_id,
+                         metadata_object.selfing_fraction, metadata_object.female_cloning_fraction,
+                         metadata_object.male_cloning_fraction, metadata_object.sex_ratio,
+                         metadata_object.bounds_x0, metadata_object.bounds_x1,
+                         metadata_object.bounds_y0, metadata_object.bounds_y1,
+                         metadata_object.bounds_z0, metadata_object.bounds_z1,
+                         num_migration_records, *mr_values)
+    return md
 
 
 def extract_population_metadata(tables):
