@@ -403,7 +403,7 @@ def _set_nodes_individuals(
             location_offset=[0] + [len(x) for x in location])
 
     individual_metadata = [IndividualMetadata(*x) for x in
-                           zip(age, ind_id, ind_population, ind_sex, slim_ind_flags)]
+                           zip(ind_id, age, ind_population, ind_sex, slim_ind_flags)]
     node_metadata = [None for _ in range(num_nodes)]
     for j in samples:
         node_metadata[j] = NodeMetadata(slim_id=node_id[j], is_null=node_is_null[j],

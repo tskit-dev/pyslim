@@ -224,8 +224,8 @@ _individual_struct = struct.Struct("<qiiiI")
 
 @attr.s
 class IndividualMetadata(object):
-    age = attr.ib()
     pedigree_id = attr.ib()
+    age = attr.ib()
     population = attr.ib()
     sex = attr.ib()
     flags = attr.ib()
