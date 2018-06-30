@@ -149,7 +149,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         new_tables = ts.tables
         provenance = get_provenance(new_tables)
         _set_slim_generation(new_tables, provenance.slim_generation)
-        _delabel_alleles(new_tables)
+        delabel_alleles(new_tables)
         ts = msprime.TableCollection.tree_sequence(new_tables)
         return cls(ts, provenance.slim_generation)
 
@@ -228,7 +228,7 @@ def _make_allele_map(tables):
     return inv_alleles
 
 
-def _delabel_alleles(tables):
+def delabel_alleles(tables):
     '''
     Replaces alleles at each site by integers, starting with ``'0'`` for the
     ancestral state, placing the resulting list of dictionaries in the metadata
