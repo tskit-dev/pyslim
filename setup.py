@@ -15,7 +15,7 @@ except ImportError:
 
 
 setup(name='pyslim',
-      version='0.0.5',
+      version='0.0.52',
       description=u"Manipulate tree sequences produced by SLiM.",
       long_description=long_description,
       classifiers=[],
