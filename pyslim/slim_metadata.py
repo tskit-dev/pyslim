@@ -250,9 +250,9 @@ def decode_individual(buff):
     else:
         if len(buff) != 24: # 8 + 4 + 4 + 4 + 4:
             raise ValueError("Individual metadata of incorrect format.")
-        age, pedigree_id, population, sex, flags = _individual_struct.unpack(buff)
+        pedigree_id, age, population, sex, flags = _individual_struct.unpack(buff)
         md = IndividualMetadata(
-                    age=age, pedigree_id=pedigree_id, population=population,
+                    pedigree_id=pedigree_id, age=age, population=population,
                     sex=sex, flags=flags)
     return md
 
@@ -268,7 +268,7 @@ def encode_individual(metadata_object):
     if metadata_object is None:
         md = b''
     else:
-        md = _individual_struct.pack(metadata_object.age, metadata_object.pedigree_id,
+        md = _individual_struct.pack(metadata_object.pedigree_id, metadata_object.age,
                                      metadata_object.population, metadata_object.sex,
                                      metadata_object.flags)
     return md
