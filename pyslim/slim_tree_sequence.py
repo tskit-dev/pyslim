@@ -322,6 +322,9 @@ def _set_nodes_individuals(
     '''
     samples = list(filter(lambda j: tables.nodes.flags[j] & msprime.NODE_IS_SAMPLE,
                           range(tables.nodes.num_rows)))
+    if (len(samples) % 2) != 1:
+        raise ValueError("There must be an even number of sampled nodes,"\
+                         + "since organisms are diploid.")
 
     if node_ind is None:
         node_ind = [msprime.NULL_INDIVIDUAL for _ in range(tables.nodes.num_rows)]

@@ -62,8 +62,3 @@ for ind in extract_mutation_metadata(new_ts.tables):
     have a corresponding individual.
 
 3. The "remembered nodes" will be the *first* nodes.
-
-
-## TODO
-
-1. Check that remembered individuals/samples are dealt with correctly.
