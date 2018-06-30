@@ -57,7 +57,7 @@ def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
         tree sequence will be marked as "ancestral samples" by SLiM (it must by the
         *first* this many nodes).  
     '''
-    tables = ts.tables
+    tables = ts.dump_tables()
     annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count)
     return SlimTreeSequence.load_tables(tables)
 
@@ -121,7 +121,8 @@ class SlimTreeSequence(msprime.TreeSequence):
         ```
         :rtype list:
         '''
-        return _extract_alleles(msprime.TreeSequence.tables.fget(self), keep=True)
+        tables = msprime.TreeSequence.dump_tables(self)
+        return _extract_alleles(tables, keep=True)
 
     @classmethod
     def load(cls, path):
@@ -132,7 +133,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         :rtype SlimTreeSequence:
         '''
         ts = msprime.load(path)
-        tables = ts.tables
+        tables = ts.dump_tables()
         return cls.load_tables(tables)
 
     @classmethod
@@ -146,7 +147,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         # a roundabout way to copy the tables
         ts = tables.tree_sequence()
-        new_tables = ts.tables
+        new_tables = ts.dump_tables()
         provenance = get_provenance(new_tables)
         _set_slim_generation(new_tables, provenance.slim_generation)
         delabel_alleles(new_tables)
@@ -162,21 +163,28 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         # This would be simpler if there were a python-level TableCollection.dump
         # method: https://github.com/tskit-dev/msprime/issues/547
-        tables = self.tables
+        tables = self.dump_tables()
         temp_ts = msprime.TableCollection.tree_sequence(tables)
         msprime.TreeSequence.dump(temp_ts, path, **kwargs)
+
+    def dump_tables(self):
+        '''
+        Like :meth:``tables``, this ensures that any time we look at the tables of a SlimTreeSequence,
+        they look just like the ones we put in, having reversed the operations we did
+        to put them in (except that any metadata previously in the Site table will be gone).
+        '''
+        tables = msprime.TreeSequence.dump_tables(self)
+        _set_slim_generation(tables, -1 * self.slim_generation)
+        _relabel_alleles(tables)
+        return tables
 
     @property
     def tables(self):
         '''
-        This method ensures that any time we look at the tables of a SlimTreeSequence,
-        they look just like the ones we put in, having reversed the operations we did
-        to put them in (except that any metadata previously in the Site table will be gone).
+        See :meth:`SlimTreeSequence.dump_tables`. This returns an *editable copy* of the tables;
+        changing it will *not* affect the :class:`SlimTreeSequence` itself.
         '''
-        tables = msprime.TreeSequence.tables.fget(self)
-        _set_slim_generation(tables, -1 * self.slim_generation)
-        _relabel_alleles(tables)
-        return tables
+        return self.dump_tables()
 
 
 def _extract_alleles(tables, keep=True):

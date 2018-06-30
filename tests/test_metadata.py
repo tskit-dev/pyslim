@@ -72,8 +72,8 @@ class TestAnnotate(unittest.TestCase):
 
     def test_annotate_mutations(self):
         for ts in get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
+            tables = ts.dump_tables()
+            new_tables = ts.dump_tables()
             metadata = []
             for md in msprime.unpack_bytes(tables.mutations.metadata, 
                                            tables.mutations.metadata_offset):
@@ -87,8 +87,8 @@ class TestAnnotate(unittest.TestCase):
 
     def test_annotate_nodes(self):
         for ts in get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
+            tables = ts.dump_tables()
+            new_tables = ts.dump_tables()
             metadata = []
             for md in msprime.unpack_bytes(tables.nodes.metadata, 
                                            tables.nodes.metadata_offset):
@@ -102,8 +102,8 @@ class TestAnnotate(unittest.TestCase):
 
     def test_annotate_individuals(self):
         for ts in get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
+            tables = ts.dump_tables()
+            new_tables = ts.dump_tables()
             metadata = []
             for md in msprime.unpack_bytes(tables.individuals.metadata, 
                                            tables.individuals.metadata_offset):
@@ -117,8 +117,8 @@ class TestAnnotate(unittest.TestCase):
 
     def test_annotate_populations(self):
         for ts in get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
+            tables = ts.dump_tables()
+            new_tables = ts.dump_tables()
             metadata = []
             for md in msprime.unpack_bytes(tables.populations.metadata, 
                                            tables.populations.metadata_offset):
@@ -145,10 +145,10 @@ class TestDumpLoad(tests.PyslimTestCase):
     def test_load_tables(self):
         for ts in get_slim_examples():
             self.assertTrue(type(ts) is pyslim.SlimTreeSequence)
-            tables = ts.tables
+            tables = ts.dump_tables()
             new_ts = pyslim.load_tables(tables, slim_format=True)
             self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
-            new_tables = new_ts.tables
+            new_tables = new_ts.dump_tables()
             self.assertTablesAlmostEqual(tables, new_tables)
 
     def test_load(self):

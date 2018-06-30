@@ -14,7 +14,7 @@ def infinite_alleles_factory(alleles):
 
 
 def mutate(ts, mutation_rate):
-    tables = ts.tables
+    tables = ts.dump_tables()
     edge_order = tables.nodes.time[tables.edges.child].argsort()
     site_pos = {}
     alleles = set(msprime.unpack_strings(tables.sites.ancestral_state,

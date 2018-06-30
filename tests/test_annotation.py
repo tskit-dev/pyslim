@@ -28,8 +28,8 @@ class TestAnnotate(tests.PyslimTestCase):
         Verify that the tables returned after annotation are equal, up to the
         expected forgetting of metadata.
         '''
-        tables1 = ts1.tables
-        tables2 = ts2.tables
+        tables1 = ts1.dump_tables()
+        tables2 = ts2.dump_tables()
         # compare nodes
         self.assertArrayEqual(tables1.nodes.flags, tables2.nodes.flags)
         self.assertArrayAlmostEqual(tables1.nodes.time, tables2.nodes.time + time_offset)
@@ -67,13 +67,13 @@ class TestAnnotate(tests.PyslimTestCase):
         '''
         Verify the default values have been entered into metadata.
         '''
-        mut_md = pyslim.extract_mutation_metadata(ts.tables)
+        mut_md = pyslim.extract_mutation_metadata(ts.dump_tables())
         for md in mut_md:
             self.assertEqual(md.mutation_type, 1)
             self.assertEqual(md.selection_coeff, 0.0)
             self.assertEqual(md.population, msprime.NULL_POPULATION)
             self.assertEqual(md.slim_time, 0)
-        node_md = pyslim.extract_node_metadata(ts.tables)
+        node_md = pyslim.extract_node_metadata(ts.dump_tables())
         for md, node in zip(node_md, ts.nodes()):
             if not node.is_sample():
                 self.assertEqual(md, None)
@@ -83,11 +83,11 @@ class TestAnnotate(tests.PyslimTestCase):
         for ind in ts.individuals(): 
             self.assertArrayEqual(ind.location, [0, 0, 0])
             self.assertEqual(ind.flags, 0)
-        ind_md = pyslim.extract_individual_metadata(ts.tables)
+        ind_md = pyslim.extract_individual_metadata(ts.dump_tables())
         for md in ind_md:
             self.assertEqual(md.sex, pyslim.INDIVIDUAL_TYPE_HERMAPHRODITE)
             self.assertEqual(md.flags, 0)
-        pop_md = pyslim.extract_population_metadata(ts.tables)
+        pop_md = pyslim.extract_population_metadata(ts.dump_tables())
         for md in pop_md:
             self.assertEqual(md.selfing_fraction, 0.0)
             self.assertEqual(md.female_cloning_fraction, 0.0)
@@ -114,7 +114,7 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_individuals(self):
         for ts in get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-            tables = slim_ts.tables
+            tables = slim_ts.dump_tables()
             metadata = list(pyslim.extract_individual_metadata(tables))
             self.assertEqual(len(metadata), slim_ts.num_individuals)
             sexes = [random.choice([pyslim.INDIVIDUAL_TYPE_FEMALE, pyslim.INDIVIDUAL_TYPE_MALE])
@@ -130,7 +130,7 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_mutations(self):
         for ts in get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-            tables = slim_ts.tables
+            tables = slim_ts.dump_tables()
             metadata = list(pyslim.extract_mutation_metadata(tables))
             self.assertEqual(len(metadata), slim_ts.num_mutations)
             selcoefs = [random.uniform(0, 1) for _ in metadata]
@@ -145,7 +145,7 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_nodes(self):
         for ts in get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-            tables = slim_ts.tables
+            tables = slim_ts.dump_tables()
             metadata = list(pyslim.extract_node_metadata(tables))
             self.assertEqual(len(metadata), slim_ts.num_nodes)
             gtypes = [random.choice([pyslim.GENOME_TYPE_X, pyslim.GENOME_TYPE_Y])
