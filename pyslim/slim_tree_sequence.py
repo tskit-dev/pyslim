@@ -313,7 +313,7 @@ def _set_nodes_individuals(
     This is designed to make it easy to assign default values:
     - (node_ind) the 2*j-th and (2*j+1)-st `sample` nodes to individual j
     - (location) individual locations to (0, 0, 0)
-    - (age) individual age to 0.0
+    - (age) individual age to 0
     - (ind_id) SLiM individual pedigree IDs to sequential integers starting from 0
     - (ind_population) individual populations to 0
     - (node_id) SLiM genome IDs to sequential integers starting with samples from 0
@@ -398,9 +398,9 @@ def _set_nodes_individuals(
                              metadata=tables.nodes.metadata,
                              metadata_offset=tables.nodes.metadata_offset)
 
+    loc_vec, loc_off = msprime.pack_bytes(location)
     tables.individuals.set_columns(
-            flags=ind_flags, location=[x for y in location for x in y],
-            location_offset=[0] + [len(x) for x in location])
+            flags=ind_flags, location=loc_vec, location_offset=loc_off)
 
     individual_metadata = [IndividualMetadata(*x) for x in
                            zip(ind_id, age, ind_population, ind_sex, slim_ind_flags)]

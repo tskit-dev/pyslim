@@ -175,16 +175,6 @@ class TestAlleles(tests.PyslimTestCase):
     Test allele translation.
     '''
 
-    def verify_haplotype_equality(self, ts, slim_ts):
-        alleles = slim_ts.alleles
-        self.assertEqual(ts.num_sites, slim_ts.num_sites)
-        self.assertEqual(ts.num_sites, len(alleles))
-        for j, v1, v2 in zip(range(ts.num_sites), ts.variants(),
-                             slim_ts.variants()):
-            g1 = [v1.alleles[x] for x in v1.genotypes]
-            g2 = [alleles[j][v2.alleles[x]] for x in v2.genotypes]
-            self.assertArrayEqual(g1, g2)
-
     def test_haplotypes(self):
         for slim_ts in get_slim_examples():
             tables = slim_ts.tables
