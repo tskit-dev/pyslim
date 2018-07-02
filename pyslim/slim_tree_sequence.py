@@ -85,19 +85,13 @@ def annotate_defaults_tables(tables, model_type, slim_generation, remembered_nod
     _set_slim_generation(tables, -1 * slim_generation)
     _set_provenance(tables, model_type=model_type, slim_generation=slim_generation,
                    remembered_node_count=remembered_node_count)
-    alleles = _make_allele_map(tables)
-    _store_alleles(tables, alleles)
 
 
 class SlimTreeSequence(msprime.TreeSequence):
     '''
-    This is just like a :class:`TreeSequence`, except for two things:
-        1. Times are shifted by the `generation` in the last SLiM entry
+    This is just like a :class:`TreeSequence`, except that:
+        - Times are shifted by the `generation` in the last SLiM entry
             of the Provenance table.
-        2. Alleles (ancestral and derived states) are replaced with digits
-            (which will be single digits if there are ten or less of them 
-            per site); see :metho:`SlimTreeSequence.alleles` for how to recover
-            the original alleles.
     You should create a :class:`SlimTreeSequence` using one of
     :meth:`SlimTreeSequence.load_tables` :meth:`SlimTreeSequence.load`,
     :func:`load`, or :func:`load_tables`.
@@ -110,18 +104,6 @@ class SlimTreeSequence(msprime.TreeSequence):
         self._ll_tree_sequence = ts._ll_tree_sequence
         self.slim_generation = slim_generation
 
-    @property
-    def alleles(self):
-        '''
-        Returns a list of dictionaries allowing translation of alleles in this
-        :class:`SlimTreeSequence` to the original alleles as output by SLiM.  The
-        original allele ``j`` at site ``k``, before relabeling, is:
-        ```
-        self.alleles[k][j]
-        ```
-        :rtype list:
-        '''
-        return _extract_alleles(msprime.TreeSequence.tables.fget(self), keep=True)
 
     @classmethod
     def load(cls, path):
@@ -149,7 +131,6 @@ class SlimTreeSequence(msprime.TreeSequence):
         new_tables = ts.tables
         provenance = get_provenance(new_tables)
         _set_slim_generation(new_tables, provenance.slim_generation)
-        _delabel_alleles(new_tables)
         ts = msprime.TableCollection.tree_sequence(new_tables)
         return cls(ts, provenance.slim_generation)
 
@@ -175,111 +156,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         tables = msprime.TreeSequence.tables.fget(self)
         _set_slim_generation(tables, -1 * self.slim_generation)
-        _relabel_alleles(tables)
         return tables
-
-
-def _extract_alleles(tables, keep=True):
-    '''
-    Decodes the list of dictionaries giving translations for each allele
-    stored in the metadata column of the site table when reading a SLiM tree sequence.
-    If ``keep`` is False, will clear the metadata column.
-    '''
-    md = msprime.unpack_strings(tables.sites.metadata, tables.sites.metadata_offset)
-    alleles = [json.loads(x) for x in md]
-    if not keep:
-        tables.sites.set_columns(
-                position=tables.sites.position,
-                ancestral_state=tables.sites.ancestral_state,
-                ancestral_state_offset=tables.sites.ancestral_state_offset,
-                metadata=None, metadata_offset=None)
-    return alleles
-
-
-def _store_alleles(tables, alleles):
-    '''
-    Stores an allele map in the metadata column of a site table, overwriting
-    anything already there.
-    '''
-    alleles_text = [json.dumps(x) for x in alleles]
-    md_val, md_off = msprime.pack_strings(alleles_text)
-    tables.sites.set_columns(
-            position=tables.sites.position,
-            ancestral_state=tables.sites.ancestral_state,
-            ancestral_state_offset=tables.sites.ancestral_state_offset,
-            metadata=md_val, metadata_offset=md_off)
-
-
-def _make_allele_map(tables):
-    '''
-    Make a list of dicts whose keys are the alleles at each site and whose
-    values are a sequence of integers, starting from 0, as strings.  Used to
-    make an allele map for an msprime-produced tree sequence that can later be
-    used to produce a SLiM-like tree sequence.
-    '''
-    inv_alleles = [{x:'0'} for x in msprime.unpack_strings(tables.sites.ancestral_state,
-                                                           tables.sites.ancestral_state_offset)]
-    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
-                                           tables.mutations.derived_state_offset)
-    for j in range(tables.mutations.num_rows):
-        site = tables.mutations.site[j]
-        if derived_state[j] not in inv_alleles[site]:
-            inv_alleles[site][derived_state[j]] = str(len(inv_alleles[site]))
-    return inv_alleles
-
-
-def _delabel_alleles(tables):
-    '''
-    Replaces alleles at each site by integers, starting with ``'0'`` for the
-    ancestral state, placing the resulting list of dictionaries in the metadata
-    column of the site table (and removing anything already there).  Can be
-    inverted by
-    ```
-       _relabel_alleles(tables)
-    ```
-    Used to make SLiM-produced alleles nice to look at.
-    '''
-    inv_alleles = _make_allele_map(tables)
-    alleles = [dict((v, k) for k, v in x.items()) for x in inv_alleles]
-    _relabel_alleles(tables, inv_alleles)
-    _store_alleles(tables, alleles)
-    return alleles
-
-
-def _relabel_alleles(tables, alleles=None):
-    '''
-    Modifying ``tables`` in place, replace ancestral and derived state ``x`` at
-    site ``j`` by ``alleles[j][x]``, where  ``alleles`` is a list of dicts. If
-    ``alleles`` is ``None``, not provided, extract them from the tables
-    (by removing them from the metadata column).
-    '''
-    if alleles is None:
-        alleles = _extract_alleles(tables, keep=False)
-    ancestral_state = msprime.unpack_strings(tables.sites.ancestral_state,
-                                             tables.sites.ancestral_state_offset)
-    derived_state = msprime.unpack_strings(tables.mutations.derived_state,
-                                           tables.mutations.derived_state_offset)
-    for j, x in enumerate(ancestral_state):
-        if x not in alleles[j]:
-            raise ValueError("Ancestral state {} not present in alleles at site {}.".format(x, j))
-    for j, x in enumerate(derived_state):
-        if x not in alleles[tables.mutations.site[j]]:
-            raise ValueError("Derived state {} not present in alleles " \
-                    + "at site {}.".format(x, tables.mutations.site[j]))
-    new_ancestral_state = [alleles[j][x] for j, x in enumerate(ancestral_state)]
-    new_derived_state = [alleles[j][x] for j, x in zip(tables.mutations.site, derived_state)]
-    # reset sites and mutations
-    new_ds_column, new_ds_offset = msprime.pack_strings(new_derived_state)
-    tables.mutations.set_columns(site=tables.mutations.site, node=tables.mutations.node,
-            derived_state=new_ds_column, derived_state_offset=new_ds_offset,
-            parent=tables.mutations.parent, metadata=tables.mutations.metadata,
-            metadata_offset=tables.mutations.metadata_offset)
-    new_as_column, new_as_offset = msprime.pack_strings(new_ancestral_state)
-    tables.sites.set_columns(position=tables.sites.position,
-                             ancestral_state=new_as_column,
-                             ancestral_state_offset=new_as_offset,
-                             metadata=tables.sites.metadata,
-                             metadata_offset=tables.sites.metadata_offset)
 
 
 def _set_slim_generation(tables, slim_generation):
