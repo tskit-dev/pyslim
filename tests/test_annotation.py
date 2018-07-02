@@ -23,7 +23,7 @@ class TestAnnotate(tests.PyslimTestCase):
     Tests for tools to annotate existing msprime-derived tree sequences.
     '''
 
-    def verify_annotated_tables(self, ts1, ts2, time_offset):
+    def verify_annotated_tables(self, ts1, ts2):
         '''
         Verify that the tables returned after annotation are equal, up to the
         expected forgetting of metadata.
@@ -32,7 +32,7 @@ class TestAnnotate(tests.PyslimTestCase):
         tables2 = ts2.tables
         # compare nodes
         self.assertArrayEqual(tables1.nodes.flags, tables2.nodes.flags)
-        self.assertArrayAlmostEqual(tables1.nodes.time, tables2.nodes.time + time_offset)
+        self.assertArrayAlmostEqual(tables1.nodes.time, tables2.nodes.time)
         self.assertArrayEqual(tables1.nodes.population, tables2.nodes.population)
         # compare edges
         self.assertEqual(tables1.edges, tables2.edges)
@@ -106,7 +106,7 @@ class TestAnnotate(tests.PyslimTestCase):
             slim_gen = 4
             slim_ts = pyslim.annotate_defaults(ts, model_type="WF",
                                                slim_generation=slim_gen)
-            self.verify_annotated_tables(ts, slim_ts, time_offset=slim_gen)
+            self.verify_annotated_tables(ts, slim_ts)
             self.verify_annotated_trees(ts, slim_ts)
             self.verify_haplotype_equality(ts, slim_ts)
             self.verify_defaults(slim_ts)

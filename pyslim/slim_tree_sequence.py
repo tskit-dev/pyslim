@@ -15,7 +15,10 @@ def load(path, slim_format):
     Load the tree sequence found in the .trees file at ``path``. If the .trees
     file is SLiM-compatible, set ``slim_format`` to ``True`` (in which case
     this returns a :class:`SlimTreeSequence`); otherwise, this just calls
-    :meth:`msprime.load`.
+    :meth:`msprime.load`.  A SlimTreeSequence has all node and migration times
+    in the tree sequence shifted relative to that recorded in the file by the
+    current generation recorded by SLiM so that the tskit times are measured in
+    units of generations before the end of the simulation.
 
     :param string path: The path to a .trees file.
     :param bool slim_format: Whether the .trees file should be coverted from
@@ -82,7 +85,6 @@ def annotate_defaults_tables(tables, model_type, slim_generation, remembered_nod
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     _set_sites_mutations(tables)
-    _set_slim_generation(tables, -1 * slim_generation)
     _set_provenance(tables, model_type=model_type, slim_generation=slim_generation,
                    remembered_node_count=remembered_node_count)
 
@@ -113,8 +115,11 @@ class SlimTreeSequence(msprime.TreeSequence):
         :param string path: The path to a .trees file.
         :rtype SlimTreeSequence:
         '''
+        # roundabout way to load just the tables
         ts = msprime.load(path)
-        tables = ts.tables
+        tables = ts.dump_tables()
+        provenance = get_provenance(tables)
+        _set_slim_generation(tables, provenance.slim_generation)
         return cls.load_tables(tables)
 
     @classmethod
@@ -128,9 +133,8 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         # a roundabout way to copy the tables
         ts = tables.tree_sequence()
-        new_tables = ts.tables
+        new_tables = ts.dump_tables()
         provenance = get_provenance(new_tables)
-        _set_slim_generation(new_tables, provenance.slim_generation)
         ts = msprime.TableCollection.tree_sequence(new_tables)
         return cls(ts, provenance.slim_generation)
 
@@ -143,20 +147,10 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         # This would be simpler if there were a python-level TableCollection.dump
         # method: https://github.com/tskit-dev/msprime/issues/547
-        tables = self.tables
+        tables = self.dump_tables()
+        _set_slim_generation(tables, -1 * self.slim_generation)
         temp_ts = msprime.TableCollection.tree_sequence(tables)
         msprime.TreeSequence.dump(temp_ts, path, **kwargs)
-
-    @property
-    def tables(self):
-        '''
-        This method ensures that any time we look at the tables of a SlimTreeSequence,
-        they look just like the ones we put in, having reversed the operations we did
-        to put them in (except that any metadata previously in the Site table will be gone).
-        '''
-        tables = msprime.TreeSequence.tables.fget(self)
-        _set_slim_generation(tables, -1 * self.slim_generation)
-        return tables
 
 
 def _set_slim_generation(tables, slim_generation):

@@ -8,6 +8,8 @@ import pyslim
 import msprime
 import tests
 import unittest
+import os
+import tempfile
 
 def get_slim_example_files():
     for filename in ["tests/examples/recipe_WF.trees",
@@ -136,11 +138,34 @@ class TestDumpLoad(tests.PyslimTestCase):
     Test reading and writing.
     '''
 
-    def verify_time_offset(self, ts, slim_ts):
+    def setUp(self):
+        fd, self.temp_file = tempfile.mkstemp(prefix="msp_ll_ts_")
+        os.close(fd)
+
+    def tearDown(self):
+        os.unlink(self.temp_file)
+
+    def verify_times(self, ts, slim_ts):
         gen = slim_ts.slim_generation
         self.assertEqual(ts.num_nodes, slim_ts.num_nodes)
+        # verify internal consistency
+        for j in range(slim_ts.num_nodes):
+            self.assertEqual(slim_ts.node(j).time, 
+                             slim_ts.tables.nodes.time[j])
+        # verify consistency between tree sequences
         for n1, n2 in zip(ts.nodes(), slim_ts.nodes()):
-            self.assertEqual(n1.time, n2.time - gen)
+            self.assertEqual(n1.time, n2.time)
+
+    def verify_dump_equality(self, ts):
+        """
+        Verifies that we can dump a copy of the specified tree sequence
+        to the specified file, and load an identical copy.
+        """
+        ts.dump(self.temp_file)
+        ts2 = pyslim.load(self.temp_file, slim_format=True)
+        self.assertEqual(ts.num_samples, ts2.num_samples)
+        self.assertEqual(ts.sequence_length, ts2.sequence_length)
+        self.assertTablesAlmostEqual(ts.tables, ts2.tables)
 
     def test_load_tables(self):
         for ts in get_slim_examples():
@@ -153,26 +178,32 @@ class TestDumpLoad(tests.PyslimTestCase):
 
     def test_load(self):
         for fn in get_slim_example_files():
+            # unshifted (non-slim) tables
             msp_ts = pyslim.load(fn, slim_format=False)
             self.assertTrue(type(msp_ts) is msprime.TreeSequence)
-            tables = msp_ts.tables
-            new_ts = pyslim.load_tables(tables, slim_format=True)
+            msp_tables = msp_ts.tables
+            new_ts = pyslim.load_tables(msp_tables, slim_format=True)
             self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
-            self.verify_time_offset(msp_ts, new_ts)
+            self.verify_times(msp_ts, new_ts)
             new_tables = new_ts.tables
-            self.assertTablesAlmostEqual(tables, new_tables)
+            self.assertTablesAlmostEqual(msp_tables, new_tables)
+            # shifted (slim) tables
             slim_ts = pyslim.load(fn, slim_format=True)
             self.assertTrue(type(slim_ts) is pyslim.SlimTreeSequence)
             slim_tables = slim_ts.tables
-            self.assertTablesAlmostEqual(slim_tables, new_tables)
-            new_msp_ts = pyslim.load_tables(tables, slim_format=False)
-            self.assertTrue(type(new_msp_ts) is msprime.TreeSequence)
-            self.assertTablesAlmostEqual(tables, new_msp_ts.tables)
+            new_msp_ts = pyslim.load_tables(slim_tables, slim_format=True)
+            self.assertTrue(type(new_msp_ts) is pyslim.SlimTreeSequence)
+            self.assertTablesAlmostEqual(slim_tables, new_msp_ts.tables)
+
+    def test_dump_equality(self):
+        for ts in get_slim_examples():
+            self.verify_dump_equality(ts)
+
 
 
 class TestAlleles(tests.PyslimTestCase):
     '''
-    Test allele translation.
+    Test nothing got messed up with haplotypes.
     '''
 
     def test_haplotypes(self):
