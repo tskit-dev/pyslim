@@ -1,0 +1,102 @@
+<h1 id="pyslim">pySLiM</h1>
+<p>SLiM can now read, and write tree sequences, which store genealogical data of populations. SLiM can use a tree sequence produced by the coalescent simulator <code>msprime</code> to initialize a simulation, but to do so we need to add the relevant metadata. SLiM can also write out history as a tree sequence, and in so doing it records extra information in metadata. This package makes it easy to add the relevant metadata to a tree sequence so that SLiM can use it, and to read the metadata in a SLiM-produced tree sequence.</p>
+<p>The SLiM manual documents how the extra metadata is stored in the tree sequence files, and provides additional examples of how to use this package.</p>
+<h2 id="installation">Installation</h2>
+<p>To install <code>pyslim</code>, do</p>
+<pre><code>git clone https://github.com/tskit-dev/pyslim.git
+cd pyslim
+python setup.py install --user</code></pre>
+<p>You should also be able to install it with <code>pip install pyslim</code>. You’ll also need an up-to-date <a href="https://github.com/tskit-dev/msprime">msprime</a> and <a href="https://messerlab.org/slim/">SLiM</a>, of course.</p>
+<p>To run the tests to make sure everything is working, do:</p>
+<pre><code>cd tests/examples
+for x in *.slim; do slim $x; done
+cd -
+python -m nose tests</code></pre>
+<p><em>Note:</em> if you use <code>python3</code> you may need to replace <code>python</code> with <code>python3</code> above.</p>
+<h2 id="quickstart-coalescent-simulation-for-slim">Quickstart: coalescent simulation for SLiM</h2>
+<p>The <code>pyslim.annotate()</code> command will add default information to a tree sequence, allowing it to be read in by SLiM. This will simulate a tree sequence with msprime, add SLiM information, and write it out to a <code>.trees</code> file:</p>
+<pre><code>import msprime
+import pyslim
+
+# simulate a tree sequence of 12 nodes
+ts = msprime.simulate(12, mutation_rate=1.0, recombination_rate=1.0)
+new_ts = pyslim.annotate_defaults(ts, model_type=&quot;nonWF&quot;, slim_generation=1)
+new_ts.dump(&quot;slim_ts.trees&quot;)</code></pre>
+<h2 id="quickstart-reading-slim-metadata">Quickstart: reading SLiM metadata</h2>
+<p>To retrieve the extra information that SLiM stores in a tree sequence, use the <code>extract_X_metadata()</code> functions, where <code>X</code> is one of <code>mutation</code>, <code>population</code>, <code>node</code>, or <code>individual</code>. For instance, to see the age of each Individual produced by annotation in the previous example:</p>
+<pre><code>for ind in pyslim.extract_individual_metadata(new_ts.tables):
+    print(ind.age)</code></pre>
+<p>In this example, all the ages are 0 (the default).</p>
+<h2 id="quickstart-modifying-slim-metadata">Quickstart: modifying SLiM metadata</h2>
+<p>To <em>modify</em> the metadata that <code>pyslim</code> has introduced into a coalescent simulation, or the metadata in a SLiM-produced tree sequence, use the <code>annotate_X_metadata()</code> functions. For instance, to set the ages of the individuals in the tree sequence to random numbers between 1 and 4, and write out the resulting tree sequence:</p>
+<pre><code>import random
+
+tables = new_ts.dump_tables()
+ind_md = list(pyslim.extract_individual_metadata(tables))
+for ind in ind_md:
+    ind.age = random.choice([1,2,3,4])
+
+pyslim.annotate_individual_metadata(tables, ind_md)
+mod_ts = pyslim.load_tables(tables, slim_format=True)
+
+for ind in pyslim.extract_individual_metadata(mod_ts.tables):
+    print(ind.age)
+
+mod_ts.dump(&quot;modified_ts.trees&quot;)</code></pre>
+<h1 id="documentation">Documentation</h1>
+<p>Here we describe the technical details. Currently, the python package <code>msprime</code> simulates tree sequences and provides tools to work with them. In the future, tools for working with tree sequences will be separated into a package called <code>tskit</code>. <code>pyslim</code> provides a thin interface between <code>msprime/tskit</code>.</p>
+<h2 id="metadata-entries">Metadata entries</h2>
+<p>SLiM records additional information in the metadata columns of Population, Individual, Node, and Mutation tables. The information is recorded in a binary format, and is extracted and written by <code>pyslim</code> using the python <code>struct</code> module. Nothing besides this binary information can be stored in the metadata of these tables for the tree sequence to be used by SLiM, and so when <code>pyslim</code> annotates an existing tree sequence, anything in those columns is overwritten. For more detailed documentation on the contents and format of the metadata, see the SLiM manual.</p>
+<h2 id="time-and-slim-tree-sequences">Time and SLiM Tree Sequences</h2>
+<p>The “time” in a SLiM simulation is the number of generations since the beginning of the simulation. However, since tree sequences naturally deal with history retrospectively, properties related to “time” of tree sequences are measured in generations <em>ago</em>, i.e., generation <em>prior</em> to a given point. To distinguish these two notions of time, we’ll talk about “SLiM time” and “tskit time”. When SLiM records a tree sequence, it records tskit time in units of generations before the start of the simulation, so all tskit times it records in the tree sequence are <em>negative</em> (because it measures how long <em>before</em> the start, but happened <em>after</em> the start). This is terribly counterintuitive. The fact that there are two notions of time - one moving forwards, the other backwards - is unavoidable, but <code>pyslim</code> does one thing to make this easier to work with: when <code>pyslim</code> loads in a tree sequence file, it checks to see what the current SLiM time was at the end of the simulation, and shifts all times in the tree sequence so that tskit time is measured in generations before the <em>end</em> of the simulation.</p>
+<p>The upshot is that:</p>
+<ol type="1">
+<li><p>The <code>time</code> attribute of tree sequence nodes gives the number of generations before the end of the simulation at which those nodes were born.</p></li>
+<li><p>These numbers will <em>not</em> match the values in the <code>.trees</code> file, but you should not need to worry about that, as long as you always <code>load()</code> and <code>dump()</code> using <code>pyslim</code>.</p></li>
+<li><p>The conversion factor, the “SLiM time” that it was when the tree sequence file was written, is stored in an entry in the provenance table of the tree sequence; <code>pyslim</code> extracts it from there to set the <code>slim_generation</code> attribute of a <code>SlimTreeSequence</code>.</p></li>
+</ol>
+<p>An example should help clarify things. Suppose that <code>my.trees</code> is a file that was saved by SLiM at the end of a simulation run for 100 generations, and that we want to find the list of nodes in the tree sequence that were born during the first 20 generations of the simulation. Since the birth time of a node is recorded in the <code>.time</code> attribute of a node in tskit time, a node that was born in the first 20 generations of the simulation, i.e., more than 80 generations before the end of the simulation, will have a <code>.time</code> attribute of at least 80.</p>
+<pre><code>ts = pyslim.load(&quot;my.trees&quot;, slim_format=True)
+old_nodes = []
+for n in ts.nodes():
+   if n.time &gt; ts.slim_generation - 20:
+        old_nodes.append(n)</code></pre>
+<p>In the future, we may change this behavior, but if so will provide an upgrade path for old files.</p>
+<h2 id="slim-tree-sequences">SLiM Tree Sequences</h2>
+<p>Because SLiM adds additional information to tree sequences, <code>pyslim</code> defines a subclass of <code>msprime.TreeSequence</code> to make it easy to access this information, and to make the time shift described above seamless. When you run <code>pyslim.load('my.trees', slim_format=True)</code>, you get a <code>SlimTreeSequence</code> object. This has all the same properties and methods as a plain <code>TreeSequence</code>, with the following differences:</p>
+<ol type="1">
+<li>It has a <code>slim_generation</code> attribute.</li>
+<li>Its <code>.dump()</code> method shifts times by <code>slim_generation</code> before writing them out, so that <code>pyslim.load(&quot;my.trees&quot;, slim_format=True).dump(&quot;my2.trees&quot;)</code> writes out a tree sequence identical to the one that was read in (except for floating point error due to adding and subtracting this value from the times).</li>
+</ol>
+<h2 id="mutation-and-node-times">Mutation and node times</h2>
+<p>Both types of time - “SLiM time” and “tskit time” - appear in a SLiM tree sequence. The birth times of each individual are stored in the <code>.time</code> attribute of each of their nodes as tskit times, while the <code>slim_time</code> attributes of mutation metadata is in SLiM time.</p>
+<p>Here is a very small example. Suppose that there are three haploid individuals: node 0 is born in the first generation, node 1 is born from node 0 in the third generation, and node 2 is born from node 1 in the fifth generation. (This is not possible in SLiM for a number of reasons, but ignore this.) Furthermore, suppose that two mutations have appeared: mutation 0 in generation 2 and mutation 1 in generation 3. The simulation is run for 5 generations, then written to a tree sequence. Here is a depiction of this:</p>
+<pre><code>slim time   tskit time    nodes    mutation
+---------   ----------    -----    --------
+   1             4         0
+   2             3                    0
+   3             2         1          1
+   4             1
+   5             0         2</code></pre>
+<p>Here “tskit time” refers to the number of generations before the end of the simulation.</p>
+<p>In this situation, the <code>time</code> attribute associated with each node would be that appearing in the “tskit time” column, while the <code>slim_time</code> attribute of mutation metadata would be that appearing in the “slim time” column. We could retrieve this information hypothetically as:</p>
+<pre><code>&gt;&gt;&gt; ts = pyslim.load(&quot;my.trees&quot;, slim_format=True)
+&gt;&gt;&gt; for n in ts.nodes():
+&gt;&gt;&gt;      print(n.time)
+[4, 2, 0]
+&gt;&gt;&gt; for m in ts.mutations():
+&gt;&gt;&gt;      md = pyslim.decode_mutation(m.metadata)
+&gt;&gt;&gt;      print(md.slim_time)
+[2, 3]</code></pre>
+<p>We could then convert the node times to “slim time” as follows:</p>
+<pre><code>&gt;&gt;&gt; [ts.slim_generation - n.time for n in ts.nodes()]
+[1, 3, 5]</code></pre>
+<p>And, we could convert the mutation times to “tskit time” as follows:</p>
+<pre><code>&gt;&gt;&gt; [ts.slim_generation - m.slim_time for m in pyslim.extract_mutation_metadata(ts.tables)]
+[3, 2]</code></pre>
+<h2 id="other-important-notes">Other important notes:</h2>
+<ol type="1">
+<li><p><code>tskit</code> “nodes” correspond to SLiM “genomes”. Individuals in SLiM are diploid, so each has two nodes.</p></li>
+<li><p>The currently alive individuals will be those in the Individual table; since in SLiM, all individual are diploid, every individual will be associated with two nodes, and all other nodes will <em>not</em> have a corresponding individual.</p></li>
+<li><p>The “remembered nodes” will be the <em>first</em> nodes.</p></li>
+</ol>

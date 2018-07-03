@@ -15,7 +15,7 @@ except ImportError:
 
 
 setup(name='pyslim',
-      version='0.0.53',
+      version='0.0.54',
       description=u"Manipulate tree sequences produced by SLiM.",
       long_description=long_description,
       classifiers=[],
@@ -31,6 +31,5 @@ setup(name='pyslim',
       extras_require={
           'dev': [],
       },
-      setup_requires=['setuptools_scm'],
-      use_scm_version={"write_to": "pyslim/_version.py"}
+      setup_requires=[],
       )

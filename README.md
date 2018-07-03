@@ -18,6 +18,7 @@ git clone https://github.com/tskit-dev/pyslim.git
 cd pyslim
 python setup.py install --user
 ```
+You should also be able to install it with `pip install pyslim`.
 You'll also need an up-to-date [msprime](https://github.com/tskit-dev/msprime) and [SLiM](https://messerlab.org/slim/), of course.
 
 To run the tests to make sure everything is working, do:
