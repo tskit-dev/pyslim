@@ -135,7 +135,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         ts = tables.tree_sequence()
         new_tables = ts.dump_tables()
         provenance = get_provenance(new_tables)
-        ts = msprime.TableCollection.tree_sequence(new_tables)
+        ts = new_tables.tree_sequence()
         return cls(ts, provenance.slim_generation)
 
     def dump(self, path, **kwargs):
@@ -149,7 +149,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         # method: https://github.com/tskit-dev/msprime/issues/547
         tables = self.dump_tables()
         _set_slim_generation(tables, -1 * self.slim_generation)
-        temp_ts = msprime.TableCollection.tree_sequence(tables)
+        temp_ts = tables.tree_sequence()
         msprime.TreeSequence.dump(temp_ts, path, **kwargs)
 
 
