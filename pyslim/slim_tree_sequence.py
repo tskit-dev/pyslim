@@ -152,6 +152,47 @@ class SlimTreeSequence(msprime.TreeSequence):
         temp_ts = tables.tree_sequence()
         msprime.TreeSequence.dump(temp_ts, path, **kwargs)
 
+    def recapitate(self, recombination_rate, population_configurations=None, **kwargs):
+        '''
+        Returns a "recapitated" tree sequence, by using msprime to run a
+        coalescent simulation from the "top" of this tree sequence, i.e.,
+        allowing any uncoalesced lineages to coalesce.
+
+        Note that `Ne` is not set automatically, so defaults to `1.0`; you probably
+        want to set it explicitly.  Similarly, migration is not set up
+        automatically, so that if there are uncoalesced lineages in more than
+        one population, you will need to pass in a migration matrix to allow
+        coalescence. In both cases, remember that population IDs in `tskit` begin
+        with 0, so that if your SLiM simulation has populations `p1` and `p2`,
+        then the tree sequence will have three populations (but with no nodes
+        assigned to population 0), so that migration rate of 1.0 between `p1` and
+        `p2` needs a migration matrix of
+           [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
+
+        :param float recombination_rate: The recombination rate - only a constant 
+            recombination rate is allowed.
+        :param list population_configurations: See :meth:`msprime.simulate()` for
+            this argument; if not provided, each population will have zero growth rate
+            and the same effective population size.
+        :param dict kwargs: Any other arguments to :meth:`msprime.simulate()`.
+        '''
+        recomb = msprime.RecombinationMap(positions = [0.0, self.sequence_length], 
+                                          rates = [recombination_rate, 0.0],
+                                          num_loci = int(self.sequence_length))
+
+        if population_configurations is None:
+            population_configurations = [msprime.PopulationConfiguration() 
+                                         for _ in range(self.num_populations)]
+
+        recap = msprime.simulate(
+                    from_ts = self, 
+                    population_configurations = population_configurations,
+                    recombination_map = recomb,
+                    start_time = self.slim_generation,
+                    **kwargs)
+        ts = SlimTreeSequence.load_tables(recap.tables)
+        return ts
+
 
 def _set_slim_generation(tables, slim_generation):
     '''
