@@ -152,6 +152,18 @@ class SlimTreeSequence(msprime.TreeSequence):
         temp_ts = tables.tree_sequence()
         msprime.TreeSequence.dump(temp_ts, path, **kwargs)
 
+    def simplify(self, samples, **kwargs):
+        '''
+        Simplify the tree sequence. This is a wrapper around
+        :meth:``TreeSequence.simplify`` that retains the SLiM-specific information.
+
+        See :meth:``msprime.TreeSequence.simplify`` for arguments.
+        '''
+        tables = self.dump_tables()
+        tables.simplify(samples, **kwargs)
+        ts = SlimTreeSequence.load_tables(tables)
+        return ts
+
     def recapitate(self, recombination_rate, population_configurations=None, **kwargs):
         '''
         Returns a "recapitated" tree sequence, by using msprime to run a

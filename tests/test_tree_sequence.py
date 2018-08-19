@@ -64,3 +64,12 @@ class TestRecapitation(tests.PyslimTestCase):
                                        recap.slim_generation, 
                                        delta = 1e-4)
 
+    def test_simplify(self):
+        for ts in get_slim_examples():
+            sts = ts.simplify([0, 1])
+            self.assertEqual(ts.slim_generation, sts.slim_generation)
+            mtabs = sts.dump_tables()
+            mtabs.simplify([0, 1])
+            mts = mtabs.tree_sequence()
+            self.assertEqual(mts.tables, sts.tables)
+
