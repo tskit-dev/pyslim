@@ -5,14 +5,42 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import division
 
+import pyslim
 import random
 import unittest
 import base64
+import os
 
+_example_files = ["tests/examples/recipe_WF",
+                 "tests/examples/recipe_nonWF"]
 
 def setUp():
     # Make random tests reproducible.
     random.seed(210)
+
+    # run SLiM
+    for filename in _example_files:
+        treefile = filename + ".trees"
+        print(treefile)
+        try:
+            os.remove(treefile)
+        except FileNotFoundError:
+            pass
+        outdir = os.path.dirname(filename)
+        slimfile = os.path.basename(filename) + ".slim"
+        print("running " + "cd " + outdir + " && slim -s 23 " + slimfile)
+        out = os.system("cd " + outdir + " && slim -s 23 " + slimfile + ">/dev/null")
+        assert out == 0
+
+
+def tearDown():
+    for filename in _example_files:
+        treefile = filename + ".trees"
+        try:
+            os.remove(treefile)
+            pass
+        except FileNotFoundError:
+            pass
 
 
 class PyslimTestCase(unittest.TestCase):
@@ -52,3 +80,12 @@ class PyslimTestCase(unittest.TestCase):
             g1 = [v1.alleles[x] for x in v1.genotypes]
             g2 = [v2.alleles[x] for x in v2.genotypes]
             self.assertArrayEqual(g1, g2)
+
+    def get_slim_example_files(self):
+        for filename in _example_files:
+            yield filename + ".trees"
+
+    def get_slim_examples(self):
+        for filename in self.get_slim_example_files():
+            yield pyslim.load(filename, slim_format=True)
+

@@ -3,6 +3,7 @@ import struct
 import msprime
 import json
 from collections import OrderedDict
+import warnings
 
 from .slim_metadata import *
 from .provenance import *
@@ -46,6 +47,19 @@ def load_tables(tables, slim_format):
     return ts
 
 
+def mutate(ts, *args, **kwargs):
+    '''
+    Mutate the tree sequence. This is a wrapper around
+    :meth:``msprime.mutate`` that retains the SLiM-specific information.
+
+    See :meth:``msprime.TreeSequence.mutate`` for arguments.
+    '''
+    mts = msprime.mutate(ts, *args, **kwargs)
+    tables = mts.dump_tables()
+    mut_ts = SlimTreeSequence.load_tables(tables)
+    return mut_ts
+
+
 def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
@@ -60,7 +74,7 @@ def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
         tree sequence will be marked as "ancestral samples" by SLiM (it must by the
         *first* this many nodes).  
     '''
-    tables = ts.tables
+    tables = ts.dump_tables()
     annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count)
     return SlimTreeSequence.load_tables(tables)
 
@@ -164,25 +178,34 @@ class SlimTreeSequence(msprime.TreeSequence):
         ts = SlimTreeSequence.load_tables(tables)
         return ts
 
-    def recapitate(self, recombination_rate, population_configurations=None, **kwargs):
+    def recapitate(self, recombination_rate, keep_first_generation=False,
+                   population_configurations=None, **kwargs):
         '''
         Returns a "recapitated" tree sequence, by using msprime to run a
         coalescent simulation from the "top" of this tree sequence, i.e.,
-        allowing any uncoalesced lineages to coalesce.
+        allowing any uncoalesced lineages to coalesce. For this procedure to
+        work, you must have recorded in the tree sequence the initial generation
+        (i.e., "remembered" those individuals in SLiM). However, if you are not
+        interested in the genotypes of the initial generation, you may remove
+        these at this point (which makes the work of recapitation substantially
+        less). If you wish to keep the history of the first generation as well,
+        set ``keep_first_generation`` to ``True``.
 
-        Note that `Ne` is not set automatically, so defaults to `1.0`; you probably
+        Note that ``Ne`` is not set automatically, so defaults to ``1.0``; you probably
         want to set it explicitly.  Similarly, migration is not set up
         automatically, so that if there are uncoalesced lineages in more than
         one population, you will need to pass in a migration matrix to allow
-        coalescence. In both cases, remember that population IDs in `tskit` begin
-        with 0, so that if your SLiM simulation has populations `p1` and `p2`,
+        coalescence. In both cases, remember that population IDs in ``tskit`` begin
+        with 0, so that if your SLiM simulation has populations ``p1`` and ``p2``,
         then the tree sequence will have three populations (but with no nodes
-        assigned to population 0), so that migration rate of 1.0 between `p1` and
-        `p2` needs a migration matrix of
+        assigned to population 0), so that migration rate of 1.0 between ``p1`` and
+        ``p2`` needs a migration matrix of
            [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
 
         :param float recombination_rate: The recombination rate - only a constant 
             recombination rate is allowed.
+        :param bool keep_first_generation: Whether to keep the individuals (and genomes)
+            corresponding to the first SLiM generation in the resulting tree sequence.
         :param list population_configurations: See :meth:`msprime.simulate()` for
             this argument; if not provided, each population will have zero growth rate
             and the same effective population size.
@@ -196,8 +219,25 @@ class SlimTreeSequence(msprime.TreeSequence):
             population_configurations = [msprime.PopulationConfiguration() 
                                          for _ in range(self.num_populations)]
 
+        if not keep_first_generation:
+            tables = self.dump_tables()
+            flags = tables.nodes.flags
+            first_gen_nodes = (tables.nodes.time == self.slim_generation)
+            if sum(first_gen_nodes) == 0:
+                warnings.warn("Tree sequence does not have the initial generation" +
+                              " marked as samples; are you sure the result will be" +
+                              " correct?")
+            flags[first_gen_nodes] = 0
+            tables.nodes.set_columns(flags=flags, population=tables.nodes.population,
+                    individual=tables.nodes.individual, time=tables.nodes.time,
+                    metadata=tables.nodes.metadata, 
+                    metadata_offset=tables.nodes.metadata_offset)
+            ts = load_tables(tables, slim_format=True)
+        else:
+            ts = self
+
         recap = msprime.simulate(
-                    from_ts = self, 
+                    from_ts = ts, 
                     population_configurations = population_configurations,
                     recombination_map = recomb,
                     start_time = self.slim_generation,

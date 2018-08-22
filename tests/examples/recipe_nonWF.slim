@@ -12,10 +12,12 @@ initialize()
 
 1 { 
     sim.addSubpop("p1", 10);
+    sim.treeSeqRememberIndividuals(p1.individuals);
 }
 
 10 {
     sim.treeSeqOutput("recipe_nonWF.trees");
     // sim.treeSeqOutput("recipe_nonWF_trees", simplify=T, _binary=F);
+    catn("Done.");
     sim.simulationFinished();
 }
