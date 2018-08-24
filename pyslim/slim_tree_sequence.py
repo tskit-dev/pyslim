@@ -224,19 +224,7 @@ class SlimTreeSequence(msprime.TreeSequence):
                                          for _ in range(self.num_populations)]
 
         if keep_first_generation:
-            tables = self.dump_tables()
-            first_gen_nodes = ((tables.individuals.flags[tables.nodes.individual] 
-                               & INDIVIDUAL_FIRST_GEN) > 0)
-            if sum(first_gen_nodes) == 0:
-                warnings.warn("Tree sequence does not have the initial generation;" +
-                              " did you simplify it after output from SLiM?")
-            flags = tables.nodes.flags
-            flags[first_gen_nodes] = (flags[first_gen_nodes] | msprime.NODE_IS_SAMPLE)
-            tables.nodes.set_columns(flags=flags, population=tables.nodes.population,
-                    individual=tables.nodes.individual, time=tables.nodes.time,
-                    metadata=tables.nodes.metadata, 
-                    metadata_offset=tables.nodes.metadata_offset)
-            ts = load_tables(tables, slim_format=True)
+            ts = self._mark_first_generation()
         else:
             ts = self
 
@@ -247,6 +235,26 @@ class SlimTreeSequence(msprime.TreeSequence):
                     start_time = self.slim_generation,
                     **kwargs)
         ts = SlimTreeSequence.load_tables(recap.tables)
+        return ts
+
+    def _mark_first_generation(self):
+        '''
+        Mark all 'first generation' individuals' nodes as samples, and return
+        the corresponding tree sequence.
+        '''
+        tables = self.dump_tables()
+        first_gen_nodes = ((tables.individuals.flags[tables.nodes.individual] 
+                           & INDIVIDUAL_FIRST_GEN) > 0)
+        if sum(first_gen_nodes) == 0:
+            warnings.warn("Tree sequence does not have the initial generation;" +
+                          " did you simplify it after output from SLiM?")
+        flags = tables.nodes.flags
+        flags[first_gen_nodes] = (flags[first_gen_nodes] | msprime.NODE_IS_SAMPLE)
+        tables.nodes.set_columns(flags=flags, population=tables.nodes.population,
+                individual=tables.nodes.individual, time=tables.nodes.time,
+                metadata=tables.nodes.metadata, 
+                metadata_offset=tables.nodes.metadata_offset)
+        ts = load_tables(tables, slim_format=True)
         return ts
 
 
@@ -532,9 +540,10 @@ def get_provenance(tables):
                                      and u['software']['name'] == "SLiM")]
     if len(slim_prov) == 0:
         raise ValueError("Tree sequence contains no SLiM provenance entries.")
-    last_slim_prov = slim_prov[len(slim_prov)-1]['slim']
-    return ProvenanceMetadata(last_slim_prov["model_type"], last_slim_prov["generation"],
-                              last_slim_prov["remembered_node_count"])
+    last_slim_prov = slim_prov[len(slim_prov)-1]
+    return ProvenanceMetadata(last_slim_prov['parameters']['model_type'],
+                              last_slim_prov['slim']["generation"],
+                              last_slim_prov['slim']["remembered_node_count"])
 
 
 def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0):

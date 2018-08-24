@@ -33,19 +33,11 @@ class TestRecapitation(tests.PyslimTestCase):
     def check_recap_consistency(self, ts, recap,
                                 keep_first_generation):
         self.assertEqual(ts.slim_generation, recap.slim_generation)
-        sample_map = {}
-        k = 0
-        for u in ts.samples():
-            if (keep_first_generation
-                    or (ts.individual(ts.node(u).individual).flags & pyslim.INDIVIDUAL_REMEMBERED)
-                    or not (ts.individual(ts.node(u).individual).flags & pyslim.INDIVIDUAL_FIRST_GEN)):
-                sample_map[u] = k
-                k += 1
-        recap_samples = list(recap.samples())
-        for u in sample_map:
-            n1 = ts.node(u)
-            self.assertTrue(sample_map[u] in recap_samples)
-            n2 = recap.node(sample_map[u])
+        ts_samples = list(ts.samples())
+        for u in recap.samples():
+            n1 = recap.node(u)
+            self.assertTrue(u in ts_samples)
+            n2 = ts.node(u)
             self.assertEqual(n1.time, n2.time)
             self.assertEqual(n1.individual, n2.individual)
             self.assertEqual(n1.flags, n2.flags)

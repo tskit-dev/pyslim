@@ -64,7 +64,8 @@ def make_slim_dict(model_type, slim_generation, remembered_node_count):
             "version": "3.0"
             },
         "parameters": {
-            "command": ['pyslim']
+            "command": ['pyslim'],
+            "model_type": model_type,
             },
         "environment": {},
         "metadata": {
@@ -92,7 +93,6 @@ def make_slim_dict(model_type, slim_generation, remembered_node_count):
             "file_version": "0.2",
             "generation": str(slim_generation),
             "model": "",
-            "model_type": model_type,
             "remembered_node_count": remembered_node_count
             }
     }
