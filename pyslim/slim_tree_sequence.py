@@ -60,7 +60,7 @@ def mutate(ts, *args, **kwargs):
     return mut_ts
 
 
-def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
+def annotate_defaults(ts, model_type, slim_generation):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
@@ -70,23 +70,18 @@ def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
     :param string model_type: SLiM model type: either "WF" or "nonWF".
     :param int slim_generation: What generation number in SLiM correponds to
         ``time=0`` in the tree sequence.
-    :param int remembered_node_count: (NOT SUPPORTED) How many nodes in the
-        tree sequence will be marked as "ancestral samples" by SLiM (it must by the
-        *first* this many nodes).  
     '''
     tables = ts.dump_tables()
-    annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count)
+    annotate_defaults_tables(tables, model_type, slim_generation)
     return SlimTreeSequence.load_tables(tables)
 
 
-def annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count=0):
+def annotate_defaults_tables(tables, model_type, slim_generation):
     '''
     Does the work of :func:`annotate_defaults()`, but modifies the tables in place: so,
     takes tables as produced by ``msprime``, and makes them look like the
     tables as output by SLiM. See :func:`annotate_defaults` for details.
     '''
-    if remembered_node_count != 0:
-        raise ValueError("Setting remembered node count not currently supported.")
     if (type(slim_generation) is not int) or (slim_generation < 1):
         raise ValueError("SLiM generation must be an integer and at least 1.")
     # set_nodes must come before set_populations
@@ -99,8 +94,7 @@ def annotate_defaults_tables(tables, model_type, slim_generation, remembered_nod
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     _set_sites_mutations(tables)
-    _set_provenance(tables, model_type=model_type, slim_generation=slim_generation,
-                   remembered_node_count=remembered_node_count)
+    _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
 
 
 class SlimTreeSequence(msprime.TreeSequence):
@@ -500,30 +494,13 @@ def _set_sites_mutations(
 #######
 # Provenance
 ####################
-# The general structure of a Provenance entry is a JSON string:
-# {“program”:“SLiM”, “version”:“<version>“, “file_version”:“<file_version>“,
-#     “model_type”:“<model_type>“, “generation”:<generation>,
-#     “remembered_node_count”:<rem_count>}
-# The field values in angle brackets have the following meanings:
-# <version>: The version of SLiM that generated the file, such as 3.0.
-# <file_version>: The metadata format of the file; at present only 0.1 is supported.
-# <model_type>: This should be either WF or nonWF, depending upon the type of
-# model that generated the file.  This has some implications for the other
-# metadata; in particular, some of the population metadata is required for WF
-# models but unused in nonWF models, and individual ages in WF model data are
-# expected to be -1.  Note that SLiM will allow WF model data to be read into a
-# nonWF model, and vice versa, but since this is usually not intentional a
-# warning will be issued.  Moving data between model types has not been tested,
-# so be aware that issues may exist with doing so.
-# <generation>: The generation number, which will be set by SLiM upon loading.
-# <rem_count>: The number of remembered nodes, in addition to the sample.
+# See provenances.py for the structure of a Provenance entry.
 
 
 @attr.s
 class ProvenanceMetadata(object):
     model_type = attr.ib()
     slim_generation = attr.ib()
-    remembered_node_count = attr.ib()
 
 
 def get_provenance(tables):
@@ -535,15 +512,16 @@ def get_provenance(tables):
     :rtype ProvenanceMetadata:
     '''
     prov = [json.loads(x.record) for x in tables.provenances]
-    slim_prov = [u for u in prov if ('program' in u and u['program'] == "SLiM")]
+    slim_prov = [u for u in prov if ('software' in u 
+                                     and 'name' in u['software']
+                                     and u['software']['name'] == "SLiM")]
     if len(slim_prov) == 0:
         raise ValueError("Tree sequence contains no SLiM provenance entries.")
-    last_slim_prov = slim_prov[len(slim_prov)-1]
-    return ProvenanceMetadata(last_slim_prov["model_type"], last_slim_prov["generation"],
-                              last_slim_prov["remembered_node_count"])
+    last_slim_prov = slim_prov[len(slim_prov)-1]['slim']
+    return ProvenanceMetadata(last_slim_prov["model_type"], last_slim_prov["generation"])
 
 
-def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0):
+def _set_provenance(tables, model_type, slim_generation):
     '''
     Appends to the provenance table of a :class:`TableCollection` a record containing
     the information that SLiM expects to find there.
@@ -551,16 +529,9 @@ def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0
     :param TableCollection tables: The table collection.
     :param string model_type: The model type: either "WF" or "nonWF".
     :param int slim_generation: The "current" generation in the SLiM simulation.
-    :param int remembered_node_count: The number of nodes that will be "remembered".
     '''
-    pyslim_provenance = get_provenance_dict()
-    pyslim_dict = OrderedDict([("program", "pyslim"),
-                               ("version", pyslim_provenance['version'])])
-    slim_dict = OrderedDict([
-                 ("program", "SLiM"), ("version", SLIM_VERSION),
-                 ("file_version", SLIM_FILE_VERSION),
-                 ("model_type", model_type), ("generation", slim_generation),
-                 ("remembered_node_count", remembered_node_count)])
+    pyslim_dict = get_provenance_dict()
+    slim_dict = make_slim_dict(model_type, slim_generation)
     tables.provenances.add_row(json.dumps(pyslim_dict))
     tables.provenances.add_row(json.dumps(slim_dict))
 
