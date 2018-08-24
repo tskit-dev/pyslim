@@ -53,7 +53,7 @@ def get_provenance_dict():
     }
     return document
 
-def make_slim_dict(model_type, slim_generation):
+def make_slim_dict(model_type, slim_generation, remembered_node_count):
     """
     Returns a dictionary encoding necessary provenance information for a SLiM tree sequence.
     """
@@ -71,7 +71,8 @@ def make_slim_dict(model_type, slim_generation):
             "file_version": "0.2",
             "generation": str(slim_generation),
             "model": "",
-            "model_type": model_type
+            "model_type": model_type,
+            "remembered_node_count": remembered_node_count
             }
     }
     return document

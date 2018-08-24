@@ -82,7 +82,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 self.assertEqual(md.genome_type, pyslim.GENOME_TYPE_AUTOSOME)
         for ind in ts.individuals(): 
             self.assertArrayEqual(ind.location, [0, 0, 0])
-            self.assertEqual(ind.flags, 0)
+            self.assertEqual(ind.flags, pyslim.INDIVIDUAL_ALIVE)
         ind_md = pyslim.extract_individual_metadata(ts.tables)
         for md in ind_md:
             self.assertEqual(md.sex, pyslim.INDIVIDUAL_TYPE_HERMAPHRODITE)

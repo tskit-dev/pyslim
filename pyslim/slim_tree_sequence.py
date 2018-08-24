@@ -11,6 +11,10 @@ from .provenance import *
 SLIM_VERSION = "3.0"
 SLIM_FILE_VERSION = "0.1"
 
+INDIVIDUAL_ALIVE = 2**16
+INDIVIDUAL_REMEMBERED = 2**17
+INDIVIDUAL_FIRST_GEN = 2**18
+
 def load(path, slim_format):
     '''
     Load the tree sequence found in the .trees file at ``path``. If the .trees
@@ -60,7 +64,7 @@ def mutate(ts, *args, **kwargs):
     return mut_ts
 
 
-def annotate_defaults(ts, model_type, slim_generation):
+def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
@@ -70,18 +74,23 @@ def annotate_defaults(ts, model_type, slim_generation):
     :param string model_type: SLiM model type: either "WF" or "nonWF".
     :param int slim_generation: What generation number in SLiM correponds to
         ``time=0`` in the tree sequence.
+    :param int remembered_node_count: (NOT SUPPORTED) How many nodes in the
+        tree sequence will be marked as "ancestral samples" by SLiM (it must by the
+        *first* this many nodes).  
     '''
     tables = ts.dump_tables()
-    annotate_defaults_tables(tables, model_type, slim_generation)
+    annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count)
     return SlimTreeSequence.load_tables(tables)
 
 
-def annotate_defaults_tables(tables, model_type, slim_generation):
+def annotate_defaults_tables(tables, model_type, slim_generation, remembered_node_count=0):
     '''
     Does the work of :func:`annotate_defaults()`, but modifies the tables in place: so,
     takes tables as produced by ``msprime``, and makes them look like the
     tables as output by SLiM. See :func:`annotate_defaults` for details.
     '''
+    if remembered_node_count != 0:
+        raise ValueError("Setting remembered node count not currently supported.")
     if (type(slim_generation) is not int) or (slim_generation < 1):
         raise ValueError("SLiM generation must be an integer and at least 1.")
     # set_nodes must come before set_populations
@@ -94,7 +103,8 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     _set_sites_mutations(tables)
-    _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
+    _set_provenance(tables, model_type=model_type, slim_generation=slim_generation,
+                   remembered_node_count=remembered_node_count)
 
 
 class SlimTreeSequence(msprime.TreeSequence):
@@ -259,7 +269,7 @@ def _set_slim_generation(tables, slim_generation):
 def _set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,
         ind_population=None, ind_sex=INDIVIDUAL_TYPE_HERMAPHRODITE,
-        ind_flags=0, slim_ind_flags=0, node_id=None,
+        ind_flags=INDIVIDUAL_ALIVE, slim_ind_flags=0, node_id=None,
         node_is_null=False, node_type=GENOME_TYPE_AUTOSOME):
     '''
     Adds to a TableCollection the information relevant to individuals required
@@ -277,6 +287,10 @@ def _set_nodes_individuals(
     - (node_id) SLiM genome IDs to sequential integers starting with samples from 0
     - (node_is_null) genomes to be non-null
     - (node_type) genome type to 0 (= autosome)
+    - (ind_flags) INDIVIDUAL_ALIVE
+        
+    If you have other situations, like non-alive "remembered" individuals, you
+    will need to edit the tables by hand, afterwards.
     '''
     samples = list(filter(lambda j: tables.nodes.flags[j] & msprime.NODE_IS_SAMPLE,
                           range(tables.nodes.num_rows)))
@@ -501,6 +515,7 @@ def _set_sites_mutations(
 class ProvenanceMetadata(object):
     model_type = attr.ib()
     slim_generation = attr.ib()
+    remembered_node_count = attr.ib()
 
 
 def get_provenance(tables):
@@ -518,10 +533,11 @@ def get_provenance(tables):
     if len(slim_prov) == 0:
         raise ValueError("Tree sequence contains no SLiM provenance entries.")
     last_slim_prov = slim_prov[len(slim_prov)-1]['slim']
-    return ProvenanceMetadata(last_slim_prov["model_type"], last_slim_prov["generation"])
+    return ProvenanceMetadata(last_slim_prov["model_type"], last_slim_prov["generation"],
+                              last_slim_prov["remembered_node_count"])
 
 
-def _set_provenance(tables, model_type, slim_generation):
+def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0):
     '''
     Appends to the provenance table of a :class:`TableCollection` a record containing
     the information that SLiM expects to find there.
@@ -529,9 +545,10 @@ def _set_provenance(tables, model_type, slim_generation):
     :param TableCollection tables: The table collection.
     :param string model_type: The model type: either "WF" or "nonWF".
     :param int slim_generation: The "current" generation in the SLiM simulation.
+    :param int remembered_node_count: The number of nodes that will be "remembered".
     '''
     pyslim_dict = get_provenance_dict()
-    slim_dict = make_slim_dict(model_type, slim_generation)
+    slim_dict = make_slim_dict(model_type, slim_generation, remembered_node_count)
     tables.provenances.add_row(json.dumps(pyslim_dict))
     tables.provenances.add_row(json.dumps(slim_dict))
 
