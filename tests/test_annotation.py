@@ -122,7 +122,7 @@ class TestAnnotate(tests.PyslimTestCase):
             for j in range(len(metadata)):
                 metadata[j].sex = sexes[j]
             pyslim.annotate_individual_metadata(tables, metadata)
-            new_ts = pyslim.load_tables(tables, slim_format=True)
+            new_ts = pyslim.load_tables(tables)
             for j, ind in enumerate(new_ts.individuals()):
                 md = pyslim.decode_individual(ind.metadata)
                 self.assertEqual(md.sex, sexes[j])
@@ -137,7 +137,7 @@ class TestAnnotate(tests.PyslimTestCase):
             for j in range(len(metadata)):
                 metadata[j].selection_coeff = selcoefs[j]
             pyslim.annotate_mutation_metadata(tables, metadata)
-            new_ts = pyslim.load_tables(tables, slim_format=True)
+            new_ts = pyslim.load_tables(tables)
             for j, x in enumerate(new_ts.mutations()):
                 md = pyslim.decode_mutation(x.metadata)
                 self.assertEqual(md.selection_coeff, selcoefs[j])
@@ -154,7 +154,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 if metadata[j] is not None:
                     metadata[j].genome_type = gtypes[j]
             pyslim.annotate_node_metadata(tables, metadata)
-            new_ts = pyslim.load_tables(tables, slim_format=True)
+            new_ts = pyslim.load_tables(tables)
             for j, x in enumerate(new_ts.nodes()):
                 md = pyslim.decode_node(x.metadata)
                 if md is not None:

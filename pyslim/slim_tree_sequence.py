@@ -15,53 +15,24 @@ INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
 INDIVIDUAL_FIRST_GEN = 2**18
 
-def load(path, slim_format):
+def load(path):
     '''
-    Load the tree sequence found in the .trees file at ``path``. If the .trees
-    file is SLiM-compatible, set ``slim_format`` to ``True`` (in which case
-    this returns a :class:`SlimTreeSequence`); otherwise, this just calls
-    :meth:`msprime.load`.  A SlimTreeSequence has all node and migration times
-    in the tree sequence shifted relative to that recorded in the file by the
-    current generation recorded by SLiM so that the tskit times are measured in
-    units of generations before the end of the simulation.
+    Load the SLiM-compatible tree sequence found in the .trees file at ``path``. 
 
     :param string path: The path to a .trees file.
-    :param bool slim_format: Whether the .trees file should be coverted from
-        SLiM format.
     '''
-    if slim_format:
-        ts = SlimTreeSequence.load(path)
-    else:
-        ts = msprime.load(path)
+    ts = SlimTreeSequence.load(path)
     return ts
 
 
-def load_tables(tables, slim_format):
+def load_tables(tables):
     '''
     See :func:`load`.
 
     :param TableCollection tables: A set of tables.
-    :param bool slim_format: Whether the tables should be coverted from
-        SLiM format.
     '''
-    if slim_format:
-        ts = SlimTreeSequence.load_tables(tables)
-    else:
-        ts = tables.tree_sequence()
+    ts = SlimTreeSequence.load_tables(tables)
     return ts
-
-
-def mutate(ts, *args, **kwargs):
-    '''
-    Mutate the tree sequence. This is a wrapper around
-    :meth:``msprime.mutate`` that retains the SLiM-specific information.
-
-    See :meth:``msprime.TreeSequence.mutate`` for arguments.
-    '''
-    mts = msprime.mutate(ts, *args, **kwargs)
-    tables = mts.dump_tables()
-    mut_ts = SlimTreeSequence.load_tables(tables)
-    return mut_ts
 
 
 def annotate_defaults(ts, model_type, slim_generation, remembered_node_count=0):
@@ -116,7 +87,7 @@ class SlimTreeSequence(msprime.TreeSequence):
     :meth:`SlimTreeSequence.load_tables` :meth:`SlimTreeSequence.load`,
     :func:`load`, or :func:`load_tables`.
 
-    :ivar slim_generation: The amount by which times have been shifted.
+    :ivar slim_generation: The generation that the SLiM simulation was at upon writing.
     :vartype slim_generation: int
     '''
 
@@ -137,7 +108,6 @@ class SlimTreeSequence(msprime.TreeSequence):
         ts = msprime.load(path)
         tables = ts.dump_tables()
         provenance = get_provenance(tables)
-        _set_slim_generation(tables, provenance.slim_generation)
         return cls.load_tables(tables)
 
     @classmethod
@@ -166,21 +136,8 @@ class SlimTreeSequence(msprime.TreeSequence):
         # This would be simpler if there were a python-level TableCollection.dump
         # method: https://github.com/tskit-dev/msprime/issues/547
         tables = self.dump_tables()
-        _set_slim_generation(tables, -1 * self.slim_generation)
         temp_ts = tables.tree_sequence()
         msprime.TreeSequence.dump(temp_ts, path, **kwargs)
-
-    def simplify(self, samples, **kwargs):
-        '''
-        Simplify the tree sequence. This is a wrapper around
-        :meth:``TreeSequence.simplify`` that retains the SLiM-specific information.
-
-        See :meth:``msprime.TreeSequence.simplify`` for arguments.
-        '''
-        tables = self.dump_tables()
-        tables.simplify(samples, **kwargs)
-        ts = SlimTreeSequence.load_tables(tables)
-        return ts
 
     def recapitate(self, recombination_rate, keep_first_generation=False,
                    population_configurations=None, **kwargs):
@@ -254,24 +211,8 @@ class SlimTreeSequence(msprime.TreeSequence):
                 individual=tables.nodes.individual, time=tables.nodes.time,
                 metadata=tables.nodes.metadata, 
                 metadata_offset=tables.nodes.metadata_offset)
-        ts = load_tables(tables, slim_format=True)
+        ts = load_tables(tables)
         return ts
-
-
-def _set_slim_generation(tables, slim_generation):
-    '''
-    Modifying ``tables`` in place, shifts the "time ago" entries in the tables
-    to be measured in units of time *before* `slim_generation`, by adding
-    ``slim_generation`` to the ``time`` columns of Node and Migration tables.
-    Can be inverted by passing in ``-1 * slim_generation``.
-    '''
-    tables.nodes.set_columns(flags=tables.nodes.flags,
-            time=tables.nodes.time + slim_generation,
-            population=tables.nodes.population, individual=tables.nodes.individual,
-            metadata=tables.nodes.metadata, metadata_offset=tables.nodes.metadata_offset)
-    tables.migrations.set_columns(left=tables.migrations.left, right=tables.migrations.right,
-            node=tables.migrations.node, source=tables.migrations.source,
-            dest=tables.migrations.dest, time=tables.migrations.time + slim_generation)
 
 
 def _set_nodes_individuals(

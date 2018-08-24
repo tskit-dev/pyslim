@@ -87,5 +87,5 @@ class PyslimTestCase(unittest.TestCase):
 
     def get_slim_examples(self):
         for filename in self.get_slim_example_files():
-            yield pyslim.load(filename, slim_format=True)
+            yield pyslim.load(filename)
 

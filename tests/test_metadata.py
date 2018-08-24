@@ -153,7 +153,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         to the specified file, and load an identical copy.
         """
         ts.dump(self.temp_file)
-        ts2 = pyslim.load(self.temp_file, slim_format=True)
+        ts2 = pyslim.load(self.temp_file)
         self.assertEqual(ts.num_samples, ts2.num_samples)
         self.assertEqual(ts.sequence_length, ts2.sequence_length)
         self.assertTablesAlmostEqual(ts.tables, ts2.tables)
@@ -162,7 +162,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         for ts in self.get_slim_examples():
             self.assertTrue(type(ts) is pyslim.SlimTreeSequence)
             tables = ts.tables
-            new_ts = pyslim.load_tables(tables, slim_format=True)
+            new_ts = pyslim.load_tables(tables)
             self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
             new_tables = new_ts.tables
             self.assertTablesAlmostEqual(tables, new_tables)
@@ -170,19 +170,19 @@ class TestDumpLoad(tests.PyslimTestCase):
     def test_load(self):
         for fn in self.get_slim_example_files():
             # unshifted (non-slim) tables
-            msp_ts = pyslim.load(fn, slim_format=False)
+            msp_ts = msprime.load(fn)
             self.assertTrue(type(msp_ts) is msprime.TreeSequence)
             msp_tables = msp_ts.tables
-            new_ts = pyslim.load_tables(msp_tables, slim_format=True)
+            new_ts = pyslim.load_tables(msp_tables)
             self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
             self.verify_times(msp_ts, new_ts)
             new_tables = new_ts.tables
             self.assertTablesAlmostEqual(msp_tables, new_tables)
             # shifted (slim) tables
-            slim_ts = pyslim.load(fn, slim_format=True)
+            slim_ts = pyslim.load(fn)
             self.assertTrue(type(slim_ts) is pyslim.SlimTreeSequence)
             slim_tables = slim_ts.tables
-            new_msp_ts = pyslim.load_tables(slim_tables, slim_format=True)
+            new_msp_ts = pyslim.load_tables(slim_tables)
             self.assertTrue(type(new_msp_ts) is pyslim.SlimTreeSequence)
             self.assertTablesAlmostEqual(slim_tables, new_msp_ts.tables)
 
