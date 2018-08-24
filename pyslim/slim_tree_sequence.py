@@ -187,13 +187,13 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         Returns a "recapitated" tree sequence, by using msprime to run a
         coalescent simulation from the "top" of this tree sequence, i.e.,
-        allowing any uncoalesced lineages to coalesce. For this procedure to
-        work, you must have recorded in the tree sequence the initial generation
-        (i.e., "remembered" those individuals in SLiM). However, if you are not
-        interested in the genotypes of the initial generation, you may remove
-        these at this point (which makes the work of recapitation substantially
-        less). If you wish to keep the history of the first generation as well,
-        set ``keep_first_generation`` to ``True``.
+        allowing any uncoalesced lineages to coalesce. 
+
+        To allow this process, the first generation of the SLiM simulation has been
+        recorded in the tree sequence, but are not currently marked as samples,
+        so this process (or, simplify()) will remove any of these that are not needed.
+        If you want to keep them, then set ``keep_first_generation`` to True;
+        although this will make more work here.
 
         Note that ``Ne`` is not set automatically, so defaults to ``1.0``; you probably
         want to set it explicitly.  Similarly, migration is not set up
@@ -209,7 +209,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         :param float recombination_rate: The recombination rate - only a constant 
             recombination rate is allowed.
         :param bool keep_first_generation: Whether to keep the individuals (and genomes)
-            corresponding to the first SLiM generation in the resulting tree sequence.
+            corresponding to the first SLiM generation in the resulting tree sequence
         :param list population_configurations: See :meth:`msprime.simulate()` for
             this argument; if not provided, each population will have zero growth rate
             and the same effective population size.
@@ -223,15 +223,15 @@ class SlimTreeSequence(msprime.TreeSequence):
             population_configurations = [msprime.PopulationConfiguration() 
                                          for _ in range(self.num_populations)]
 
-        if not keep_first_generation:
+        if keep_first_generation:
             tables = self.dump_tables()
-            flags = tables.nodes.flags
-            first_gen_nodes = (tables.nodes.time == self.slim_generation)
+            first_gen_nodes = ((tables.individuals.flags[tables.nodes.individual] 
+                               & INDIVIDUAL_FIRST_GEN) > 0)
             if sum(first_gen_nodes) == 0:
-                warnings.warn("Tree sequence does not have the initial generation" +
-                              " marked as samples; are you sure the result will be" +
-                              " correct?")
-            flags[first_gen_nodes] = 0
+                warnings.warn("Tree sequence does not have the initial generation;" +
+                              " did you simplify it after output from SLiM?")
+            flags = tables.nodes.flags
+            flags[first_gen_nodes] = (flags[first_gen_nodes] | msprime.NODE_IS_SAMPLE)
             tables.nodes.set_columns(flags=flags, population=tables.nodes.population,
                     individual=tables.nodes.individual, time=tables.nodes.time,
                     metadata=tables.nodes.metadata, 

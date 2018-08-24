@@ -36,8 +36,9 @@ class TestRecapitation(tests.PyslimTestCase):
         sample_map = {}
         k = 0
         for u in ts.samples():
-            if (keep_first_generation or
-                 ts.node(u).time < ts.slim_generation):
+            if (keep_first_generation
+                    or (ts.individual(ts.node(u).individual).flags & pyslim.INDIVIDUAL_REMEMBERED)
+                    or not (ts.individual(ts.node(u).individual).flags & pyslim.INDIVIDUAL_FIRST_GEN)):
                 sample_map[u] = k
                 k += 1
         recap_samples = list(recap.samples())

@@ -67,6 +67,27 @@ def make_slim_dict(model_type, slim_generation, remembered_node_count):
             "command": ['pyslim']
             },
         "environment": {},
+        "metadata": {
+            "individuals": {
+                "flags": {
+                    "16": {
+                        "name" : "SLIM_TSK_INDIVIDUAL_ALIVE",
+                        "description" : "the individual was alive "
+                              + "at the time the file was written",
+                          },
+                    "17": {
+                        "name" : "SLIM_TSK_INDIVIDUAL_REMEMBERED",
+                        "description" : "the individual was requested "
+                              + "by the user to be remembered",
+                          },
+                    "18": {
+                        "name" : "SLIM_TSK_INDIVIDUAL_FIRST_GEN",
+                        "description" : "the individual was in the first "
+                              + "generation of a new population"
+                          }
+                }
+            }
+        },
         "slim": {
             "file_version": "0.2",
             "generation": str(slim_generation),
@@ -82,23 +103,41 @@ def make_slim_dict(model_type, slim_generation, remembered_node_count):
 #     "environment": {
 #         "os": {
 #             "machine": "x86_64",
-#             "node": "darwin-447.local",
+#             "node": "d93-172.uoregon.edu",
 #             "release": "17.6.0",
 #             "system": "Darwin",
 #             "version": "Darwin Kernel Version 17.6.0: Tue May  8 15:22:16 PDT 2018; root:xnu-4570.61.1~1/RELEASE_X86_64"
 #         }
 #     },
+#     "metadata": {
+#         "individuals": {
+#             "flags": {
+#                 "16": {
+#                     "description": "the individual was alive at the time the file was written",
+#                     "name": "SLIM_TSK_INDIVIDUAL_ALIVE"
+#                 },
+#                 "17": {
+#                     "description": "the individual was requested by the user to be remembered",
+#                     "name": "SLIM_TSK_INDIVIDUAL_REMEMBERED"
+#                 },
+#                 "18": {
+#                     "description": "the individual was in the first generation of a new population",
+#                     "name": "SLIM_TSK_INDIVIDUAL_FIRST_GEN"
+#                 }
+#             }
+#         }
+#     },
 #     "parameters": {
-#         "command": []
+#         "command": [],
+#         "model": "initialize() {\n\tinitializeTreeSeq();\n\tinitializeMutationRate(1e-7);\n\tinitializeMutationType(\"m1\", 0.5, \"f\", 0.0);\n\tinitializeGenomicElementType(\"g1\", m1, 1.0);\n\tinitializeGenomicElement(g1, 0, 99999);\n\tinitializeRecombinationRate(1e-8);\n}\n1 {\n\tsim.addSubpop(\"p1\", 500);\n}\n2000 late() { sim.treeSeqOutput(\"~/Desktop/junk.trees\"); }\n",
+#         "model_type": "WF",
+#         "seed": 1783301962445
 #     },
 #     "schema_version": "1.0.0",
 #     "slim": {
 #         "file_version": "0.2",
 #         "generation": 2000,
-#         "model": "initialize() {\n\tinitializeTreeSeq();\n\tinitializeMutationRate(1e-7);\n\tinitializeMutationType(\"m1\", 0.5, \"f\", 0.0);\n\tinitializeGenomicElementType(\"g1\", m1, 1.0);\n\tinitializeGenomicElement(g1, 0, 99999);\n\tinitializeRecombinationRate(1e-8);\n}\n1 {\n\tsim.addSubpop(\"p1\", 500);\n}\n2000 late() { sim.treeSeqOutput(\"~/Desktop/junk.trees\"); }\n",
-#         "model_type": "WF",
-#         "remembered_node_count": 0,
-#         "seed": 1722162964723
+#         "remembered_node_count": 0
 #     },
 #     "software": {
 #         "name": "SLiM",
