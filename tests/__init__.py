@@ -56,23 +56,6 @@ class PyslimTestCase(unittest.TestCase):
         for a, b in zip(x, y):
             self.assertAlmostEqual(a, b)
 
-    def assertTablesAlmostEqual(self, t1, t2):
-        # nodes
-        self.assertEqual(t1.nodes.num_rows, t2.nodes.num_rows)
-        self.assertArrayEqual(t1.nodes.flags, t2.nodes.flags)
-        self.assertArrayEqual(t1.nodes.individual, t2.nodes.individual)
-        self.assertArrayEqual(t1.nodes.metadata, t2.nodes.metadata)
-        self.assertArrayEqual(t1.nodes.metadata_offset, t2.nodes.metadata_offset)
-        self.assertArrayEqual(t1.nodes.population, t2.nodes.population)
-        self.assertArrayAlmostEqual(t1.nodes.time, t2.nodes.time)
-        # other tables
-        self.assertEqual(t1.edges, t2.edges)
-        self.assertEqual(t1.sites, t2.sites)
-        self.assertEqual(t1.mutations, t2.mutations)
-        self.assertEqual(t1.migrations, t2.migrations)
-        self.assertEqual(t1.individuals, t2.individuals)
-        self.assertEqual(t1.provenances, t2.provenances)
-
     def verify_haplotype_equality(self, ts, slim_ts):
         self.assertEqual(ts.num_sites, slim_ts.num_sites)
         for j, v1, v2 in zip(range(ts.num_sites), ts.variants(),
@@ -87,5 +70,6 @@ class PyslimTestCase(unittest.TestCase):
 
     def get_slim_examples(self):
         for filename in self.get_slim_example_files():
+            print("---->", filename)
             yield pyslim.load(filename)
 

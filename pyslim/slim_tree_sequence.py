@@ -87,14 +87,17 @@ class SlimTreeSequence(msprime.TreeSequence):
     :meth:`SlimTreeSequence.load_tables` :meth:`SlimTreeSequence.load`,
     :func:`load`, or :func:`load_tables`.
 
-    :ivar slim_generation: The generation that the SLiM simulation was at upon writing.
+    :ivar slim_generation: The generation that the SLiM simulation was at upon writing;
+        will be read from provenance if not provided.
     :vartype slim_generation: int
     '''
 
-    def __init__(self, ts, slim_generation):
+    def __init__(self, ts, slim_generation=None):
         self._ll_tree_sequence = ts._ll_tree_sequence
+        if slim_generation is None:
+            provenance = get_provenance(ts.tables)
+            slim_generation = provenance.slim_generation
         self.slim_generation = slim_generation
-
 
     @classmethod
     def load(cls, path):
@@ -106,9 +109,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         # roundabout way to load just the tables
         ts = msprime.load(path)
-        tables = ts.dump_tables()
-        provenance = get_provenance(tables)
-        return cls.load_tables(tables)
+        return cls(ts)
 
     @classmethod
     def load_tables(cls, tables):
@@ -121,23 +122,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         # a roundabout way to copy the tables
         ts = tables.tree_sequence()
-        new_tables = ts.dump_tables()
-        provenance = get_provenance(new_tables)
-        ts = new_tables.tree_sequence()
-        return cls(ts, provenance.slim_generation)
-
-    def dump(self, path, **kwargs):
-        '''
-        Write out the .trees file that can be read back in by SLiM. See
-        :meth:`msprime.TreeSequence.dump()` for other arguments.
-
-        :param string path: The path to a .trees file.
-        '''
-        # This would be simpler if there were a python-level TableCollection.dump
-        # method: https://github.com/tskit-dev/msprime/issues/547
-        tables = self.dump_tables()
-        temp_ts = tables.tree_sequence()
-        msprime.TreeSequence.dump(temp_ts, path, **kwargs)
+        return cls(ts)
 
     def recapitate(self, recombination_rate, keep_first_generation=False,
                    population_configurations=None, **kwargs):
@@ -200,8 +185,9 @@ class SlimTreeSequence(msprime.TreeSequence):
         the corresponding tree sequence.
         '''
         tables = self.dump_tables()
-        first_gen_nodes = ((tables.individuals.flags[tables.nodes.individual] 
-                           & INDIVIDUAL_FIRST_GEN) > 0)
+        first_gen_nodes = ((tables.nodes.individual > 0)
+                           & ((tables.individuals.flags[tables.nodes.individual]
+                               & INDIVIDUAL_FIRST_GEN) > 0))
         if sum(first_gen_nodes) == 0:
             warnings.warn("Tree sequence does not have the initial generation;" +
                           " did you simplify it after output from SLiM?")

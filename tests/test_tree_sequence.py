@@ -24,6 +24,7 @@ class TestRecapitation(tests.PyslimTestCase):
         ts_samples = list(ts.samples())
         for u in recap.samples():
             n1 = recap.node(u)
+            self.assertGreaterEqual(n1.individual, 0)
             i1 = recap.individual(n1.individual)
             firstgen = ((pyslim.INDIVIDUAL_FIRST_GEN & i1.flags) > 0)
             remembered = ((pyslim.INDIVIDUAL_REMEMBERED & i1.flags) > 0)

@@ -19,13 +19,10 @@ cd pyslim
 python setup.py install --user
 ```
 You should also be able to install it with `pip install pyslim`.
-You'll also need an up-to-date [msprime](https://github.com/tskit-dev/msprime) and [SLiM](https://messerlab.org/slim/), of course.
+You'll also need an up-to-date [msprime](https://github.com/tskit-dev/msprime) and [SLiM](https://messerlab.org/slim/).
 
 To run the tests to make sure everything is working, do:
 ```
-cd tests/examples
-for x in *.slim; do slim $x; done
-cd -
 python -m nose tests
 ```
 
@@ -34,9 +31,13 @@ python -m nose tests
 
 ## Quickstart: coalescent simulation for SLiM
 
-The `pyslim.annotate()` command will add default information to a tree sequence, allowing
-it to be read in by SLiM. This will simulate a tree sequence with msprime, add SLiM information,
-and write it out to a `.trees` file:
+Coalescent simulation is more biologically limited, but is much faster than
+forwards simluation, so it can be helpful to run a "hybrid" simulation, by
+endowing a SLiM simulation with a history derived from a msprime simulation.
+The `pyslim.annotate()` command helps make this easy, by adding default
+information to a tree sequence, allowing it to be read in by SLiM. This will
+simulate a tree sequence with msprime, add SLiM information, and write it out
+to a `.trees` file:
 ```
 import msprime
 import pyslim
@@ -44,8 +45,69 @@ import pyslim
 # simulate a tree sequence of 12 nodes
 ts = msprime.simulate(12, mutation_rate=1.0, recombination_rate=1.0)
 new_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-new_ts.dump("slim_ts.trees")
+new_ts.dump("initialize_nonWF.trees")
 ```
+
+The resulting file `slim_ts.trees` can be read into SLiM to be used as a starting state,
+as illustrated in this minimal example:
+```
+initialize()
+{
+    setSeed(23);
+    initializeSLiMModelType("nonWF");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+}
+
+1 early() { 
+    sim.readFromPopulationFile("initialize_nonWF.trees");
+}
+
+10 {
+    sim.treeSeqOutput("nonWF_restart.trees");
+    catn("Done.");
+    sim.simulationFinished();
+}
+```
+See the SLiM manual for more about this operation.
+
+
+## Quickstart: finishing an uncoalesced SLiM simulation
+
+Although we can initialize a SLiM simulation with the results of a coalescent simulation,
+if during the simulation we don't actually use the genotypes for anything, it can be much
+more efficient to only coalesce the portions of the first-generation ancestors that have
+not yet coalesced. (See the SLiM manual for more explanation, and the upcoming paper.)
+Doing this is as simple as:
+```
+ts = pyslim.load("unfinished.trees")
+ts.recapitate(recombination_rate = 1e-6, Ne=1000)
+```
+
+## Quickstart: adding neutral mutations to a SLiM simulation
+
+If you have recorded a tree sequence in SLiM, likely you have not included any neutral mutations.
+To add these (in a completely equivalent way to having included them during the simulation),
+you can use the `msprime.mutate( )` function, which returns a new tree sequence with additional mutations.
+This works as follows:
+```
+ts = pyslim.load("unmutated.trees")
+mut_ts = pyslim.SlimTreeSequence(msprime.mutate(ts, rate=1e-8, keep=True))
+```
+This will add infinite-sites mutations at a rate of 1e-8 per site, and will
+`keep` any existing mutations (and not add any new ones to the sites where they
+exist already). We have wrapped the call to `msprime.mutate` in a call to
+`pyslim.SlimTreeSequence`, because `msprime.mutate` returns an *msprime* tree sequence,
+and by converting it back into a `pyslim` tree sequence we can still use the methods
+defined by `pyslim`. (The conversion does not modify the tree sequence at all,
+it only adds the `.slim_generation` attribute.) The output of other `msprime`
+functions that return tree sequences may be converted back to
+`pyslim.SlimTreeSequence` in the same way.
+
 
 ## Quickstart: reading SLiM metadata
 
@@ -99,133 +161,18 @@ Nothing besides this binary information can be stored in the metadata of these t
 and so when `pyslim` annotates an existing tree sequence, anything in those columns is overwritten.
 For more detailed documentation on the contents and format of the metadata, see the SLiM manual.
 
-## Time and SLiM Tree Sequences
-
-The "time" in a SLiM simulation is the number of generations since the beginning of the simulation.
-However, since tree sequences naturally deal with history retrospectively,
-properties related to "time" of tree sequences are measured in generations *ago*,
-i.e., generation *prior* to a given point.
-To distinguish these two notions of time, we'll talk about "SLiM time" and "tskit time".
-When SLiM records a tree sequence,
-it records tskit time in units of generations before the start of the simulation,
-so all tskit times it records in the tree sequence are *negative*
-(because it measures how long *before* the start, but happened *after* the start).
-This is terribly counterintuitive. The fact that there are two notions of time 
-- one moving forwards, the other backwards -
-is unavoidable, but `pyslim` does one thing to make this easier to work with:
-when `pyslim` loads in a tree sequence file, it checks to see what the current SLiM time was
-at the end of the simulation, and shifts all times in the tree sequence so that tskit time
-is measured in generations before the *end* of the simulation.
-
-The upshot is that:
-
-1. The ``time`` attribute of tree sequence nodes gives the number of generations
-    before the end of the simulation at which those nodes were born.
-
-2. These numbers will *not* match the values in the `.trees` file, but you should not
-    need to worry about that, as long as you always `load()` and `dump()` using `pyslim`.
-
-3. The conversion factor, the "SLiM time" that it was when the tree sequence file was written,
-    is stored in an entry in the provenance table of the tree sequence; `pyslim` extracts it
-    from there to set the `slim_generation` attribute of a `SlimTreeSequence`.
-
-An example should help clarify things.
-Suppose that `my.trees` is a file that was saved by SLiM at the end of a simulation run
-for 100 generations, and that
-we want to find the list of nodes in the tree sequence that were born during the first
-20 generations of the simulation.
-Since the birth time of a node is recorded in the `.time` attribute of a node
-in tskit time, a node that was born in the first 20 generations of the simulation,
-i.e., more than 80 generations before the end of the simulation,
-will have a `.time` attribute of at least 80.
-```
-ts = pyslim.load("my.trees", slim_format=True)
-old_nodes = []
-for n in ts.nodes():
-   if n.time > ts.slim_generation - 20:
-        old_nodes.append(n)
-```
-
-In the future, we may change this behavior,
-but if so will provide an upgrade path for old files.
-
-
-## SLiM Tree Sequences
-
-Because SLiM adds additional information to tree sequences,
-`pyslim` defines a subclass of `msprime.TreeSequence` to make it easy to access this information,
-and to make the time shift described above seamless.
-When you run `pyslim.load('my.trees', slim_format=True)`,
-you get a `SlimTreeSequence` object.
-This has all the same properties and methods as a plain `TreeSequence`,
-with the following differences:
-
-1. It has a `slim_generation` attribute.
-2. Its `.dump()` method shifts times by `slim_generation` before writing them out,
-    so that `pyslim.load("my.trees", slim_format=True).dump("my2.trees")`
-    writes out a tree sequence identical to the one that was read in
-    (except for floating point error due to adding and subtracting this value from the times).
-
-
-## Mutation and node times
-
-Both types of time - "SLiM time" and "tskit time" - appear in a SLiM tree sequence.
-The birth times of each individual are stored in the `.time` attribute of each of their nodes
-as tskit times,
-while the `slim_time` attributes of mutation metadata is in SLiM time.
-
-Here is a very small example. Suppose that there are three haploid individuals:
-node 0 is born in the first generation,
-node 1 is born from node 0 in the third generation,
-and node 2 is born from node 1 in the fifth generation.
-(This is not possible in SLiM for a number of reasons, but ignore this.)
-Furthermore, suppose that two mutations have appeared:
-mutation 0 in generation 2 and mutation 1 in generation 3.
-The simulation is run for 5 generations, then written to a tree sequence.
-Here is a depiction of this:
-```
-slim time   tskit time    nodes    mutation
----------   ----------    -----    --------
-   1             4         0
-   2             3                    0
-   3             2         1          1
-   4             1
-   5             0         2
-```
-Here "tskit time" refers to the number of generations before the end of the simulation.
-
-In this situation, the `time` attribute associated with each node
-would be that appearing in the "tskit time" column,
-while the `slim_time` attribute of mutation metadata would be that appearing in the "slim time" column.
-We could retrieve this information hypothetically as:
-```
->>> ts = pyslim.load("my.trees", slim_format=True)
->>> for n in ts.nodes():
->>>      print(n.time)
-[4, 2, 0]
->>> for m in ts.mutations():
->>>      md = pyslim.decode_mutation(m.metadata)
->>>      print(md.slim_time)
-[2, 3]
-```
-
-We could then convert the node times to "slim time" as follows:
-```
->>> [ts.slim_generation - n.time for n in ts.nodes()]
-[1, 3, 5]
-```
-And, we could convert the mutation times to “tskit time” as follows:
-```
->>> [ts.slim_generation - m.slim_time for m in pyslim.extract_mutation_metadata(ts.tables)]
-[3, 2]
-```
-
 ## Other important notes:
 
 1. `tskit` "nodes" correspond to SLiM "genomes".  Individuals in SLiM are diploid, so each has two nodes.
 
-2. The currently alive individuals will be those in the Individual table; 
-    since in SLiM, all individual are diploid, every individual will be associated with two nodes,
-    and all other nodes will *not* have a corresponding individual.
+2. Since in SLiM, all individual are diploid, every individual will be associated with two nodes.
+    The Individual table contains entries for 
+
+    a. the currently alive individuals, 
+    b. any individuals that have been remembered with `treeSeqRememberIndividuals()`, and
+    c. the *first* generation of the SLiM simulation.
+
+    This last category is here because they are necessary for recapitation (described above);
+    but they are *not* marked as samples, so will most likely be removed if you `simplify` the tree sequence.
 
 3. The "remembered nodes" will be the *first* nodes.

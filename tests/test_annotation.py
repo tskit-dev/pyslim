@@ -9,6 +9,7 @@ import msprime
 import tests
 import unittest
 import random
+import json
 
 
 def get_msprime_examples():
@@ -101,6 +102,10 @@ class TestAnnotate(tests.PyslimTestCase):
             self.assertEqual(md.bounds_z1, 0.0)
             self.assertEqual(len(md.migration_records), 0)
 
+    def verify_provenance(self, ts):
+        for u in ts.provenances():
+            msprime.provenance.validate_provenance(json.loads(u.record))
+
     def test_basic_annotation(self):
         for ts in get_msprime_examples():
             slim_gen = 4
@@ -110,6 +115,7 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_annotated_trees(ts, slim_ts)
             self.verify_haplotype_equality(ts, slim_ts)
             self.verify_defaults(slim_ts)
+            self.verify_provenance(slim_ts)
 
     def test_annotate_individuals(self):
         for ts in get_msprime_examples():
