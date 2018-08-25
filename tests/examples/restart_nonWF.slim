@@ -1,0 +1,25 @@
+initialize()
+{
+    setSeed(23);
+    initializeSLiMModelType("nonWF");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+}
+
+1 early() { 
+    sim.readFromPopulationFile("initialize_nonWF.trees");
+}
+
+2: {
+    catn(c("Generation ", sim.generation));
+}
+
+10 {
+    sim.treeSeqOutput("nonWF_restart.trees");
+    catn("Done.");
+    sim.simulationFinished();
+}
