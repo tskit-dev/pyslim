@@ -6,10 +6,10 @@ from __future__ import division
 
 import pyslim
 import msprime
+import _msprime
 import tests
 import unittest
 import random
-import _msprime
 import os
 
 

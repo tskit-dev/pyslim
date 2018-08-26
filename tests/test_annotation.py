@@ -104,7 +104,7 @@ class TestAnnotate(tests.PyslimTestCase):
 
     def verify_provenance(self, ts):
         for u in ts.provenances():
-            msprime.provenance.validate_provenance(json.loads(u.record))
+            msprime.validate_provenance(json.loads(u.record))
 
     def test_basic_annotation(self):
         for ts in get_msprime_examples():

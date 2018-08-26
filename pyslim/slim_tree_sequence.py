@@ -92,11 +92,35 @@ class SlimTreeSequence(msprime.TreeSequence):
     :vartype slim_generation: int
     '''
 
-    def __init__(self, ts, slim_generation=None):
+    def __init__(self, ts):
+        provenance = get_provenance(ts)
+        slim_generation = provenance.slim_generation
+        if provenance.file_version == "0.1":
+            warnings.warn("This is a v0.1 SLiM tree sequence. When you write this out," +
+                          "it will be converted to v0.2 (which you should do).")
+            tables = ts.dump_tables()
+            # shift times
+            node_times = tables.nodes.time + slim_generation
+            tables.nodes.set_columns(
+                    flags=tables.nodes.flags,
+                    time=node_times,
+                    population=tables.nodes.population,
+                    individual=tables.nodes.individual,
+                    metadata=tables.nodes.metadata,
+                    metadata_offset=tables.nodes.metadata_offset)
+            migration_times = tables.migrations.time + slim_generation
+            tables.migrations.set_columns(
+                    left=tables.migrations.left, 
+                    right=tables.migrations.right, 
+                    node=tables.migrations.node, 
+                    source=tables.migrations.source, 
+                    dest=tables.migrations.dest, 
+                    time=migration_times)
+            upgrade_slim_provenance(tables)
+            ts = tables.tree_sequence()
+            provenance = get_provenance(ts)
+            assert(provenance.file_version == "0.2")
         self._ll_tree_sequence = ts._ll_tree_sequence
-        if slim_generation is None:
-            provenance = get_provenance(ts.tables)
-            slim_generation = provenance.slim_generation
         self.slim_generation = slim_generation
 
     @classmethod
@@ -446,33 +470,6 @@ def _set_sites_mutations(
 # See provenances.py for the structure of a Provenance entry.
 
 
-@attr.s
-class ProvenanceMetadata(object):
-    model_type = attr.ib()
-    slim_generation = attr.ib()
-    remembered_node_count = attr.ib()
-
-
-def get_provenance(tables):
-    '''
-    Extracts model type, slim generation, and remembmered node count from the last
-    entry in the provenance table that is tagged with "program"="SLiM".
-
-    :param TableCollection tables: The tables.
-    :rtype ProvenanceMetadata:
-    '''
-    prov = [json.loads(x.record) for x in tables.provenances]
-    slim_prov = [u for u in prov if ('software' in u 
-                                     and 'name' in u['software']
-                                     and u['software']['name'] == "SLiM")]
-    if len(slim_prov) == 0:
-        raise ValueError("Tree sequence contains no SLiM provenance entries.")
-    last_slim_prov = slim_prov[len(slim_prov)-1]
-    return ProvenanceMetadata(last_slim_prov['parameters']['model_type'],
-                              last_slim_prov['slim']["generation"],
-                              last_slim_prov['slim']["remembered_node_count"])
-
-
 def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0):
     '''
     Appends to the provenance table of a :class:`TableCollection` a record containing
@@ -483,8 +480,8 @@ def _set_provenance(tables, model_type, slim_generation, remembered_node_count=0
     :param int slim_generation: The "current" generation in the SLiM simulation.
     :param int remembered_node_count: The number of nodes that will be "remembered".
     '''
-    pyslim_dict = get_provenance_dict()
-    slim_dict = make_slim_dict(model_type, slim_generation, remembered_node_count)
+    pyslim_dict = make_pyslim_provenance_dict()
+    slim_dict = make_slim_provenance_dict(model_type, slim_generation, remembered_node_count)
     tables.provenances.add_row(json.dumps(pyslim_dict))
     tables.provenances.add_row(json.dumps(slim_dict))
 
