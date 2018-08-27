@@ -8,9 +8,6 @@ import warnings
 from .slim_metadata import *
 from .provenance import *
 
-SLIM_VERSION = "3.0"
-SLIM_FILE_VERSION = "0.1"
-
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
 INDIVIDUAL_FIRST_GEN = 2**18
