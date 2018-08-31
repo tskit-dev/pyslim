@@ -18,7 +18,6 @@ except ImportError:
 class ProvenanceMetadata(object):
     model_type = attr.ib()
     slim_generation = attr.ib()
-    remembered_node_count = attr.ib()
     file_version = attr.ib()
 
 
@@ -40,12 +39,10 @@ def get_provenance(ts):
     if file_version == "0.1":
         out = ProvenanceMetadata(record['model_type'],
                                  record['generation'],
-                                 record['remembered_node_count'],
                                  file_version)
     else: # 0.2
         out = ProvenanceMetadata(record['parameters']['model_type'],
                                  record['slim']["generation"],
-                                 record['slim']["remembered_node_count"],
                                  file_version)
     return out
 
@@ -71,8 +68,7 @@ def upgrade_slim_provenance(tables):
         raise ValueError("Not a SLiM provenance entry.")
     new_record = make_slim_provenance_dict(
                     record['model_type'], 
-                    record['generation'],
-                    record['remembered_node_count'])
+                    record['generation'])
     new_record['parameters']['command'] = ['pyslim', 'convert']
     msprime.validate_provenance(new_record)
     tables.provenances.add_row(json.dumps(new_record))
@@ -149,7 +145,7 @@ def make_pyslim_provenance_dict():
     }
     return document
 
-def make_slim_provenance_dict(model_type, slim_generation, remembered_node_count):
+def make_slim_provenance_dict(model_type, slim_generation):
     """
     Returns a dictionary encoding necessary provenance information for a SLiM tree sequence.
     """
@@ -188,8 +184,7 @@ def make_slim_provenance_dict(model_type, slim_generation, remembered_node_count
         "slim": {
             "file_version": "0.2",
             "generation": slim_generation,
-            "model": "",
-            "remembered_node_count": remembered_node_count
+            "model": ""
             }
     }
     return document
@@ -232,8 +227,7 @@ _slim_v3_1_example = '''
     "schema_version": "1.0.0",
     "slim": {
         "file_version": "0.2",
-        "generation": 2000,
-        "remembered_node_count": 0
+        "generation": 2000
     },
     "software": {
         "name": "SLiM",

@@ -23,7 +23,7 @@ class TestProvenance(tests.PyslimTestCase):
         record = pyslim.make_pyslim_provenance_dict()
         msprime.provenance.validate_provenance(record)
 
-        record = pyslim.make_slim_provenance_dict("nonWF", 100, 20)
+        record = pyslim.make_slim_provenance_dict("nonWF", 100)
         msprime.provenance.validate_provenance(record)
 
     def test_upgrade_provenance(self):
@@ -33,7 +33,7 @@ class TestProvenance(tests.PyslimTestCase):
             pyslim.upgrade_slim_provenance(ts.tables)
         # test good input
         record = {"program": "SLiM", "version": "3.0", "file_version": "0.1",
-                  "model_type": "WF", "generation": 10, "remembered_node_count": 0}
+                  "model_type": "WF", "generation": 10}
         prov = msprime.Provenance(timestamp='2018-08-25T14:59:13', record=json.dumps(record))
         is_slim, version = pyslim.provenance._slim_provenance_version(json.loads(prov.record))
         self.assertTrue(is_slim)
@@ -49,8 +49,6 @@ class TestProvenance(tests.PyslimTestCase):
         self.assertEqual(version, "0.2")
         self.assertEqual(record['model_type'], new_record['parameters']['model_type'])
         self.assertEqual(record['generation'], new_record['slim']["generation"])
-        self.assertEqual(record['remembered_node_count'], 
-                         new_record['slim']["remembered_node_count"])
 
     def test_convert_old_files(self):
         for ts in self.get_old_slim_examples():
@@ -62,8 +60,6 @@ class TestProvenance(tests.PyslimTestCase):
             new_record = json.loads(pts.provenance(1).record)
             self.assertEqual(record['model_type'], new_record['parameters']['model_type'])
             self.assertEqual(record['generation'], new_record['slim']["generation"])
-            self.assertEqual(record['remembered_node_count'], 
-                             new_record['slim']["remembered_node_count"])
             self.assertListEqual(list(ts.samples()), list(pts.samples()))
             self.assertArrayEqual(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
