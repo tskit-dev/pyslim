@@ -87,7 +87,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         provenance = get_provenance(ts)
         slim_generation = provenance.slim_generation
         if provenance.file_version == "0.1":
-            warnings.warn("This is a v0.1 SLiM tree sequence. When you write this out," +
+            warnings.warn("This is a v0.1 SLiM tree sequence. When you write this out, " +
                           "it will be converted to v0.2 (which you should do).")
             tables = ts.dump_tables()
             # shift times
@@ -204,7 +204,7 @@ class SlimTreeSequence(msprime.TreeSequence):
                            & ((tables.individuals.flags[tables.nodes.individual]
                                & INDIVIDUAL_FIRST_GEN) > 0))
         if sum(first_gen_nodes) == 0:
-            warnings.warn("Tree sequence does not have the initial generation;" +
+            warnings.warn("Tree sequence does not have the initial generation; " +
                           " did you simplify it after output from SLiM?")
         flags = tables.nodes.flags
         flags[first_gen_nodes] = (flags[first_gen_nodes] | msprime.NODE_IS_SAMPLE)
