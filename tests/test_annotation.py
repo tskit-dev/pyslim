@@ -13,11 +13,27 @@ import json
 
 
 def get_msprime_examples():
+    demographic_events = [
+        msprime.MassMigration(
+        time=5, source=1, destination=0, proportion=1.0)
+    ]
     for n in [2, 10, 100]:
         for mutrate in [0.0]:
             for recrate in [0.0, 1.0]:
                 yield msprime.simulate(n, mutation_rate=mutrate,
                                        recombination_rate=recrate)
+                population_configurations =[
+                    msprime.PopulationConfiguration(
+                    sample_size=n, initial_size=100),
+                    msprime.PopulationConfiguration(
+                    sample_size=n, initial_size=100)
+                ]
+                yield msprime.simulate(
+                    population_configurations=population_configurations,
+                    demographic_events=demographic_events,
+                    recombination_rate=recrate,
+                    mutation_rate=mutrate)
+
 
 class TestAnnotate(tests.PyslimTestCase):
     '''
