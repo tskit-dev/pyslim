@@ -299,8 +299,8 @@ def _set_nodes_individuals(
     if ind_population is None:
         # set the individual populations based on what's in the nodes
         ind_population = [msprime.NULL_POPULATION for _ in range(num_individuals)]
-        for j, u in enumerate(node_ind):
-            ind_population[u] = tables.nodes.population[j]
+        for j, u in enumerate(range(num_individuals)):
+            ind_population[u] = tables.nodes.population[2*j]
     assert(len(ind_population) == num_individuals)
 
     # check for consistency: every individual has two nodes, and populations agree
