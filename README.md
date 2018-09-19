@@ -43,10 +43,22 @@ import msprime
 import pyslim
 
 # simulate a tree sequence of 12 nodes
-ts = msprime.simulate(12, mutation_rate=1.0, recombination_rate=1.0)
+ts = msprime.simulate(12, mutation_rate=0.0, recombination_rate=1.0, length=100)
 new_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
 new_ts.dump("initialize_nonWF.trees")
 ```
+
+Note that we have set the mutation rate to `0.0`:
+this is because any mutations that are produced will be read in by SLiM...
+which *could* be a very useful thing, if you want to generate mutations with msprime
+that provide standing variation for selection within SLiM...
+**but**, currently msprime only produces mutations
+with an infinite-sites model, while SLiM requires mutation positions to be at integer positions.
+We [plan to fix this](https://github.com/tskit-dev/msprime/issues/553),
+but in the meantime you'll have to generate any pre-existing mutations by hand.
+*However*, if you intend the pre-existing mutations to be *neutral*,
+then there is no need to add them at this point;
+you can add them after the fact, as discussed below.
 
 The resulting file `slim_ts.trees` can be read into SLiM to be used as a starting state,
 as illustrated in this minimal example:
