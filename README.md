@@ -156,6 +156,35 @@ for ind in pyslim.extract_individual_metadata(mod_ts.tables):
 mod_ts.dump("modified_ts.trees")
 ```
 
+# Gotchas
+
+## Common errors
+
+1. If you use msprime to simulate a tree sequence, and then use that to initialize a SLiM simulation,
+    you have to specify the same sequence length in both: as in the examples above,
+    the `length` argument to `msprime.simulate( )` should be equal to the SLiM sequence length *plus 1.0*.
+
+
+## Things you cannot do
+
+Here are some things that you currently **cannot** do with `msprime` and `SLiM`.
+They are all on our list to enable; but if you need something for your workflow
+and would like to contribute, please open an issue to discuss.
+
+1. You cannot generate mutations in `msprime`, and then use the tree sequence
+    to initialize a SLiM simulation. This is because SLiM requires mutations
+    to occur at integer positions, and `msprime` currently only generates
+    mutations under the infinite-sites model.
+
+2. You cannot use `msprime` to recapitate a SLiM simulation using a recombination
+    map that is not uniform. This is because `msprime` and SLiM both use discrete
+    recombination maps, but SLiM is discrete in physical coordinates (base pairs),
+    while `msprime` is discrete in genetic map units. You *can* run a simulation in
+    SLiM using any recombination map you want, and then recapitate using a uniform
+    map in `msprime` (this is the default). See [the msprime documentation](https://msprime.readthedocs.io/en/latest/api.html#initialising-simulations-from-a-tree-sequence)
+    for more discussion of recapitation.
+
+
 # Documentation
 
 Here we describe the technical details.
