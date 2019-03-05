@@ -10,6 +10,7 @@ import tests
 import unittest
 import random
 import json
+import tskit
 
 
 class TestProvenance(tests.PyslimTestCase):
@@ -21,10 +22,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_provenance_creation(self):
         record = pyslim.make_pyslim_provenance_dict()
-        msprime.provenance.validate_provenance(record)
+        tskit.provenance.validate_provenance(record)
 
         record = pyslim.make_slim_provenance_dict("nonWF", 100)
-        msprime.provenance.validate_provenance(record)
+        tskit.provenance.validate_provenance(record)
 
     def test_upgrade_provenance(self):
         ts = msprime.simulate(10)
