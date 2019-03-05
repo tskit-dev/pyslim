@@ -6,6 +6,7 @@ from __future__ import division
 
 import pyslim
 import msprime
+import tskit
 import tests
 import unittest
 import random
@@ -88,7 +89,7 @@ class TestAnnotate(tests.PyslimTestCase):
         for md in mut_md:
             self.assertEqual(md.mutation_type, 1)
             self.assertEqual(md.selection_coeff, 0.0)
-            self.assertEqual(md.population, msprime.NULL_POPULATION)
+            self.assertEqual(md.population, tskit.NULL)
             self.assertEqual(md.slim_time, 0)
         node_md = pyslim.extract_node_metadata(ts.tables)
         for md, node in zip(node_md, ts.nodes()):
@@ -97,7 +98,7 @@ class TestAnnotate(tests.PyslimTestCase):
             else:
                 self.assertEqual(md.is_null, False)
                 self.assertEqual(md.genome_type, pyslim.GENOME_TYPE_AUTOSOME)
-        for ind in ts.individuals(): 
+        for ind in ts.individuals():
             self.assertArrayEqual(ind.location, [0, 0, 0])
             self.assertEqual(ind.flags, pyslim.INDIVIDUAL_ALIVE)
         ind_md = pyslim.extract_individual_metadata(ts.tables)
@@ -120,7 +121,7 @@ class TestAnnotate(tests.PyslimTestCase):
 
     def verify_provenance(self, ts):
         for u in ts.provenances():
-            msprime.validate_provenance(json.loads(u.record))
+            tskit.validate_provenance(json.loads(u.record))
 
     def test_basic_annotation(self):
         for ts in get_msprime_examples():
