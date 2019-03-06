@@ -1,6 +1,7 @@
 import attr
 import struct
 import msprime
+import tskit
 import json
 from collections import OrderedDict
 import warnings
@@ -14,7 +15,7 @@ INDIVIDUAL_FIRST_GEN = 2**18
 
 def load(path):
     '''
-    Load the SLiM-compatible tree sequence found in the .trees file at ``path``. 
+    Load the SLiM-compatible tree sequence found in the .trees file at ``path``.
 
     :param string path: The path to a .trees file.
     '''
@@ -69,7 +70,7 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
 
 
-class SlimTreeSequence(msprime.TreeSequence):
+class SlimTreeSequence(tskit.TreeSequence):
     '''
     This is just like a :class:`TreeSequence`, except that:
         - Times are shifted by the `generation` in the last SLiM entry
@@ -101,11 +102,11 @@ class SlimTreeSequence(msprime.TreeSequence):
                     metadata_offset=tables.nodes.metadata_offset)
             migration_times = tables.migrations.time + slim_generation
             tables.migrations.set_columns(
-                    left=tables.migrations.left, 
-                    right=tables.migrations.right, 
-                    node=tables.migrations.node, 
-                    source=tables.migrations.source, 
-                    dest=tables.migrations.dest, 
+                    left=tables.migrations.left,
+                    right=tables.migrations.right,
+                    node=tables.migrations.node,
+                    source=tables.migrations.source,
+                    dest=tables.migrations.dest,
                     time=migration_times)
             upgrade_slim_provenance(tables)
             ts = tables.tree_sequence()
@@ -123,7 +124,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         :rtype SlimTreeSequence:
         '''
         # roundabout way to load just the tables
-        ts = msprime.load(path)
+        ts = tskit.load(path)
         return cls(ts)
 
     @classmethod
@@ -144,7 +145,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         '''
         Returns a "recapitated" tree sequence, by using msprime to run a
         coalescent simulation from the "top" of this tree sequence, i.e.,
-        allowing any uncoalesced lineages to coalesce. 
+        allowing any uncoalesced lineages to coalesce.
 
         To allow this process, the first generation of the SLiM simulation has been
         recorded in the tree sequence, but are not currently marked as samples,
@@ -163,7 +164,7 @@ class SlimTreeSequence(msprime.TreeSequence):
         ``p2`` needs a migration matrix of
            [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
 
-        :param float recombination_rate: The recombination rate - only a constant 
+        :param float recombination_rate: The recombination rate - only a constant
             recombination rate is allowed.
         :param bool keep_first_generation: Whether to keep the individuals (and genomes)
             corresponding to the first SLiM generation in the resulting tree sequence
@@ -172,12 +173,12 @@ class SlimTreeSequence(msprime.TreeSequence):
             and the same effective population size.
         :param dict kwargs: Any other arguments to :meth:`msprime.simulate()`.
         '''
-        recomb = msprime.RecombinationMap(positions = [0.0, self.sequence_length], 
+        recomb = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
                                           rates = [recombination_rate, 0.0],
                                           num_loci = int(self.sequence_length))
 
         if population_configurations is None:
-            population_configurations = [msprime.PopulationConfiguration() 
+            population_configurations = [msprime.PopulationConfiguration()
                                          for _ in range(self.num_populations)]
 
         if keep_first_generation:
@@ -186,7 +187,7 @@ class SlimTreeSequence(msprime.TreeSequence):
             ts = self
 
         recap = msprime.simulate(
-                    from_ts = ts, 
+                    from_ts = ts,
                     population_configurations = population_configurations,
                     recombination_map = recomb,
                     start_time = self.slim_generation,
@@ -207,10 +208,10 @@ class SlimTreeSequence(msprime.TreeSequence):
             warnings.warn("Tree sequence does not have the initial generation; " +
                           " did you simplify it after output from SLiM?")
         flags = tables.nodes.flags
-        flags[first_gen_nodes] = (flags[first_gen_nodes] | msprime.NODE_IS_SAMPLE)
+        flags[first_gen_nodes] = (flags[first_gen_nodes] | tskit.NODE_IS_SAMPLE)
         tables.nodes.set_columns(flags=flags, population=tables.nodes.population,
                 individual=tables.nodes.individual, time=tables.nodes.time,
-                metadata=tables.nodes.metadata, 
+                metadata=tables.nodes.metadata,
                 metadata_offset=tables.nodes.metadata_offset)
         ts = load_tables(tables)
         return ts
@@ -238,18 +239,18 @@ def _set_nodes_individuals(
     - (node_is_null) genomes to be non-null
     - (node_type) genome type to 0 (= autosome)
     - (ind_flags) INDIVIDUAL_ALIVE
-        
+
     If you have other situations, like non-alive "remembered" individuals, you
     will need to edit the tables by hand, afterwards.
     '''
-    samples = list(filter(lambda j: tables.nodes.flags[j] & msprime.NODE_IS_SAMPLE,
+    samples = list(filter(lambda j: tables.nodes.flags[j] & tskit.NODE_IS_SAMPLE,
                           range(tables.nodes.num_rows)))
     if (len(samples) % 2) != 0:
         raise ValueError("There must be an even number of sampled nodes,"\
                          + "since organisms are diploid.")
 
     if node_ind is None:
-        node_ind = [msprime.NULL_INDIVIDUAL for _ in range(tables.nodes.num_rows)]
+        node_ind = [tskit.NULL for _ in range(tables.nodes.num_rows)]
         for j, k in enumerate(samples):
             node_ind[j] = int(k/2)
 
@@ -298,7 +299,7 @@ def _set_nodes_individuals(
 
     if ind_population is None:
         # set the individual populations based on what's in the nodes
-        ind_population = [msprime.NULL_POPULATION for _ in range(num_individuals)]
+        ind_population = [tskit.NULL for _ in range(num_individuals)]
         for j, u in enumerate(node_ind):
             if u >= 0:
                 ind_population[u] = tables.nodes.population[j]
@@ -321,7 +322,7 @@ def _set_nodes_individuals(
                              metadata=tables.nodes.metadata,
                              metadata_offset=tables.nodes.metadata_offset)
 
-    loc_vec, loc_off = msprime.pack_bytes(location)
+    loc_vec, loc_off = tskit.pack_bytes(location)
     tables.individuals.set_columns(
             flags=ind_flags, location=loc_vec, location_offset=loc_off)
 
@@ -347,7 +348,7 @@ def _set_populations(
     table.
     '''
     num_pops = max(tables.nodes.population) + 1
-    for md in msprime.unpack_bytes(tables.individuals.metadata,
+    for md in tskit.unpack_bytes(tables.individuals.metadata,
                                    tables.individuals.metadata_offset):
         try:
             ind_md = decode_individual(md)
@@ -416,7 +417,7 @@ def _set_populations(
 
 def _set_sites_mutations(
         tables, mutation_id=None, mutation_type=1, selection_coeff=0.0,
-        population=msprime.NULL_POPULATION, slim_time=None):
+        population=tskit.NULL, slim_time=None):
     '''
     Adds to a TableCollection the information relevant to mutations required
     for SLiM to load in a tree sequence. This means adding to the metadata column

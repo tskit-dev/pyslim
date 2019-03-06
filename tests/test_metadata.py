@@ -6,6 +6,7 @@ from __future__ import division
 
 import pyslim
 import msprime
+import tskit
 import tests
 import unittest
 import os
@@ -68,7 +69,7 @@ class TestAnnotate(tests.PyslimTestCase):
             tables = ts.tables
             new_tables = ts.tables
             metadata = []
-            for md in msprime.unpack_bytes(tables.mutations.metadata, 
+            for md in tskit.unpack_bytes(tables.mutations.metadata,
                                            tables.mutations.metadata_offset):
                 dm = pyslim.decode_mutation(md)
                 edm = pyslim.encode_mutation(dm)
@@ -83,7 +84,7 @@ class TestAnnotate(tests.PyslimTestCase):
             tables = ts.tables
             new_tables = ts.tables
             metadata = []
-            for md in msprime.unpack_bytes(tables.nodes.metadata, 
+            for md in tskit.unpack_bytes(tables.nodes.metadata,
                                            tables.nodes.metadata_offset):
                 dm = pyslim.decode_node(md)
                 edm = pyslim.encode_node(dm)
@@ -98,7 +99,7 @@ class TestAnnotate(tests.PyslimTestCase):
             tables = ts.tables
             new_tables = ts.tables
             metadata = []
-            for md in msprime.unpack_bytes(tables.individuals.metadata, 
+            for md in tskit.unpack_bytes(tables.individuals.metadata,
                                            tables.individuals.metadata_offset):
                 dm = pyslim.decode_individual(md)
                 edm = pyslim.encode_individual(dm)
@@ -113,7 +114,7 @@ class TestAnnotate(tests.PyslimTestCase):
             tables = ts.tables
             new_tables = ts.tables
             metadata = []
-            for md in msprime.unpack_bytes(tables.populations.metadata, 
+            for md in tskit.unpack_bytes(tables.populations.metadata,
                                            tables.populations.metadata_offset):
                 dm = pyslim.decode_population(md)
                 edm = pyslim.encode_population(dm)
@@ -141,7 +142,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         self.assertEqual(ts.num_nodes, slim_ts.num_nodes)
         # verify internal consistency
         for j in range(slim_ts.num_nodes):
-            self.assertEqual(slim_ts.node(j).time, 
+            self.assertEqual(slim_ts.node(j).time,
                              slim_ts.tables.nodes.time[j])
         # verify consistency between tree sequences
         for n1, n2 in zip(ts.nodes(), slim_ts.nodes()):
@@ -170,7 +171,7 @@ class TestDumpLoad(tests.PyslimTestCase):
     def test_load(self):
         for fn in self.get_slim_example_files():
             # load in msprime then switch
-            msp_ts = msprime.load(fn)
+            msp_ts = tskit.load(fn)
             self.assertTrue(type(msp_ts) is msprime.TreeSequence)
             # transfer tables
             msp_tables = msp_ts.tables

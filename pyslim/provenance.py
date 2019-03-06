@@ -5,6 +5,7 @@ import warnings
 import attr
 import json
 import msprime
+import tskit
 
 __version__ = "undefined"
 try:
@@ -67,10 +68,10 @@ def upgrade_slim_provenance(tables):
     if not is_slim:
         raise ValueError("Not a SLiM provenance entry.")
     new_record = make_slim_provenance_dict(
-                    record['model_type'], 
+                    record['model_type'],
                     record['generation'])
     new_record['parameters']['command'] = ['pyslim', 'convert']
-    msprime.validate_provenance(new_record)
+    tskit.validate_provenance(new_record)
     tables.provenances.add_row(json.dumps(new_record))
 
 

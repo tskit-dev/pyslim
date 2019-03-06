@@ -1,6 +1,6 @@
 import attr
 import struct
-import msprime
+import tskit
 import json
 
 GENOME_TYPE_AUTOSOME = 0
@@ -72,7 +72,7 @@ def encode_mutation(metadata_object):
     functions, this takes a *list* rather than a single value.
 
     :param MutationMetadata metadata_object: The list of
-        :class:`MutationMetadata` objects to be encoded.  
+        :class:`MutationMetadata` objects to be encoded.
     :rtype bytes:
     '''
     mr_values = []
@@ -90,7 +90,7 @@ def extract_mutation_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    metadata = msprime.unpack_bytes(tables.mutations.metadata,
+    metadata = tskit.unpack_bytes(tables.mutations.metadata,
                                     tables.mutations.metadata_offset)
     for md in metadata:
         yield decode_mutation(md)
@@ -182,7 +182,7 @@ def extract_node_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    metadata = msprime.unpack_bytes(tables.nodes.metadata,
+    metadata = tskit.unpack_bytes(tables.nodes.metadata,
                                     tables.nodes.metadata_offset)
     for md in metadata:
         yield decode_node(md)
@@ -260,7 +260,7 @@ def encode_individual(metadata_object):
     '''
     Encodes :class:`IndividualMetadata` objects as a bytes object, suitable to be put
     in as metadata for an individual.  If ``buff`` is ``None``, returns an
-    empty bytes object. 
+    empty bytes object.
 
     :param IndividualMetadata metadata_object: The object to be encoded.
     :rtype bytes:
@@ -281,7 +281,7 @@ def extract_individual_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    metadata = msprime.unpack_bytes(tables.individuals.metadata,
+    metadata = tskit.unpack_bytes(tables.individuals.metadata,
                                     tables.individuals.metadata_offset)
     for md in metadata:
         yield decode_individual(md)
@@ -452,7 +452,7 @@ def extract_population_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    metadata = msprime.unpack_bytes(tables.populations.metadata,
+    metadata = tskit.unpack_bytes(tables.populations.metadata,
                                     tables.populations.metadata_offset)
     for md in metadata:
         yield decode_population(md)
