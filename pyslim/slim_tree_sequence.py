@@ -140,6 +140,28 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts = tables.tree_sequence()
         return cls(ts)
 
+    def simplify(self, *args, **kwargs):
+        '''
+        This is a wrapper for msprime.TreeSequence.Simplify().
+        The only difference is that this method returns the
+        derived class SlimTreeSequence.
+
+        Documentation for this function and its arguments
+        can be found at:
+        https://github.com/tskit-dev/tskit/blob/master/python/tskit/trees.py
+
+        :param *args: list of arguments to feed msprime.TreeSequence.Simplify()
+        :param **kwargs: keyword specific aguments stored in a dictionary.
+        :rtype SlimTreeSequence:
+        '''
+        sts = super(SlimTreeSequence,self).simplify(*args, **kwargs)
+        if (type(sts) == tuple):
+            ret = (SlimTreeSequence(sts[0]), sts[1])
+        else:
+            ret = SlimTreeSequence(sts)
+
+        return ret
+
     def recapitate(self, recombination_rate, keep_first_generation=False,
                    population_configurations=None, **kwargs):
         '''
