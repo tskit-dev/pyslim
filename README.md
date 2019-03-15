@@ -99,6 +99,9 @@ Doing this is as simple as:
 ts = pyslim.load("unfinished.trees")
 ts.recapitate(recombination_rate = 1e-6, Ne=1000)
 ```
+Note that demography needs to be set up explicitly - if you have more than one population,
+you must set migration rates or else coalescence will never happen
+(see `help(ts.recapitate)` for more).
 
 ## Quickstart: adding neutral mutations to a SLiM simulation
 
