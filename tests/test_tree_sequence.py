@@ -71,3 +71,16 @@ class TestRecapitation(tests.PyslimTestCase):
                     self.assertAlmostEqual(recap.node(t.root).time, 
                                            recap.slim_generation, 
                                            delta = 1e-4)
+
+
+class testSimplify(tests.PyslimTestCase):
+    '''
+    Our simplify() is just a wrapper around the tskit simplify.
+    '''
+
+    def test_simplify(self):
+        for ts in self.get_slim_examples():
+            sts = ts.simplify()
+            self.assertEqual(ts.sequence_length, sts.sequence_length)
+            self.assertEqual(type(ts), type(sts))
+            self.assertEqual(sts.samples()[0], 0)    
