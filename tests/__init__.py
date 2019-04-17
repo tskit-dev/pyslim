@@ -11,8 +11,9 @@ import unittest
 import base64
 import os
 
-_example_files = ["tests/examples/recipe_WF",
-                 "tests/examples/recipe_nonWF"]
+_example_files = ["tests/examples/recipe_nucleotides",
+                  "tests/examples/recipe_WF",
+                  "tests/examples/recipe_nonWF"]
 
 def setUp():
     # Make random tests reproducible.

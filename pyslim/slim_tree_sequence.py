@@ -8,6 +8,7 @@ import warnings
 
 from .slim_metadata import *
 from .provenance import *
+from .slim_metadata import _decode_mutation_pre_nucleotides
 
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
@@ -87,31 +88,40 @@ class SlimTreeSequence(tskit.TreeSequence):
     def __init__(self, ts):
         provenance = get_provenance(ts)
         slim_generation = provenance.slim_generation
-        if provenance.file_version == "0.1":
-            warnings.warn("This is a v0.1 SLiM tree sequence. When you write this out, " +
-                          "it will be converted to v0.2 (which you should do).")
+        if provenance.file_version != "0.3":
+            warnings.warn("This is an v{} SLiM tree sequence.".format(provenance.file_version) +
+                          " When you write this out, " +
+                          "it will be converted to v0.3 (which you should do).")
             tables = ts.dump_tables()
-            # shift times
-            node_times = tables.nodes.time + slim_generation
-            tables.nodes.set_columns(
-                    flags=tables.nodes.flags,
-                    time=node_times,
-                    population=tables.nodes.population,
-                    individual=tables.nodes.individual,
-                    metadata=tables.nodes.metadata,
-                    metadata_offset=tables.nodes.metadata_offset)
-            migration_times = tables.migrations.time + slim_generation
-            tables.migrations.set_columns(
-                    left=tables.migrations.left,
-                    right=tables.migrations.right,
-                    node=tables.migrations.node,
-                    source=tables.migrations.source,
-                    dest=tables.migrations.dest,
-                    time=migration_times)
+            if provenance.file_version == "0.1" or provenance.file_version == "0.2":
+                # add empty nucleotide slots to metadata
+                mut_bytes = tskit.unpack_bytes(tables.mutations.metadata,
+                                               tables.mutations.metadata_offset)
+                mut_metadata = [_decode_mutation_pre_nucleotides(md) 
+                                for md in mut_bytes]
+                annotate_mutation_metadata(tables, mut_metadata)
+            if provenance.file_version == "0.1":
+                # shift times
+                node_times = tables.nodes.time + slim_generation
+                tables.nodes.set_columns(
+                        flags=tables.nodes.flags,
+                        time=node_times,
+                        population=tables.nodes.population,
+                        individual=tables.nodes.individual,
+                        metadata=tables.nodes.metadata,
+                        metadata_offset=tables.nodes.metadata_offset)
+                migration_times = tables.migrations.time + slim_generation
+                tables.migrations.set_columns(
+                        left=tables.migrations.left,
+                        right=tables.migrations.right,
+                        node=tables.migrations.node,
+                        source=tables.migrations.source,
+                        dest=tables.migrations.dest,
+                        time=migration_times)
             upgrade_slim_provenance(tables)
             ts = tables.tree_sequence()
             provenance = get_provenance(ts)
-            assert(provenance.file_version == "0.2")
+            assert(provenance.file_version == "0.3")
         self._ll_tree_sequence = ts._ll_tree_sequence
         self.slim_generation = slim_generation
 

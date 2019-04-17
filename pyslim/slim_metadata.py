@@ -17,10 +17,11 @@ INDIVIDUAL_FLAG_MIGRATED = 0x01
 #  thanks to mutation stacking.
 ###########
 # typedef struct __attribute__((__packed__)) {
-#     slim_objectid_t mutation_type_id_;    // 4 bytes (int32_t): the id of the mutation type the mutation belongs to
-#     slim_selcoeff_t selection_coeff_;     // 4 bytes (float): the selection coefficient
-#     slim_objectid_t subpop_index_;        // 4 bytes (int32_t): the id of the subpopulation in which the mutation arose
-#     slim_generation_t origin_generation_; // 4 bytes (int32_t): the generation in which the mutation arose
+#         slim_objectid_t mutation_type_id_;    // 4 bytes (int32_t): the id of the mutation type the mutation belongs to
+#         slim_selcoeff_t selection_coeff_;     // 4 bytes (float): the selection coefficient
+#         slim_objectid_t subpop_index_;        // 4 bytes (int32_t): the id of the subpopulation in which the mutation arose
+#         slim_generation_t origin_generation_; // 4 bytes (int32_t): the generation in which the mutation arose
+#         int8_t nucleotide_;                   // 1 byte (int8_t): the nucleotide for the mutation (0='A', 1='C', 2='G', 3='T'), or -1 (added in file format v0.2)
 # } MutationMetadataRec;
 #
 
@@ -30,6 +31,7 @@ class MutationMetadata(object):
     selection_coeff = attr.ib()
     population = attr.ib()
     slim_time = attr.ib()
+    nucleotide = attr.ib()
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -48,6 +50,37 @@ def decode_mutation(buff):
     '''
     # note that in the case that buff is of length zero
     # this returns [] instead of None, like the others do
+    num_muts = int(len(buff) / 17) # 4 + 4 + 4 + 4 + 1
+    if len(buff) != num_muts * 17:
+        raise ValueError("Mutation metadata of incorrect format.")
+    struct_string = "<" + "ifiib" * num_muts
+    metadata = struct.unpack(struct_string, buff)
+    mut_structs = []
+    for k in range(num_muts):
+        mutation_type = metadata[k * 5]
+        selection_coeff = metadata[k * 5 + 1]
+        population = metadata[k * 5 + 2]
+        slim_time = metadata[k * 5 + 3]
+        nucleotide = metadata[k * 5 + 4]
+        mut_structs.append(MutationMetadata(mutation_type=mutation_type,
+                                            selection_coeff=selection_coeff,
+                                            population=population,
+                                            slim_time=slim_time,
+                                            nucleotide = nucleotide))
+    return mut_structs
+
+
+def _decode_mutation_pre_nucleotides(buff):
+    '''
+    Decodes mutation metadata for file versions 0.1 and 0.2, before
+    the 'nucleotide' was added.
+
+    :param bytes buff: The ``metadata`` entry of a row of a
+        :class:`MutationTable`, as stored by SLiM.
+    :rtype list:
+    '''
+    # note that in the case that buff is of length zero
+    # this returns [] instead of None, like the others do
     num_muts = int(len(buff) / 16) # 4 + 4 + 4 + 4
     if len(buff) != num_muts * 16:
         raise ValueError("Mutation metadata of incorrect format.")
@@ -59,11 +92,14 @@ def decode_mutation(buff):
         selection_coeff = metadata[k * 4 + 1]
         population = metadata[k * 4 + 2]
         slim_time = metadata[k * 4 + 3]
+        nucleotide = -1
         mut_structs.append(MutationMetadata(mutation_type=mutation_type,
                                             selection_coeff=selection_coeff,
                                             population=population,
-                                            slim_time=slim_time))
+                                            slim_time=slim_time,
+                                            nucleotide = nucleotide))
     return mut_structs
+
 
 def encode_mutation(metadata_object):
     '''
@@ -78,8 +114,8 @@ def encode_mutation(metadata_object):
     mr_values = []
     for mr in metadata_object:
         mr_values.extend([mr.mutation_type, mr.selection_coeff,
-                          mr.population, mr.slim_time])
-    struct_string = "<" + "ifii" * len(metadata_object)
+                          mr.population, mr.slim_time, mr.nucleotide])
+    struct_string = "<" + "ifiib" * len(metadata_object)
     return struct.pack(struct_string, *mr_values)
 
 
@@ -98,8 +134,8 @@ def extract_mutation_metadata(tables):
 
 def annotate_mutation_metadata(tables, metadata):
     '''
-    Revise the mutation table so that the metadata column is given by applying
-    `encode_mutation()` to the sources given.
+    Revise the mutation table in place so that the metadata column is given by
+    applying `encode_mutation()` to the sources given.
 
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of (lists of MutationMetadata) or None objects
@@ -476,3 +512,4 @@ def annotate_population_metadata(tables, metadata):
         else:
             metadata = encode_population(md)
         tables.populations.add_row(metadata=metadata)
+

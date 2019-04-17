@@ -22,7 +22,8 @@ class TestEncodeDecode(tests.PyslimTestCase):
         for md_length in [0, 1, 5]:
             md = [pyslim.MutationMetadata(
                      mutation_type=j, selection_coeff=0.5, population=j,
-                     slim_time=10 + j) for j in range(md_length)]
+                     slim_time=10 + j, nucleotide=(j % 5) - 1) 
+                     for j in range(md_length)]
             md_bytes = pyslim.encode_mutation(md)
             new_md = pyslim.decode_mutation(md_bytes)
             self.assertEqual(len(md), len(new_md))
@@ -205,4 +206,24 @@ class TestAlleles(tests.PyslimTestCase):
             tables = slim_ts.tables
             ts = tables.tree_sequence()
             self.verify_haplotype_equality(ts, slim_ts)
+
+
+class TestNucleotides(tests.PyslimTestCase):
+    '''
+    Test nucleotide support
+    '''
+
+    def check_nucleotides(self, ts):
+        '''
+        Check that nucleotides are all valid, i.e.,
+        -1, 0, 1, 2, or 3.
+        '''
+        for mut in ts.mutations():
+            for u in pyslim.decode_mutation(mut.metadata):
+                self.assertGreaterEqual(u.nucleotide, -1)
+                self.assertLessEqual(u.nucleotide, 3)
+
+    def test_nucleotides(self):
+        for ts in self.get_slim_examples():
+            self.check_nucleotides(ts)
 
