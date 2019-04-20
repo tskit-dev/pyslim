@@ -123,6 +123,26 @@ class TestAnnotate(tests.PyslimTestCase):
         for u in ts.provenances():
             tskit.validate_provenance(json.loads(u.record))
 
+    def verify_slim_restart_equality(self, in_ts, out_ts):
+        """
+        Check for equality, in everything but the last provenance.
+        """
+        self.assertEqual(in_ts.num_provenances + 1, out_ts.num_provenances)
+        in_tables = in_ts.tables
+        in_tables.sort()
+        out_tables = out_ts.tables
+        out_tables.sort()
+        out_tables.provenances.truncate(in_tables.provenances.num_rows)
+        self.assertTrue(in_tables.nodes == out_tables.nodes)
+        self.assertTrue(in_tables.edges == out_tables.edges)
+        self.assertTrue(in_tables.sites == out_tables.sites)
+        self.assertTrue(in_tables.mutations == out_tables.mutations)
+        self.assertTrue(in_tables.populations == out_tables.populations)
+        self.assertTrue(in_tables.individuals == out_tables.individuals)
+        self.assertTrue(in_tables.provenances == out_tables.provenances)
+        # print(in_tables, out_tables)
+        # self.assertTrue(in_tables == out_tables)
+
     def test_basic_annotation(self):
         for ts in get_msprime_examples():
             slim_gen = 4
@@ -182,4 +202,36 @@ class TestAnnotate(tests.PyslimTestCase):
                 md = pyslim.decode_node(x.metadata)
                 if md is not None:
                     self.assertEqual(md.genome_type, gtypes[j])
+
+    def test_reload_recapitate(self):
+        """
+        Test the ability of SLiM to load our files after recapitation.
+        """
+        for ts, basename in self.get_slim_restarts():
+            # recapitate, reload
+            in_ts = ts.recapitate(recombination_rate=1e-2, Ne=10)
+            # put it through SLiM (which just reads in and writes out)
+            out_ts = self.run_slim_restart(in_ts, basename)
+            # check for equality, in everything but the last provenance
+            self.verify_slim_restart_equality(in_ts, out_ts)
+
+    def test_reload_annotate(self):
+        """
+        Test the ability of SLiM to load our files after annotation.
+        """
+        for ts, basename in self.get_slim_restarts():
+            print("==========")
+            print(basename)
+            tables = ts.tables
+            metadata = list(pyslim.extract_mutation_metadata(tables))
+            nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
+            for n, md in zip(nucs, metadata):
+                for j in range(len(md)):
+                    md[j].nucleotide = n
+            pyslim.annotate_mutation_metadata(tables, metadata)
+            in_ts = pyslim.load_tables(tables)
+            # put it through SLiM (which just reads in and writes out)
+            out_ts = self.run_slim_restart(in_ts, basename)
+            # check for equality, in everything but the last provenance
+            self.verify_slim_restart_equality(in_ts, out_ts)
 

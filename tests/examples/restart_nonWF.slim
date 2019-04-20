@@ -11,15 +11,12 @@ initialize()
 }
 
 1 early() { 
-    sim.readFromPopulationFile("initialize_nonWF.trees");
+    // output immediately! Nothing should have changed.
+    sim.readFromPopulationFile("restart_nonWF.init.trees");
+    sim.treeSeqOutput("restart_nonWF.trees");
 }
 
-2: {
-    catn(c("Generation ", sim.generation));
-}
-
-10 {
-    sim.treeSeqOutput("nonWF_restart.trees");
+20 {
     catn("Done.");
     sim.simulationFinished();
 }

@@ -2,6 +2,7 @@ import attr
 import struct
 import msprime
 import tskit
+import kastore
 import json
 from collections import OrderedDict
 import warnings
@@ -13,6 +14,11 @@ from .slim_metadata import _decode_mutation_pre_nucleotides
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
 INDIVIDUAL_FIRST_GEN = 2**18
+
+# TODO: maybe make this obsolete
+# but currently a nucleotide k actually means
+# something that in reference_sequence is NUCLEOTIDE_MAP[k]
+NUCLEOTIDE_MAP = ['A', 'C', 'G', 'T']
 
 def load(path):
     '''
@@ -82,10 +88,13 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     :ivar slim_generation: The generation that the SLiM simulation was at upon writing;
         will be read from provenance if not provided.
+    ;ivar reference_sequence: None, or an array of int8 of length equal to the sequence
+        length that gives the entire reference sequence for nucleotide models.
     :vartype slim_generation: int
+    :vartype reference_sequence: array-like
     '''
 
-    def __init__(self, ts):
+    def __init__(self, ts, reference_sequence=None):
         provenance = get_provenance(ts)
         slim_generation = provenance.slim_generation
         if provenance.file_version != "0.3":
@@ -124,6 +133,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             assert(provenance.file_version == "0.3")
         self._ll_tree_sequence = ts._ll_tree_sequence
         self.slim_generation = slim_generation
+        self.reference_sequence = reference_sequence
 
     @classmethod
     def load(cls, path):
@@ -133,12 +143,17 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param string path: The path to a .trees file.
         :rtype SlimTreeSequence:
         '''
-        # roundabout way to load just the tables
         ts = tskit.load(path)
-        return cls(ts)
+        # extract the reference sequence from the kastore
+        kas = kastore.load(path)
+        if 'reference_sequence/data' in kas:
+            reference_sequence = kas['reference_sequence/data']
+        else:
+            reference_sequence = None
+        return cls(ts, reference_sequence)
 
     @classmethod
-    def load_tables(cls, tables):
+    def load_tables(cls, tables, reference_sequence=None):
         '''
         Creates the :class:`SlimTreeSequence` defined by the tables.
 
@@ -148,11 +163,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         # a roundabout way to copy the tables
         ts = tables.tree_sequence()
-        return cls(ts)
+        return cls(ts, reference_sequence=reference_sequence)
 
     def simplify(self, *args, **kwargs):
         '''
-        This is a wrapper for msprime.TreeSequence.Simplify().
+        This is a wrapper for tskit.TreeSequence.simplify().
         The only difference is that this method returns the
         derived class SlimTreeSequence.
 
@@ -164,11 +179,13 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param **kwargs: keyword specific aguments stored in a dictionary.
         :rtype SlimTreeSequence:
         '''
-        sts = super(SlimTreeSequence,self).simplify(*args, **kwargs)
+        sts = super(SlimTreeSequence, self).simplify(*args, **kwargs)
         if (type(sts) == tuple):
             ret = (SlimTreeSequence(sts[0]), sts[1])
+            ret[0].reference_sequence = self.reference_sequence
         else:
             ret = SlimTreeSequence(sts)
+            ret.reference_sequence = self.reference_sequence
 
         return ret
 
@@ -225,6 +242,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                     start_time = self.slim_generation,
                     **kwargs)
         ts = SlimTreeSequence.load_tables(recap.tables)
+        ts.reference_sequence = self.reference_sequence
         return ts
 
     def _mark_first_generation(self):
@@ -246,6 +264,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                 metadata=tables.nodes.metadata,
                 metadata_offset=tables.nodes.metadata_offset)
         ts = load_tables(tables)
+        ts.reference_sequence = self.reference_sequence
         return ts
 
 
@@ -489,9 +508,9 @@ def _set_sites_mutations(
                          zip(mutation_type, selection_coeff, population, slim_time)]
     annotate_mutation_metadata(tables, mutation_metadata)
 
-#######
+############
 # Provenance
-####################
+############
 # See provenances.py for the structure of a Provenance entry.
 
 
