@@ -1,0 +1,27 @@
+initialize()
+{
+    setSeed(23);
+    // need to define:
+    //  L = sequence length
+    //  SEX = A, X, Y or not defined
+    initializeSLiMModelType("nonWF");
+    initializeTreeSeq();
+    initializeMutationRate(1/L);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, L-1);
+    initializeRecombinationRate(1/L);
+    if (exists("SEX"))
+        initializeSex(SEX);
+}
+
+1 early() { 
+    // output immediately! Nothing should have changed.
+    sim.readFromPopulationFile("restart_msprime.init.trees");
+    sim.treeSeqOutput("restart_msprime.trees");
+}
+
+20 {
+    catn("Done.");
+    sim.simulationFinished();
+}
