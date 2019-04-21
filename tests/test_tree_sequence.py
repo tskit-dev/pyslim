@@ -73,7 +73,7 @@ class TestRecapitation(tests.PyslimTestCase):
                                            delta = 1e-4)
 
 
-class testSimplify(tests.PyslimTestCase):
+class TestSimplify(tests.PyslimTestCase):
     '''
     Our simplify() is just a wrapper around the tskit simplify.
     '''
@@ -84,3 +84,21 @@ class testSimplify(tests.PyslimTestCase):
             self.assertEqual(ts.sequence_length, sts.sequence_length)
             self.assertEqual(type(ts), type(sts))
             self.assertEqual(sts.samples()[0], 0)    
+
+class TestReferenceSequence(tests.PyslimTestCase):
+    '''
+    Test for operations involving the reference sequence
+    '''
+    def test_reference_sequence(self):
+        for ts in self.get_slim_examples():
+            mut_md = pyslim.decode_mutation(ts.mutation(0).metadata)
+            has_nucleotides = (mut_md[0].nucleotide >= 0)
+            if not has_nucleotides:
+                self.assertEqual(ts.reference_sequence, None)
+            else:
+                self.assertEqual(type(ts.reference_sequence), type(''))
+                self.assertEqual(len(ts.reference_sequence), ts.sequence_length)
+            sts = ts.simplify(ts.samples()[:2])
+            self.assertEqual(sts.reference_sequence, ts.reference_sequence)
+
+

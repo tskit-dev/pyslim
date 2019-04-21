@@ -15,8 +15,7 @@ INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
 INDIVIDUAL_FIRST_GEN = 2**18
 
-# TODO: maybe make this obsolete
-# but currently a nucleotide k actually means
+# A nucleotide k in mutation metadata actually means
 # something that in reference_sequence is NUCLEOTIDE_MAP[k]
 NUCLEOTIDE_MAP = ['A', 'C', 'G', 'T']
 
@@ -88,10 +87,10 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     :ivar slim_generation: The generation that the SLiM simulation was at upon writing;
         will be read from provenance if not provided.
-    ;ivar reference_sequence: None, or an array of int8 of length equal to the sequence
+    ;ivar reference_sequence: None, or an string of length equal to the sequence
         length that gives the entire reference sequence for nucleotide models.
     :vartype slim_generation: int
-    :vartype reference_sequence: array-like
+    :vartype reference_sequence: string
     '''
 
     def __init__(self, ts, reference_sequence=None):
@@ -147,7 +146,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         # extract the reference sequence from the kastore
         kas = kastore.load(path)
         if 'reference_sequence/data' in kas:
-            reference_sequence = kas['reference_sequence/data']
+            int_rs = kas['reference_sequence/data']
+            reference_sequence = int_rs.tostring().decode('ascii')
         else:
             reference_sequence = None
         return cls(ts, reference_sequence)

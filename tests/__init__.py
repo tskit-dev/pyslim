@@ -20,11 +20,11 @@ _restart_files = [("tests/examples/recipe_{}.trees".format(x),
                    "tests/examples/restart_{}".format(x))
                   for x in ['WF', 'nonWF']] # , 'nucleotides']]
 
-def run_slim_script(slimfile):
+def run_slim_script(slimfile, args=''):
     outdir = os.path.dirname(slimfile)
     script = os.path.basename(slimfile)
-    print("running " + "cd " + outdir + " && slim -s 23 " + script)
-    out = os.system("cd " + outdir + " && slim -s 23 " + script + ">/dev/null")
+    print("running " + "cd " + outdir + " && slim -s 23 " + args + " " + script)
+    out = os.system("cd " + outdir + " && slim -s 23 " + args + " " + script + ">/dev/null")
     return out
 
 def setUp():
@@ -91,20 +91,36 @@ class PyslimTestCase(unittest.TestCase):
             ts = pyslim.load(treefile)
             yield ts, basename
 
-    def run_slim_restart(self, in_ts, basename):
+    def run_slim_restart(self, in_ts, basename, args=''):
         infile = basename + ".init.trees"
         outfile = basename + ".trees"
         slimfile = basename + ".slim"
-        print(infile, "-->", outfile)
         for treefile in infile, outfile:
             try:
                 os.remove(treefile)
             except FileNotFoundError:
                 pass
         in_ts.dump(infile)
-        out = run_slim_script(slimfile)
+        out = run_slim_script(slimfile, args=args)
         print("out:", out)
+        try:
+            os.remove(infile)
+        except FileNotFoundError:
+            pass
         assert out == 0
         self.assertTrue(os.path.isfile(outfile))
         out_ts = pyslim.load(outfile)
+        try:
+            os.remove(outfile)
+        except FileNotFoundError:
+            pass
         return out_ts
+
+    def run_msprime_restart(self, in_ts, sex=None):
+        basename = "tests/examples/restart_msprime"
+        args = " -d L={}".format(int(in_ts.sequence_length))
+        if sex is not None:
+            args = args + " -d \"SEX='{}'\"".format(sex)
+        out_ts = self.run_slim_restart(in_ts, basename, args=args)
+        return out_ts
+

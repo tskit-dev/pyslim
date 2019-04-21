@@ -18,11 +18,12 @@ def get_msprime_examples():
         msprime.MassMigration(
         time=5, source=1, destination=0, proportion=1.0)
     ]
-    for n in [2, 10, 100]:
+    for n in [2, 10, 20]:
         for mutrate in [0.0]:
-            for recrate in [0.0, 1.0]:
+            for recrate in [0.0, 0.01]:
                 yield msprime.simulate(n, mutation_rate=mutrate,
-                                       recombination_rate=recrate)
+                                       recombination_rate=recrate,
+                                       length=200)
                 population_configurations =[
                     msprime.PopulationConfiguration(
                     sample_size=n, initial_size=100),
@@ -33,7 +34,8 @@ def get_msprime_examples():
                     population_configurations=population_configurations,
                     demographic_events=demographic_events,
                     recombination_rate=recrate,
-                    mutation_rate=mutrate)
+                    mutation_rate=mutrate,
+                    length=250)
 
 
 class TestAnnotate(tests.PyslimTestCase):
@@ -133,15 +135,7 @@ class TestAnnotate(tests.PyslimTestCase):
         out_tables = out_ts.tables
         out_tables.sort()
         out_tables.provenances.truncate(in_tables.provenances.num_rows)
-        self.assertTrue(in_tables.nodes == out_tables.nodes)
-        self.assertTrue(in_tables.edges == out_tables.edges)
-        self.assertTrue(in_tables.sites == out_tables.sites)
-        self.assertTrue(in_tables.mutations == out_tables.mutations)
-        self.assertTrue(in_tables.populations == out_tables.populations)
-        self.assertTrue(in_tables.individuals == out_tables.individuals)
-        self.assertTrue(in_tables.provenances == out_tables.provenances)
-        # print(in_tables, out_tables)
-        # self.assertTrue(in_tables == out_tables)
+        self.assertTrue(in_tables == out_tables)
 
     def test_basic_annotation(self):
         for ts in get_msprime_examples():
@@ -153,6 +147,11 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_haplotype_equality(ts, slim_ts)
             self.verify_defaults(slim_ts)
             self.verify_provenance(slim_ts)
+            # try loading this into SLiM
+            loaded_ts = self.run_msprime_restart(slim_ts)
+            self.verify_annotated_tables(loaded_ts, slim_ts)
+            self.verify_annotated_trees(loaded_ts, slim_ts)
+            self.verify_haplotype_equality(loaded_ts, slim_ts)
 
     def test_annotate_individuals(self):
         for ts in get_msprime_examples():
@@ -169,21 +168,43 @@ class TestAnnotate(tests.PyslimTestCase):
             for j, ind in enumerate(new_ts.individuals()):
                 md = pyslim.decode_individual(ind.metadata)
                 self.assertEqual(md.sex, sexes[j])
+            # try loading this into SLiM
+            loaded_ts = self.run_msprime_restart(new_ts, sex="A")
+            self.verify_annotated_tables(new_ts, slim_ts)
+            self.verify_annotated_trees(new_ts, slim_ts)
+            self.verify_haplotype_equality(new_ts, slim_ts)
 
-    def test_annotate_mutations(self):
+    def test_annotate_XY(self):
         for ts in get_msprime_examples():
-            slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-            tables = slim_ts.tables
-            metadata = list(pyslim.extract_mutation_metadata(tables))
-            self.assertEqual(len(metadata), slim_ts.num_mutations)
-            selcoefs = [random.uniform(0, 1) for _ in metadata]
-            for j in range(len(metadata)):
-                metadata[j].selection_coeff = selcoefs[j]
-            pyslim.annotate_mutation_metadata(tables, metadata)
-            new_ts = pyslim.load_tables(tables)
-            for j, x in enumerate(new_ts.mutations()):
-                md = pyslim.decode_mutation(x.metadata)
-                self.assertEqual(md.selection_coeff, selcoefs[j])
+            for genome_type in ["X", "Y"]:
+                slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+                tables = slim_ts.tables
+                metadata = list(pyslim.extract_individual_metadata(tables))
+                self.assertEqual(len(metadata), slim_ts.num_individuals)
+                sexes = [random.choice([pyslim.INDIVIDUAL_TYPE_FEMALE, pyslim.INDIVIDUAL_TYPE_MALE])
+                         for _ in metadata]
+                for j in range(len(metadata)):
+                    metadata[j].sex = sexes[j]
+                pyslim.annotate_individual_metadata(tables, metadata)
+                node_metadata = list(pyslim.extract_node_metadata(tables))
+                self.assertEqual(len(node_metadata), slim_ts.num_nodes)
+                for j in range(slim_ts.num_individuals):
+                    nodes = slim_ts.individual(j).nodes
+                    node_metadata[nodes[0]].genome_type = pyslim.GENOME_TYPE_X
+                    node_metadata[nodes[0]].is_null = (genome_type != "X")
+                    if sexes[j] == pyslim.INDIVIDUAL_TYPE_MALE:
+                        node_metadata[nodes[1]].genome_type = pyslim.GENOME_TYPE_Y
+                        node_metadata[nodes[1]].is_null = (genome_type != "Y")
+                    else:
+                        node_metadata[nodes[1]].genome_type = pyslim.GENOME_TYPE_X
+                        node_metadata[nodes[1]].is_null = (genome_type != "X")
+                pyslim.annotate_node_metadata(tables, node_metadata)
+                new_ts = pyslim.load_tables(tables)
+                # try loading this into SLiM
+                loaded_ts = self.run_msprime_restart(new_ts, sex=genome_type)
+                self.verify_annotated_tables(new_ts, slim_ts)
+                self.verify_annotated_trees(new_ts, slim_ts)
+                self.verify_haplotype_equality(new_ts, slim_ts)
 
     def test_annotate_nodes(self):
         for ts in get_msprime_examples():
@@ -203,6 +224,21 @@ class TestAnnotate(tests.PyslimTestCase):
                 if md is not None:
                     self.assertEqual(md.genome_type, gtypes[j])
 
+    def test_annotate_mutations(self):
+        for ts in get_msprime_examples():
+            slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+            tables = slim_ts.tables
+            metadata = list(pyslim.extract_mutation_metadata(tables))
+            self.assertEqual(len(metadata), slim_ts.num_mutations)
+            selcoefs = [random.uniform(0, 1) for _ in metadata]
+            for j in range(len(metadata)):
+                metadata[j].selection_coeff = selcoefs[j]
+            pyslim.annotate_mutation_metadata(tables, metadata)
+            new_ts = pyslim.load_tables(tables)
+            for j, x in enumerate(new_ts.mutations()):
+                md = pyslim.decode_mutation(x.metadata)
+                self.assertEqual(md.selection_coeff, selcoefs[j])
+
     def test_reload_recapitate(self):
         """
         Test the ability of SLiM to load our files after recapitation.
@@ -220,14 +256,14 @@ class TestAnnotate(tests.PyslimTestCase):
         Test the ability of SLiM to load our files after annotation.
         """
         for ts, basename in self.get_slim_restarts():
-            print("==========")
-            print(basename)
             tables = ts.tables
             metadata = list(pyslim.extract_mutation_metadata(tables))
             nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
             for n, md in zip(nucs, metadata):
                 for j in range(len(md)):
-                    md[j].nucleotide = n
+                    ## TODO: test addding nucleotides to a non-nucleotide model
+                    # md[j].nucleotide = n
+                    md[j].selection_coeff = random.random()
             pyslim.annotate_mutation_metadata(tables, metadata)
             in_ts = pyslim.load_tables(tables)
             # put it through SLiM (which just reads in and writes out)
