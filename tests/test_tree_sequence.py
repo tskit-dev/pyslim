@@ -11,6 +11,7 @@ import tests
 import unittest
 import random
 import os
+import numpy as np
 
 
 class TestRecapitation(tests.PyslimTestCase):
@@ -75,7 +76,7 @@ class TestRecapitation(tests.PyslimTestCase):
 
 class TestIndividualMetadata(tests.PyslimTestCase):
     '''
-    Tests for extra stuff in Individuals.
+    Tests for extra stuff related to Individuals.
     '''
 
     def test_node_derived_info(self):
@@ -94,6 +95,48 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                 self.assertEqual(md.population, ind.slim_population)
                 self.assertEqual(md.sex, ind.sex)
                 self.assertEqual(md.flags, ind.slim_flags)
+
+    def test_individual_arrays(self):
+        '''
+        Test that the numpy-array-returning functions do what they should.
+        '''
+        for ts in self.get_slim_examples():
+            for j, ind in enumerate(ts.individuals()):
+                self.assertEqual(ts.individual_times[j], ind.time)
+                self.assertEqual(ts.individual_ages[j], ind.age)
+                self.assertEqual(ts.individual_populations[j], ind.population)
+                self.assertArrayEqual(ts.individual_locations[j], ind.location)
+
+
+class TestEveryone(tests.PyslimTestCase):
+    '''
+    Test things we calculate from tree sequences where 
+    everyone is remembered at all times.
+    '''
+
+    def test_alive_ages(self):
+        for ts in self.get_slim_everyone_examples():
+            ages_mat = np.zeros((ts.num_individuals, ts.slim_generation))
+            alive_mat = np.zeros((ts.num_individuals, ts.slim_generation))
+            alive_now = ts.individuals_alive_at(0)
+            for time in range(ts.slim_generation):
+                ages_mat[:, time] = ts.individual_ages_at(time)
+                for j in ts.individuals_alive_at(time):
+                    alive_mat[j, time] = 1
+
+            for j, ind in enumerate(ts.individuals()):
+                self.assertEqual(j in alive_now,
+                                 ind.flags & pyslim.INDIVIDUAL_ALIVE > 0)
+                self.assertEqual(sum(alive_mat[j, :]), 1 + ind.age)
+                self.assertEqual(alive_mat[j, int(ind.time)], 1)
+                self.assertEqual(ages_mat[j, int(ind.time)], 0)
+                for t in range(ts.slim_generation):
+                    if t > ind.time:
+                        self.assertTrue(np.isnan(ages_mat[j, t]))
+                    if t == ind.time:
+                        self.assertEqual(ages_mat[j, t], 0)
+                if ind.time + 1 < ts.slim_generation:
+                    self.assertEqual(alive_mat[j, int(ind.time + 1)], 0)
 
 
 class TestSimplify(tests.PyslimTestCase):
