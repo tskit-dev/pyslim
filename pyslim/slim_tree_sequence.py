@@ -29,17 +29,17 @@ def load(path):
     return ts
 
 
-def load_tables(tables):
+def load_tables(tables, **kwargs):
     '''
-    See :func:`load`.
+    See :func:`SlimTreeSequence.load_tables`.
 
     :param TableCollection tables: A set of tables.
     '''
-    ts = SlimTreeSequence.load_tables(tables)
+    ts = SlimTreeSequence.load_tables(tables, **kwargs)
     return ts
 
 
-def annotate_defaults(ts, model_type, slim_generation):
+def annotate_defaults(ts, model_type, slim_generation, reference_sequence=None):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
@@ -52,7 +52,8 @@ def annotate_defaults(ts, model_type, slim_generation):
     '''
     tables = ts.dump_tables()
     annotate_defaults_tables(tables, model_type, slim_generation)
-    return SlimTreeSequence.load_tables(tables)
+    return SlimTreeSequence.load_tables(tables, 
+                reference_sequence=reference_sequence)
 
 
 def annotate_defaults_tables(tables, model_type, slim_generation):
@@ -153,17 +154,19 @@ class SlimTreeSequence(tskit.TreeSequence):
         return cls(ts, reference_sequence)
 
     @classmethod
-    def load_tables(cls, tables, reference_sequence=None):
+    def load_tables(cls, tables, **kwargs):
         '''
         Creates the :class:`SlimTreeSequence` defined by the tables.
 
         :param TableCollection tables: A set of tables, as produced by SLiM
             or by annotate_defaults().
+        :param TableCollection reference_sequence: An optional string of ACGT giving
+            the reference sequence.
         :rtype SlimTreeSequence:
         '''
         # a roundabout way to copy the tables
         ts = tables.tree_sequence()
-        return cls(ts, reference_sequence=reference_sequence)
+        return cls(ts, **kwargs)
 
     def simplify(self, *args, **kwargs):
         '''

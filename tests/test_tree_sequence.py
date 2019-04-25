@@ -1,5 +1,5 @@
 """
-Test cases for recapitation.
+Test cases for tree sequences.
 """
 from __future__ import print_function
 from __future__ import division
@@ -85,10 +85,12 @@ class TestSimplify(tests.PyslimTestCase):
             self.assertEqual(type(ts), type(sts))
             self.assertEqual(sts.samples()[0], 0)    
 
+
 class TestReferenceSequence(tests.PyslimTestCase):
     '''
     Test for operations involving the reference sequence
     '''
+
     def test_reference_sequence(self):
         for ts in self.get_slim_examples():
             mut_md = pyslim.decode_mutation(ts.mutation(0).metadata)
@@ -98,7 +100,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
             else:
                 self.assertEqual(type(ts.reference_sequence), type(''))
                 self.assertEqual(len(ts.reference_sequence), ts.sequence_length)
+                for u in ts.reference_sequence:
+                    self.assertTrue(u in pyslim.NUCLEOTIDE_MAP)
             sts = ts.simplify(ts.samples()[:2])
             self.assertEqual(sts.reference_sequence, ts.reference_sequence)
-
-

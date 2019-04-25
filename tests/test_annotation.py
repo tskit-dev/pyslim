@@ -223,6 +223,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 md = pyslim.decode_node(x.metadata)
                 if md is not None:
                     self.assertEqual(md.genome_type, gtypes[j])
+            # not testing SLiM because needs annotation of indivs to make sense
 
     def test_annotate_mutations(self):
         for ts in get_msprime_examples():
@@ -258,14 +259,21 @@ class TestAnnotate(tests.PyslimTestCase):
         for ts, basename in self.get_slim_restarts():
             tables = ts.tables
             metadata = list(pyslim.extract_mutation_metadata(tables))
-            nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
-            for n, md in zip(nucs, metadata):
+            has_nucleotides = (metadata[0][0].nucleotide >= 0)
+            if has_nucleotides:
+                nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
+                refseq = "".join(random.choices(pyslim.NUCLEOTIDE_MAP, 
+                                                k = int(ts.sequence_length)))
+                for n, md in zip(nucs, metadata):
+                    for j in range(len(md)):
+                        md[j].nucleotide = n
+            else:
+                refseq = None
+            for md in metadata:
                 for j in range(len(md)):
-                    ## TODO: test addding nucleotides to a non-nucleotide model
-                    # md[j].nucleotide = n
                     md[j].selection_coeff = random.random()
             pyslim.annotate_mutation_metadata(tables, metadata)
-            in_ts = pyslim.load_tables(tables)
+            in_ts = pyslim.load_tables(tables, reference_sequence = refseq)
             # put it through SLiM (which just reads in and writes out)
             out_ts = self.run_slim_restart(in_ts, basename)
             # check for equality, in everything but the last provenance
