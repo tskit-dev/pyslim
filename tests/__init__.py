@@ -11,8 +11,12 @@ import unittest
 import base64
 import os
 
+# recipes that record everyone ever
+_everyone_example_files = ["tests/examples/recipe_record_everyone"]
+
 _example_files = ["tests/examples/recipe_{}".format(x)
-                  for x in ['WF', 'nonWF', 'nucleotides']]
+                  for x in ['WF', 'nonWF', 'nucleotides']] + \
+                 _everyone_example_files
 
 # this is of the form (input, basename)
 # TODO: test restarting of nucleotides after reference sequence dumping is enabled
@@ -81,6 +85,13 @@ class PyslimTestCase(unittest.TestCase):
 
     def get_slim_examples(self):
         for treefile in self.get_slim_example_files():
+            print("---->", treefile)
+            self.assertTrue(os.path.isfile(treefile))
+            yield pyslim.load(treefile)
+
+    def get_slim_everyone_examples(self):
+        for filename in _everyone_example_files:
+            treefile = filename + ".trees"
             print("---->", treefile)
             self.assertTrue(os.path.isfile(treefile))
             yield pyslim.load(treefile)

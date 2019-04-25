@@ -6,6 +6,7 @@ import kastore
 import json
 from collections import OrderedDict
 import warnings
+import numpy as np
 
 from .slim_metadata import *
 from .provenance import *
@@ -134,6 +135,23 @@ class SlimTreeSequence(tskit.TreeSequence):
         self._ll_tree_sequence = ts._ll_tree_sequence
         self.slim_generation = slim_generation
         self.reference_sequence = reference_sequence
+        # pre-extract numpy arrays of things
+        self.individual_locations = ts.tables.individuals.location
+        self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
+        self.individual_times = np.zeros(ts.num_individuals)
+        self.individual_ages = np.zeros(ts.num_individuals, dtype='int')
+        self.individual_populations = np.zeros(ts.num_individuals, dtype='int')
+        for j, ind in enumerate(ts.individuals()):
+            md = decode_individual(ind.metadata)
+            self.individual_ages[j] = md.age
+            populations = [self.node(n).population for n in ind.nodes]
+            if len(set(populations)) > 1:
+                raise ValueError("Individual has nodes from more than one population.")
+            self.individual_populations[j] = populations[0]
+            times = [self.node(n).time for n in ind.nodes]
+            if len(set(times)) > 1:
+                raise ValueError("Individual has nodes from more than one time.")
+            self.individual_times[j] = times[0]
 
     @classmethod
     def load(cls, path):
@@ -203,14 +221,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the individual (i.e., its index).
         '''
         ind = super(SlimTreeSequence, self).individual(id_)
-        populations = [self.node(n).population for n in ind.nodes]
-        if len(set(populations)) > 1:
-            raise ValueError("Individual has nodes from more than one population.")
-        ind.population = populations[0]
-        times = [self.node(n).time for n in ind.nodes]
-        if len(set(times)) > 1:
-            raise ValueError("Individual has nodes from more than one time.")
-        ind.time = times[0]
+        ind.population = self.individual_populations[id_]
+        ind.time = self.individual_times[id_]
         md = decode_individual(ind.metadata)
         ind.pedigree_id = md.pedigree_id
         ind.age = md.age
@@ -296,6 +308,42 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts = load_tables(tables)
         ts.reference_sequence = self.reference_sequence
         return ts
+
+    def individuals_alive_at(self, time):
+        """
+        Returns an array of length equal to the number of individuals giving
+        the IDs of all individuals that are known to be alive at the given time ago.
+        This is determined by seeing if their age at `time`, determined since
+        the time since they were born (their `.time` attribute) is less than or
+        equal to their `age` attribute (which will reflect their age at the last
+        time they were Remembered).
+
+        :param float time: The time ago.
+        """
+        births = self.individual_times
+        ages = self.individual_ages
+        alive_bool = np.logical_and(births >= time, births - ages <= time)
+        return np.where(alive_bool)[0]
+
+    def individual_ages_at(self, time):
+        """
+        Returns the *ages* of each individual at the corresponding time ago,
+        which will be `nan` if the individual is either not born yet or dead.
+        This is computed as the time ago the individual was born (found by the
+        `time` associated with the the individual's nodes) minus the `time`
+        argument; while "death" is inferred from the individual's `age`,
+        recorded in metadata.
+
+        The age is the number of complete time steps the individual has lived
+        through, so if they were born in time step `time`, then their age
+        will be zero.
+
+        :param float time: The reference time ago.
+        """
+        ages = np.repeat(np.nan, self.num_individuals)
+        alive = self.individuals_alive_at(time)
+        ages[alive] = self.individual_times[alive] - time
+        return ages
 
 
 def _set_nodes_individuals(
