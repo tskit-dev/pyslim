@@ -73,6 +73,29 @@ class TestRecapitation(tests.PyslimTestCase):
                                            delta = 1e-4)
 
 
+class TestIndividualMetadata(tests.PyslimTestCase):
+    '''
+    Tests for extra stuff in Individuals.
+    '''
+
+    def test_node_derived_info(self):
+        for ts in self.get_slim_examples():
+            for ind in ts.individuals():
+                for n in ind.nodes:
+                    self.assertEqual(ts.node(n).population, ind.population)
+                    self.assertEqual(ts.node(n).time, ind.time)
+
+    def test_metadata(self):
+        for ts in self.get_slim_examples():
+            for ind in ts.individuals():
+                md = pyslim.decode_individual(ind.metadata)
+                self.assertEqual(md.pedigree_id, ind.pedigree_id)
+                self.assertEqual(md.age, ind.age)
+                self.assertEqual(md.population, ind.slim_population)
+                self.assertEqual(md.sex, ind.sex)
+                self.assertEqual(md.flags, ind.slim_flags)
+
+
 class TestSimplify(tests.PyslimTestCase):
     '''
     Our simplify() is just a wrapper around the tskit simplify.
