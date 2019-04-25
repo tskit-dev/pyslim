@@ -262,7 +262,7 @@ class TestAnnotate(tests.PyslimTestCase):
             has_nucleotides = (metadata[0][0].nucleotide >= 0)
             if has_nucleotides:
                 nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
-                refseq = "".join(random.choices(pyslim.NUCLEOTIDE_MAP, 
+                refseq = "".join(random.choices(pyslim.NUCLEOTIDES,
                                                 k = int(ts.sequence_length)))
                 for n, md in zip(nucs, metadata):
                     for j in range(len(md)):

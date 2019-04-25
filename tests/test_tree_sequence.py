@@ -101,6 +101,6 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 self.assertEqual(type(ts.reference_sequence), type(''))
                 self.assertEqual(len(ts.reference_sequence), ts.sequence_length)
                 for u in ts.reference_sequence:
-                    self.assertTrue(u in pyslim.NUCLEOTIDE_MAP)
+                    self.assertTrue(u in pyslim.NUCLEOTIDES)
             sts = ts.simplify(ts.samples()[:2])
             self.assertEqual(sts.reference_sequence, ts.reference_sequence)

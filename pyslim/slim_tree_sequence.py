@@ -16,8 +16,8 @@ INDIVIDUAL_REMEMBERED = 2**17
 INDIVIDUAL_FIRST_GEN = 2**18
 
 # A nucleotide k in mutation metadata actually means
-# something that in reference_sequence is NUCLEOTIDE_MAP[k]
-NUCLEOTIDE_MAP = ['A', 'C', 'G', 'T']
+# something that in reference_sequence is NUCLEOTIDES[k]
+NUCLEOTIDES = ['A', 'C', 'G', 'T']
 
 def load(path):
     '''
