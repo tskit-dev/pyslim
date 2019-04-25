@@ -192,6 +192,33 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         return ret
 
+    def individual(self, id_):
+        '''
+        Returns the individual whose ID is given by `id_`, as documented in
+        `msprime.Individual`, but with additional attributes `metadata`, `time`,
+        and `population`. The `population` is extracted from the nodes,
+        and an error will be thrown if the individual's nodes derive from
+        more than one population or more than one time.
+
+        :param int id_: The ID of the individual (i.e., its index).
+        '''
+        ind = super(SlimTreeSequence, self).individual(id_)
+        populations = [self.node(n).population for n in ind.nodes]
+        if len(set(populations)) > 1:
+            raise ValueError("Individual has nodes from more than one population.")
+        ind.population = populations[0]
+        times = [self.node(n).time for n in ind.nodes]
+        if len(set(times)) > 1:
+            raise ValueError("Individual has nodes from more than one time.")
+        ind.time = times[0]
+        md = decode_individual(ind.metadata)
+        ind.pedigree_id = md.pedigree_id
+        ind.age = md.age
+        ind.slim_population = md.population
+        ind.sex = md.sex
+        ind.slim_flags = md.flags
+        return ind
+
     def recapitate(self, recombination_rate, keep_first_generation=False,
                    population_configurations=None, **kwargs):
         '''
