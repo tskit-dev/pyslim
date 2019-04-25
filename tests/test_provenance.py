@@ -18,12 +18,14 @@ class TestProvenance(tests.PyslimTestCase):
     def get_0_1_slim_examples(self):
         for filename in ['tests/examples/recipe_WF.v3.0.trees',
                          'tests/examples/recipe_nonWF.v3.0.trees']:
-            yield msprime.load(filename)
+            with self.assertWarns(Warning):
+                yield tskit.load(filename)
 
     def get_0_2_slim_examples(self):
         for filename in ['tests/examples/recipe_WF.v3.2.trees',
                          'tests/examples/recipe_nonWF.v3.2.trees']:
-            yield msprime.load(filename)
+            with self.assertWarns(Warning):
+                yield tskit.load(filename)
 
     def test_provenance_creation(self):
         record = pyslim.make_pyslim_provenance_dict()
