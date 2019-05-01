@@ -135,7 +135,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         self._ll_tree_sequence = ts._ll_tree_sequence
         self.slim_generation = slim_generation
         self.reference_sequence = reference_sequence
-        # pre-extract numpy arrays of things
+        # pre-extract individual metadata
         self.individual_locations = ts.tables.individuals.location
         self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
         self.individual_times = np.zeros(ts.num_individuals)
@@ -213,8 +213,9 @@ class SlimTreeSequence(tskit.TreeSequence):
     def individual(self, id_):
         '''
         Returns the individual whose ID is given by `id_`, as documented in
-        `msprime.Individual`, but with additional attributes `metadata`, `time`,
-        and `population`. The `population` is extracted from the nodes,
+        `msprime.individual`, but with additional attributes:
+          time, pedigree_id, age, slim_population, sex, and slim_flags.
+        The `time` and `population` properties are extracted from the nodes,
         and an error will be thrown if the individual's nodes derive from
         more than one population or more than one time.
 
@@ -223,13 +224,21 @@ class SlimTreeSequence(tskit.TreeSequence):
         ind = super(SlimTreeSequence, self).individual(id_)
         ind.population = self.individual_populations[id_]
         ind.time = self.individual_times[id_]
-        md = decode_individual(ind.metadata)
-        ind.pedigree_id = md.pedigree_id
-        ind.age = md.age
-        ind.slim_population = md.population
-        ind.sex = md.sex
-        ind.slim_flags = md.flags
+        ind.metadata = decode_individual(ind.metadata)
         return ind
+
+    def mutation(self, id_):
+        '''
+        Returns the mutation whose ID is given by `id_`, as documented in
+        `msprime.mutation`, but with additional attributes:
+           mutation_type, selection_coeff, population, slim_time, and nucleotide.
+        These are all recorded by SLiM in the metadata.
+
+        :param int id_: The ID of the mutation (i.e., its index).
+        '''
+        mut = super(SlimTreeSequence, self).mutation(id_)
+        mut.metadata = decode_mutation(mut.metadata)
+        return mut
 
     def recapitate(self, recombination_rate, keep_first_generation=False,
                    population_configurations=None, **kwargs):

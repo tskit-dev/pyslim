@@ -79,33 +79,43 @@ class TestIndividualMetadata(tests.PyslimTestCase):
     Tests for extra stuff related to Individuals.
     '''
 
-    def test_node_derived_info(self):
+    def test_individual_derived_info(self):
         for ts in self.get_slim_examples():
-            for ind in ts.individuals():
+            for j, ind in enumerate(ts.individuals()):
+                a = ts.tables.individuals.metadata_offset[j]
+                b = ts.tables.individuals.metadata_offset[j+1]
+                raw_md = ts.tables.individuals.metadata[a:b]
+                md = pyslim.decode_individual(raw_md)
+                self.assertEqual(ind.metadata, md)
                 for n in ind.nodes:
                     self.assertEqual(ts.node(n).population, ind.population)
                     self.assertEqual(ts.node(n).time, ind.time)
 
-    def test_metadata(self):
-        for ts in self.get_slim_examples():
-            for ind in ts.individuals():
-                md = pyslim.decode_individual(ind.metadata)
-                self.assertEqual(md.pedigree_id, ind.pedigree_id)
-                self.assertEqual(md.age, ind.age)
-                self.assertEqual(md.population, ind.slim_population)
-                self.assertEqual(md.sex, ind.sex)
-                self.assertEqual(md.flags, ind.slim_flags)
-
-    def test_individual_arrays(self):
+    def test_individual_embellishments(self):
         '''
-        Test that the numpy-array-returning functions do what they should.
+        Test the individual additional information.
         '''
         for ts in self.get_slim_examples():
             for j, ind in enumerate(ts.individuals()):
                 self.assertEqual(ts.individual_times[j], ind.time)
-                self.assertEqual(ts.individual_ages[j], ind.age)
+                self.assertEqual(ts.individual_ages[j], ind.metadata.age)
                 self.assertEqual(ts.individual_populations[j], ind.population)
                 self.assertArrayEqual(ts.individual_locations[j], ind.location)
+
+
+class TestMutationMetadata(tests.PyslimTestCase):
+    '''
+    Tests for extra stuff related to Mutations.
+    '''
+
+    def test_mutation_derived_info(self):
+        for ts in self.get_slim_examples():
+            for j, mut in enumerate(ts.mutations()):
+                a = ts.tables.mutations.metadata_offset[j]
+                b = ts.tables.mutations.metadata_offset[j+1]
+                raw_md = ts.tables.mutations.metadata[a:b]
+                md = pyslim.decode_mutation(raw_md)
+                self.assertEqual(mut.metadata, md)
 
 
 class TestEveryone(tests.PyslimTestCase):
@@ -127,7 +137,7 @@ class TestEveryone(tests.PyslimTestCase):
             for j, ind in enumerate(ts.individuals()):
                 self.assertEqual(j in alive_now,
                                  ind.flags & pyslim.INDIVIDUAL_ALIVE > 0)
-                self.assertEqual(sum(alive_mat[j, :]), 1 + ind.age)
+                self.assertEqual(sum(alive_mat[j, :]), 1 + ind.metadata.age)
                 self.assertEqual(alive_mat[j, int(ind.time)], 1)
                 self.assertEqual(ages_mat[j, int(ind.time)], 0)
                 for t in range(ts.slim_generation):
@@ -159,7 +169,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
 
     def test_reference_sequence(self):
         for ts in self.get_slim_examples():
-            mut_md = pyslim.decode_mutation(ts.mutation(0).metadata)
+            mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md[0].nucleotide >= 0)
             if not has_nucleotides:
                 self.assertEqual(ts.reference_sequence, None)

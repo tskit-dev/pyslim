@@ -219,7 +219,7 @@ class TestNucleotides(tests.PyslimTestCase):
         -1, 0, 1, 2, or 3.
         '''
         for mut in ts.mutations():
-            for u in pyslim.decode_mutation(mut.metadata):
+            for u in mut.metadata:
                 self.assertGreaterEqual(u.nucleotide, -1)
                 self.assertLessEqual(u.nucleotide, 3)
 

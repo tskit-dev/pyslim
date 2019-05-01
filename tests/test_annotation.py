@@ -166,7 +166,7 @@ class TestAnnotate(tests.PyslimTestCase):
             pyslim.annotate_individual_metadata(tables, metadata)
             new_ts = pyslim.load_tables(tables)
             for j, ind in enumerate(new_ts.individuals()):
-                md = pyslim.decode_individual(ind.metadata)
+                md = ind.metadata
                 self.assertEqual(md.sex, sexes[j])
             # try loading this into SLiM
             loaded_ts = self.run_msprime_restart(new_ts, sex="A")
@@ -237,7 +237,7 @@ class TestAnnotate(tests.PyslimTestCase):
             pyslim.annotate_mutation_metadata(tables, metadata)
             new_ts = pyslim.load_tables(tables)
             for j, x in enumerate(new_ts.mutations()):
-                md = pyslim.decode_mutation(x.metadata)
+                md = x.metadata
                 self.assertEqual(md.selection_coeff, selcoefs[j])
 
     def test_reload_recapitate(self):
