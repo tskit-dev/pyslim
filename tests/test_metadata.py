@@ -18,6 +18,56 @@ class TestEncodeDecode(tests.PyslimTestCase):
     Tests for conversion to/from binary representations of metadata.
     '''
 
+    def test_decode_errors(self):
+        with self.assertRaises(ValueError):
+            pyslim.decode_mutation(2.0)
+        with self.assertRaises(ValueError):
+            pyslim.decode_mutation([2.0, 3.0])
+        with self.assertRaises(ValueError):
+            pyslim.decode_node(2.0)
+        with self.assertRaises(ValueError):
+            pyslim.decode_node([1, 2])
+        with self.assertRaises(ValueError):
+            pyslim.decode_individual(3.0)
+        with self.assertRaises(ValueError):
+            pyslim.decode_individual([1, 2])
+        with self.assertRaises(ValueError):
+            pyslim.decode_population(1.0)
+        with self.assertRaises(ValueError):
+            pyslim.decode_population([2, 3])
+
+    def test_decode_already_mutation(self):
+        m = [pyslim.MutationMetadata(mutation_type = 0,
+                                     selection_coeff = 0.2,
+                                     population = k,
+                                     slim_time = 130,
+                                     nucleotide = 2) for k in range(4)]
+        dm = pyslim.decode_mutation(m)
+        self.assertEqual(type(dm), type([]))
+        for a, b in zip(m, dm):
+            self.assertEqual(a, b)
+
+    def test_decode_already_node(self):
+        m = pyslim.NodeMetadata(slim_id=123, is_null=True, genome_type=0)
+        dm = pyslim.decode_node(m)
+        self.assertEqual(m, dm)
+
+    def test_decode_already_population(self):
+        m = pyslim.PopulationMetadata(slim_id=1, selfing_fraction=0.2,
+                                      female_cloning_fraction=0.3,
+                                      male_cloning_fraction=0.4,
+                                      sex_ratio=0.5, bounds_x0=0, bounds_x1=10,
+                                      bounds_y0=2, bounds_y1=20, bounds_z0=3,
+                                      bounds_z1=30, migration_records=[])
+        dm = pyslim.decode_population(m)
+        self.assertEqual(m, dm)
+
+    def test_decode_already_individual(self):
+        m = pyslim.IndividualMetadata(pedigree_id=24, age=8, population=1,
+                                      sex=1, flags=0)
+        dm = pyslim.decode_individual(m)
+        self.assertEqual(m, dm)
+
     def test_mutation_metadata(self):
         for md_length in [0, 1, 5]:
             md = [pyslim.MutationMetadata(

@@ -52,7 +52,6 @@ class TestRecapitation(tests.PyslimTestCase):
             assert ts.num_populations == 2
             # if not we need migration rates
             for keep_first in [True, False]:
-                print("keep?", keep_first)
                 recap = ts.recapitate(recombination_rate = 1.0,
                                       keep_first_generation=keep_first)
                 # there should be no new mutations
@@ -87,6 +86,7 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                 raw_md = ts.tables.individuals.metadata[a:b]
                 md = pyslim.decode_individual(raw_md)
                 self.assertEqual(ind.metadata, md)
+                self.assertEqual(ts.individual(j).metadata, md)
                 for n in ind.nodes:
                     self.assertEqual(ts.node(n).population, ind.population)
                     self.assertEqual(ts.node(n).time, ind.time)
@@ -103,6 +103,22 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                 self.assertArrayEqual(ts.individual_locations[j], ind.location)
 
 
+class TestNodeMetadata(tests.PyslimTestCase):
+    '''
+    Tests for extra stuff related to Nodes.
+    '''
+
+    def test_node_derived_info(self):
+        for ts in self.get_slim_examples():
+            for j, node in enumerate(ts.nodes()):
+                a = ts.tables.nodes.metadata_offset[j]
+                b = ts.tables.nodes.metadata_offset[j+1]
+                raw_md = ts.tables.nodes.metadata[a:b]
+                md = pyslim.decode_node(raw_md)
+                self.assertEqual(node.metadata, md)
+                self.assertEqual(ts.node(j).metadata, md)
+
+
 class TestMutationMetadata(tests.PyslimTestCase):
     '''
     Tests for extra stuff related to Mutations.
@@ -116,6 +132,23 @@ class TestMutationMetadata(tests.PyslimTestCase):
                 raw_md = ts.tables.mutations.metadata[a:b]
                 md = pyslim.decode_mutation(raw_md)
                 self.assertEqual(mut.metadata, md)
+                self.assertEqual(ts.mutation(j).metadata, md)
+
+
+class TestPopulationMetadata(tests.PyslimTestCase):
+    '''
+    Tests for extra stuff related to Populations.
+    '''
+
+    def test_population_derived_info(self):
+        for ts in self.get_slim_examples():
+            for j, pop in enumerate(ts.populations()):
+                a = ts.tables.populations.metadata_offset[j]
+                b = ts.tables.populations.metadata_offset[j+1]
+                raw_md = ts.tables.populations.metadata[a:b]
+                md = pyslim.decode_population(raw_md)
+                self.assertEqual(pop.metadata, md)
+                self.assertEqual(ts.population(j).metadata, md)
 
 
 class TestEveryone(tests.PyslimTestCase):

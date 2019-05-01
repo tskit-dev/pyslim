@@ -39,34 +39,52 @@ class MutationMetadata(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+
 def decode_mutation(buff):
     '''
     Extracts the information stored in binary by SLiM in the ``metadata``
     column of a :class:`MutationTable`.  If ``buff`` is empty, returns ``[]``.
+    If `buff` is already a list of MutationMetadata objects, this will return 
+    it, unchanged.
+
+    Note that unlike other metadata decoding functions, this returns a 
+    *list* of MutationMetadata objects, because (thanks to mutation stacking),
+    a given "mutation" as recorded in tskit may actually represent a
+    combination of several SLiM mutations.
 
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`MutationTable`, as stored by SLiM.
     :rtype list:
     '''
-    # note that in the case that buff is of length zero
-    # this returns [] instead of None, like the others do
-    num_muts = int(len(buff) / 17) # 4 + 4 + 4 + 4 + 1
-    if len(buff) != num_muts * 17:
-        raise ValueError("Mutation metadata of incorrect format.")
-    struct_string = "<" + "ifiib" * num_muts
-    metadata = struct.unpack(struct_string, buff)
-    mut_structs = []
-    for k in range(num_muts):
-        mutation_type = metadata[k * 5]
-        selection_coeff = metadata[k * 5 + 1]
-        population = metadata[k * 5 + 2]
-        slim_time = metadata[k * 5 + 3]
-        nucleotide = metadata[k * 5 + 4]
-        mut_structs.append(MutationMetadata(mutation_type=mutation_type,
-                                            selection_coeff=selection_coeff,
-                                            population=population,
-                                            slim_time=slim_time,
-                                            nucleotide = nucleotide))
+    if type(buff) == type([]) and (len(buff) == 0
+            or type(buff[0]) == MutationMetadata):
+        mut_structs = buff
+    else:
+        # note that in the case that buff is of length zero
+        # this returns [] instead of None, like the others do
+        try:
+            num_muts = int(len(buff) / 17) # 4 + 4 + 4 + 4 + 1
+        except:
+            raise ValueError("Metadata not a recognized format.")
+        if len(buff) != num_muts * 17:
+            raise ValueError("Metadata bytes of incorrect format.")
+        struct_string = "<" + "ifiib" * num_muts
+        try:
+            metadata = struct.unpack(struct_string, buff)
+        except:
+            raise ValueError("Metadata bytes of incorrect format.")
+        mut_structs = []
+        for k in range(num_muts):
+            mutation_type = metadata[k * 5]
+            selection_coeff = metadata[k * 5 + 1]
+            population = metadata[k * 5 + 2]
+            slim_time = metadata[k * 5 + 3]
+            nucleotide = metadata[k * 5 + 4]
+            mut_structs.append(MutationMetadata(mutation_type = mutation_type,
+                                                selection_coeff = selection_coeff,
+                                                population = population,
+                                                slim_time = slim_time,
+                                                nucleotide = nucleotide))
     return mut_structs
 
 
@@ -83,7 +101,7 @@ def _decode_mutation_pre_nucleotides(buff):
     # this returns [] instead of None, like the others do
     num_muts = int(len(buff) / 16) # 4 + 4 + 4 + 4
     if len(buff) != num_muts * 16:
-        raise ValueError("Mutation metadata of incorrect format.")
+        raise ValueError("Metadata bytes of incorrect format.")
     struct_string = "<" + "ifii" * num_muts
     metadata = struct.unpack(struct_string, buff)
     mut_structs = []
@@ -105,7 +123,8 @@ def encode_mutation(metadata_object):
     '''
     Encodes the list of :class:`MutationMetadata` objects as a bytes object,
     suitable to be put in as metadata for a mutation.  Unlike other ``encode_`
-    functions, this takes a *list* rather than a single value.
+    functions, this takes a *list* rather than a single value, thanks to
+    stacking of SLiM mutations.
 
     :param MutationMetadata metadata_object: The list of
         :class:`MutationMetadata` objects to be encoded.
@@ -185,13 +204,23 @@ def decode_node(buff):
         :class:`NodeTable`, as stored by SLiM.
     :rtype NodeMetadata:
     '''
-    if len(buff) == 0:
-        md = None
+    if type(buff) == NodeMetadata:
+        md = buff
     else:
-        if len(buff) != 10: # 8 + 1 + 1
-            raise ValueError("Node metadata of incorrect format.")
-        slim_id, is_null, genome_type = _node_struct.unpack(buff)
-        md = NodeMetadata(slim_id=slim_id, is_null=is_null, genome_type=genome_type)
+        try:
+            buff_len = len(buff)
+        except:
+                raise ValueError("Metadata not a recognized format.")
+        if buff_len == 0:
+            md = None
+        else:
+            if len(buff) != 10: # 8 + 1 + 1
+                raise ValueError("Metadata bytes of incorrect length.")
+            try:
+                slim_id, is_null, genome_type = _node_struct.unpack(buff)
+            except:
+                raise ValueError("Metadata not a recognized format.")
+            md = NodeMetadata(slim_id=slim_id, is_null=is_null, genome_type=genome_type)
     return md
 
 def encode_node(metadata_object):
@@ -281,15 +310,25 @@ def decode_individual(buff):
         :class:`IndividualTable`, as stored by SLiM.
     :rtype IndividualMetadata:
     '''
-    if len(buff) == 0:
-        md = None
+    if type(buff) == IndividualMetadata:
+        md = buff
     else:
-        if len(buff) != 24: # 8 + 4 + 4 + 4 + 4:
-            raise ValueError("Individual metadata of incorrect format.")
-        pedigree_id, age, population, sex, flags = _individual_struct.unpack(buff)
-        md = IndividualMetadata(
-                    pedigree_id=pedigree_id, age=age, population=population,
-                    sex=sex, flags=flags)
+        try:
+            buff_len = len(buff)
+        except:
+            raise ValueError("Metadata not a recognized format.")
+        if buff_len == 0:
+            md = None
+        else:
+            if buff_len != 24: # 8 + 4 + 4 + 4 + 4:
+                raise ValueError("Metadata bytes of incorrect length.")
+            try:
+                pedigree_id, age, population, sex, flags = _individual_struct.unpack(buff)
+            except:
+                raise ValueError("Metadata bytes in incorrect format.")
+            md = IndividualMetadata(
+                        pedigree_id=pedigree_id, age=age, population=population,
+                        sex=sex, flags=flags)
     return md
 
 def encode_individual(metadata_object):
@@ -411,46 +450,56 @@ def decode_population(buff):
         :class:`PopulationTable`, as stored by SLiM.
     :rtype PopulationMetadata:
     '''
-    if len(buff) == 0:
-        md = None
+    if type(buff) == PopulationMetadata:
+        md = buff
     else:
-        if len(buff) < 88: # 4 + 8 * 10 + 4
-            raise ValueError("Population metadata of incorrect format.")
-        num_migration_records = int((len(buff) - 88) / 12) # 4 + 8
-        if len(buff) != 88 + 12 * num_migration_records:
-            raise ValueError("Population metadata of incorrect format.")
-        struct_string = "<i10di" + "id" * num_migration_records
-        metadata = struct.unpack(struct_string, buff)
-        if metadata[11] != num_migration_records:
-            raise ValueError("Inconsistent population metadata format.")
-        slim_id = metadata[0]
-        selfing_fraction = metadata[1]
-        female_cloning_fraction = metadata[2]
-        male_cloning_fraction = metadata[3]
-        sex_ratio = metadata[4]
-        bounds_x0 = metadata[5]
-        bounds_x1 = metadata[6]
-        bounds_y0 = metadata[7]
-        bounds_y1 = metadata[8]
-        bounds_z0 = metadata[9]
-        bounds_z1 = metadata[10]
-        # num_migration_records = metadata[11]
-        migration_records = []
-        k = 12
-        for j in range(num_migration_records):
-            source_subpop = metadata[k]
-            k += 1
-            migration_rate = metadata[k]
-            k += 1
-            migration_records.append(PopulationMigrationMetadata(source_subpop=source_subpop,
-                                                                 migration_rate=migration_rate))
+        try:
+            buff_len = len(buff)
+        except:
+            raise ValueError("Metadata not a recognized format.")
+        if buff_len == 0:
+            md = None
+        else:
+            if buff_len < 88: # 4 + 8 * 10 + 4
+                raise ValueError("Metadata bytes of incorrect format.")
+            num_migration_records = int((buff_len - 88) / 12) # 4 + 8
+            if buff_len != 88 + 12 * num_migration_records:
+                raise ValueError("Metadata bytes of incorrect format.")
+            struct_string = "<i10di" + "id" * num_migration_records
+            try:
+                metadata = struct.unpack(struct_string, buff)
+            except:
+                raise ValueError("Metadata not a recognized format.")
+            if metadata[11] != num_migration_records:
+                raise ValueError("Inconsistent population metadata format.")
+            slim_id = metadata[0]
+            selfing_fraction = metadata[1]
+            female_cloning_fraction = metadata[2]
+            male_cloning_fraction = metadata[3]
+            sex_ratio = metadata[4]
+            bounds_x0 = metadata[5]
+            bounds_x1 = metadata[6]
+            bounds_y0 = metadata[7]
+            bounds_y1 = metadata[8]
+            bounds_z0 = metadata[9]
+            bounds_z1 = metadata[10]
+            # num_migration_records = metadata[11]
+            migration_records = []
+            k = 12
+            for j in range(num_migration_records):
+                source_subpop = metadata[k]
+                k += 1
+                migration_rate = metadata[k]
+                k += 1
+                migration_records.append(PopulationMigrationMetadata(source_subpop=source_subpop,
+                                                                     migration_rate=migration_rate))
 
-        md = PopulationMetadata(slim_id=slim_id, selfing_fraction=selfing_fraction,
-                                  female_cloning_fraction=female_cloning_fraction,
-                                  male_cloning_fraction=male_cloning_fraction,
-                                  sex_ratio=sex_ratio, bounds_x0=bounds_x0, bounds_x1=bounds_x1,
-                                  bounds_y0=bounds_y0, bounds_y1=bounds_y1, bounds_z0=bounds_z0,
-                                  bounds_z1=bounds_z1, migration_records=migration_records)
+            md = PopulationMetadata(slim_id=slim_id, selfing_fraction=selfing_fraction,
+                                      female_cloning_fraction=female_cloning_fraction,
+                                      male_cloning_fraction=male_cloning_fraction,
+                                      sex_ratio=sex_ratio, bounds_x0=bounds_x0, bounds_x1=bounds_x1,
+                                      bounds_y0=bounds_y0, bounds_y1=bounds_y1, bounds_z0=bounds_z0,
+                                      bounds_z1=bounds_z1, migration_records=migration_records)
     return md
 
 def encode_population(metadata_object):

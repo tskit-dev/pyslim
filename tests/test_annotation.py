@@ -220,7 +220,7 @@ class TestAnnotate(tests.PyslimTestCase):
             pyslim.annotate_node_metadata(tables, metadata)
             new_ts = pyslim.load_tables(tables)
             for j, x in enumerate(new_ts.nodes()):
-                md = pyslim.decode_node(x.metadata)
+                md = x.metadata
                 if md is not None:
                     self.assertEqual(md.genome_type, gtypes[j])
             # not testing SLiM because needs annotation of indivs to make sense

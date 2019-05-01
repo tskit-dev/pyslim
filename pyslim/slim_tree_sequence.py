@@ -210,6 +210,29 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         return ret
 
+    def population(self, id_):
+        '''
+        Returns the population whose ID is given by `id_`, as documented in
+        `msprime.population`, but with additional attributes:
+            slim_id, selfing_fraction, female_cloning_fraction, 
+            male_cloning_fraction, sex_ratio, 
+            bounds_x0, bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1, 
+            and migration_records.
+        These are all recorded by SLiM in the metadata.
+
+        Note that SLiM populations are usually indexed starting from 1,
+        but in tskit from zero, so there may be populations (e.g., with id_=0)
+        that have no metadata and are not used by SLiM.
+
+        :param int id_: The ID of the population (i.e., its index).
+        '''
+        pop = super(SlimTreeSequence, self).population(id_)
+        try:
+            pop.metadata = decode_population(pop.metadata)
+        except:
+            pass
+        return pop
+
     def individual(self, id_):
         '''
         Returns the individual whose ID is given by `id_`, as documented in
@@ -224,8 +247,27 @@ class SlimTreeSequence(tskit.TreeSequence):
         ind = super(SlimTreeSequence, self).individual(id_)
         ind.population = self.individual_populations[id_]
         ind.time = self.individual_times[id_]
-        ind.metadata = decode_individual(ind.metadata)
+        try:
+            ind.metadata = decode_individual(ind.metadata)
+        except:
+            pass
         return ind
+
+    def node(self, id_):
+        '''
+        Returns the node whose ID is given by `id_`, as documented in
+        `msprime.node`, but with additional attributes:
+           slim_id, is_null, genome_type.
+        These are all recorded by SLiM in the metadata.
+
+        :param int id_: The ID of the node (i.e., its index).
+        '''
+        node = super(SlimTreeSequence, self).node(id_)
+        try:
+            node.metadata = decode_node(node.metadata)
+        except:
+            pass
+        return node
 
     def mutation(self, id_):
         '''
@@ -237,7 +279,10 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the mutation (i.e., its index).
         '''
         mut = super(SlimTreeSequence, self).mutation(id_)
-        mut.metadata = decode_mutation(mut.metadata)
+        try:
+            mut.metadata = decode_mutation(mut.metadata)
+        except:
+            pass
         return mut
 
     def recapitate(self, recombination_rate, keep_first_generation=False,
