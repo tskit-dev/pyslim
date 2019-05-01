@@ -7,11 +7,15 @@ from warnings import warn
 with codecs_open('README.md', encoding='utf-8') as f:
     long_description = f.read()
 
-HAVE_MSPRIME = False
 try:
-    import msprime
+    import tskit
 except ImportError:
-    warn("`msprime` not present and must be installed")
+    warn("`tskit` not present and must be installed")
+
+try:
+    import kastore
+except ImportError:
+    warn("`kastore` not present and must be installed")
 
 
 setup(name='pyslim',
@@ -27,7 +31,7 @@ setup(name='pyslim',
       packages=find_packages(exclude=[]),
       include_package_data=True,
       zip_safe=False,
-      install_requires=['msprime>=0.7.0', 'tskit', 'attrs'],
+      install_requires=['msprime>=0.7.0', 'tskit', 'kastore', 'attrs'],
       extras_require={
           'dev': [],
       },
