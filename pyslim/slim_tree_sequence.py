@@ -341,6 +341,51 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts.reference_sequence = self.reference_sequence
         return ts
 
+    def nucleotide_at(self, node, position):
+        '''
+        Finds the nucleotide present in the genome of `node` at `position`.
+        Warning: if `node` is not actually in the tree sequence (e.g., not
+        ancestral to any samples) at `position`, then this function will return
+        the reference sequence nucleotide, possibly erroneously.
+        
+        :param int node: the index of a node in the tree sequence
+        :param float position: a position along the genome
+
+        :returns: Index of the nucleotide in NUCLEOTIDES (0=A, 1=C, 2=G, 3=T).
+        '''
+        if self.reference_sequence is None:
+            raise ValueError("This tree sequence has no reference sequence.")
+        if position < 0 or position >= self.sequence_length:
+            raise ValueError("Position {} not valid.".format(position))
+        if node < 0 or node >= self.num_nodes:
+            raise ValueError("Node {} not valid.".format(node))
+        tree = self.at(position)
+        site_pos = self.tables.sites.position
+        reference = True
+        if position in site_pos:
+            site_index = np.where(site_pos == position)[0][0]
+            site = self.site(site_index)
+            mut_nodes = [m.node for m in site.mutations]
+            n = node
+            while n > -1 and n not in mut_nodes:
+                n = tree.parent(n)
+            if n >= 0:
+                reference = False
+                # look for the *last* mutation on this node
+                # and do careful error checking
+                last_mut_parent = -1
+                first_mut = True
+                for mut in site.mutations:
+                    if mut.node == n:
+                        assert(first_mut or last_mut_parent == mut.parent)
+                        first_mut = False
+                        last_mut_parent = mut.id
+                        assert(len(mut.metadata) == 1)
+                        out = mut.metadata[0].nucleotide
+        if reference:
+            out = NUCLEOTIDES.index(self.reference_sequence[int(position)])
+        return out
+
     def _mark_first_generation(self):
         '''
         Mark all 'first generation' individuals' nodes as samples, and return
