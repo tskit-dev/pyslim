@@ -5,6 +5,7 @@ from __future__ import print_function
 from __future__ import division
 
 import pyslim
+import tskit
 import msprime
 import _msprime
 import tests
@@ -213,3 +214,42 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     self.assertTrue(u in pyslim.NUCLEOTIDES)
             sts = ts.simplify(ts.samples()[:2])
             self.assertEqual(sts.reference_sequence, ts.reference_sequence)
+
+    def test_nucleotide_at_errors(self):
+        for ts in self.get_slim_examples():
+            with self.assertRaises(ValueError):
+                ts.nucleotide_at(-2, 3)
+            with self.assertRaises(ValueError):
+                ts.nucleotide_at(2, -3)
+            with self.assertRaises(ValueError):
+                ts.nucleotide_at(ts.num_nodes + 2, 3)
+            with self.assertRaises(ValueError):
+                ts.nucleotide_at(2, ts.sequence_length)
+            mut_md = ts.mutation(0).metadata
+            has_nucleotides = (mut_md[0].nucleotide >= 0)
+            if not has_nucleotides:
+                with self.assertRaises(ValueError):
+                    ts.nucleotide_at(2, 3)
+
+    def test_nucleotide_at(self):
+        for ts in self.get_slim_examples():
+            mut_md = ts.mutation(0).metadata
+            has_nucleotides = (mut_md[0].nucleotide >= 0)
+            gm = ts.genotype_matrix()
+            if has_nucleotides:
+                for _ in range(100):
+                    node = random.randint(0, ts.num_nodes - 1)
+                    pos = random.randint(0, ts.sequence_length - 1)
+                    tree = ts.at(pos)
+                    parent = tree.parent(node)
+                    a = ts.nucleotide_at(node, pos)
+                    if parent == tskit.NULL:
+                        nuc = ts.reference_sequence[int(pos)]
+                        self.assertEqual(a, pyslim.NUCLEOTIDES.index(nuc))
+                    else:
+                        b = ts.nucleotide_at(parent, pos)
+                        for k in np.where(node == ts.tables.mutations.node)[0]:
+                            mut = ts.mutation(k)
+                            if ts.site(mut.site).position == pos:
+                                b = mut.metadata[0].nucleotide
+                        self.assertEqual(a, b)
