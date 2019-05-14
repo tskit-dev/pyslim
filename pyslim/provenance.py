@@ -7,12 +7,9 @@ import json
 import msprime
 import tskit
 
-__version__ = "undefined"
-try:
-    from . import _version
-    __version__ = _version.version
-except ImportError:
-    pass
+from . import _version
+
+__version__ = _version.pyslim_version
 
 
 @attr.s

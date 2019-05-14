@@ -4,4 +4,3 @@ __pycache__
 pyslim.egg-info/
 build/
 dist/
-pyslim/_version.py

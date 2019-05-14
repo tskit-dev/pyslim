@@ -15,7 +15,7 @@ import os
 _everyone_example_files = ["tests/examples/recipe_record_everyone"]
 
 _example_files = ["tests/examples/recipe_{}".format(x)
-                  for x in ['WF', 'nonWF', 'nucleotides']] + \
+                  for x in ['WF', 'nonWF', 'nucleotides', 'long_nucleotides']] + \
                  _everyone_example_files
 
 # this is of the form (input, basename)

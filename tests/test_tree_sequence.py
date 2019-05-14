@@ -67,11 +67,12 @@ class TestRecapitation(tests.PyslimTestCase):
                 recap = ts.recapitate(recombination_rate = 1.0,
                                       Ne = 1e-6, keep_first_generation=keep_first)
                 self.check_recap_consistency(ts, recap, keep_first)
-                for t in recap.trees():
-                    self.assertEqual(t.num_roots, 1)
-                    self.assertAlmostEqual(recap.node(t.root).time, 
-                                           recap.slim_generation, 
-                                           delta = 1e-4)
+                if ts.slim_generation < 200:
+                    for t in recap.trees():
+                        self.assertEqual(t.num_roots, 1)
+                        self.assertAlmostEqual(recap.node(t.root).time, 
+                                               recap.slim_generation, 
+                                               delta = 1e-4)
 
 
 class TestIndividualMetadata(tests.PyslimTestCase):
@@ -217,25 +218,25 @@ class TestReferenceSequence(tests.PyslimTestCase):
 
     def test_nucleotide_at_errors(self):
         for ts in self.get_slim_examples():
+            u = ts.samples()[0]
             with self.assertRaises(ValueError):
                 ts.nucleotide_at(-2, 3)
             with self.assertRaises(ValueError):
-                ts.nucleotide_at(2, -3)
+                ts.nucleotide_at(u, -3)
             with self.assertRaises(ValueError):
                 ts.nucleotide_at(ts.num_nodes + 2, 3)
             with self.assertRaises(ValueError):
-                ts.nucleotide_at(2, ts.sequence_length)
+                ts.nucleotide_at(u, ts.sequence_length)
             mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md[0].nucleotide >= 0)
             if not has_nucleotides:
                 with self.assertRaises(ValueError):
-                    ts.nucleotide_at(2, 3)
+                    ts.nucleotide_at(u, 3)
 
     def test_nucleotide_at(self):
         for ts in self.get_slim_examples():
             mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md[0].nucleotide >= 0)
-            gm = ts.genotype_matrix()
             if has_nucleotides:
                 for _ in range(100):
                     node = random.randint(0, ts.num_nodes - 1)
@@ -248,6 +249,8 @@ class TestReferenceSequence(tests.PyslimTestCase):
                         self.assertEqual(a, pyslim.NUCLEOTIDES.index(nuc))
                     else:
                         b = ts.nucleotide_at(parent, pos)
+                        c = ts.nucleotide_at(node, pos, ts.node(parent).time)
+                        self.assertEqual(b, c)
                         for k in np.where(node == ts.tables.mutations.node)[0]:
                             mut = ts.mutation(k)
                             if ts.site(mut.site).position == pos:

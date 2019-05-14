@@ -122,7 +122,7 @@ def _decode_mutation_pre_nucleotides(buff):
 def encode_mutation(metadata_object):
     '''
     Encodes the list of :class:`MutationMetadata` objects as a bytes object,
-    suitable to be put in as metadata for a mutation.  Unlike other ``encode_`
+    suitable to be put in as metadata for a mutation.  Unlike other ``encode_``
     functions, this takes a *list* rather than a single value, thanks to
     stacking of SLiM mutations.
 

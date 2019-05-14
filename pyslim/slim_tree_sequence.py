@@ -80,16 +80,19 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
 
 class SlimTreeSequence(tskit.TreeSequence):
     '''
-    This is just like a :class:`TreeSequence`, except that:
-        - Times are shifted by the `generation` in the last SLiM entry
-            of the Provenance table.
-    You should create a :class:`SlimTreeSequence` using one of
-    :meth:`SlimTreeSequence.load_tables` :meth:`SlimTreeSequence.load`,
-    :func:`load`, or :func:`load_tables`.
-
+    This is just like a :class:`tskit.TreeSequence`, with a few more properties
+    and methods, notably:
+    
+    - :meth:`.recapitate`
+    
+    You should create a :class:`.SlimTreeSequence` using one of
+    
+    - :meth:`.SlimTreeSequence.load_tables` :meth:`.SlimTreeSequence.load`,
+    - :func:`.load`, or :func:`.load_tables`.
+    
     :ivar slim_generation: The generation that the SLiM simulation was at upon writing;
         will be read from provenance if not provided.
-    ;ivar reference_sequence: None, or an string of length equal to the sequence
+    :ivar reference_sequence: None, or an string of length equal to the sequence
         length that gives the entire reference sequence for nucleotide models.
     :vartype slim_generation: int
     :vartype reference_sequence: string
@@ -188,16 +191,10 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     def simplify(self, *args, **kwargs):
         '''
-        This is a wrapper for tskit.TreeSequence.simplify().
+        This is a wrapper for :meth:`tskit.TreeSequence.simplify`.
         The only difference is that this method returns the
-        derived class SlimTreeSequence.
+        derived class :class:`.SlimTreeSequence`.
 
-        Documentation for this function and its arguments
-        can be found at:
-        https://github.com/tskit-dev/tskit/blob/master/python/tskit/trees.py
-
-        :param *args: list of arguments to feed msprime.TreeSequence.Simplify()
-        :param **kwargs: keyword specific aguments stored in a dictionary.
         :rtype SlimTreeSequence:
         '''
         sts = super(SlimTreeSequence, self).simplify(*args, **kwargs)
@@ -213,11 +210,13 @@ class SlimTreeSequence(tskit.TreeSequence):
     def population(self, id_):
         '''
         Returns the population whose ID is given by `id_`, as documented in
-        `msprime.population`, but with additional attributes:
+        :meth:`tskit.TreeSequence.population`, but with additional attributes::
+
             slim_id, selfing_fraction, female_cloning_fraction, 
             male_cloning_fraction, sex_ratio, 
             bounds_x0, bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1, 
-            and migration_records.
+            migration_records.
+
         These are all recorded by SLiM in the metadata.
 
         Note that SLiM populations are usually indexed starting from 1,
@@ -236,8 +235,10 @@ class SlimTreeSequence(tskit.TreeSequence):
     def individual(self, id_):
         '''
         Returns the individual whose ID is given by `id_`, as documented in
-        `msprime.individual`, but with additional attributes:
-          time, pedigree_id, age, slim_population, sex, and slim_flags.
+        :meth:`tskit.TreeSequence.individual`, but with additional attributes::
+
+          time, pedigree_id, age, slim_population, sex, slim_flags.
+
         The `time` and `population` properties are extracted from the nodes,
         and an error will be thrown if the individual's nodes derive from
         more than one population or more than one time.
@@ -256,8 +257,10 @@ class SlimTreeSequence(tskit.TreeSequence):
     def node(self, id_):
         '''
         Returns the node whose ID is given by `id_`, as documented in
-        `msprime.node`, but with additional attributes:
+        :meth:`tskit.TreeSequence.node`, but with additional attributes::
+
            slim_id, is_null, genome_type.
+
         These are all recorded by SLiM in the metadata.
 
         :param int id_: The ID of the node (i.e., its index).
@@ -272,8 +275,10 @@ class SlimTreeSequence(tskit.TreeSequence):
     def mutation(self, id_):
         '''
         Returns the mutation whose ID is given by `id_`, as documented in
-        `msprime.mutation`, but with additional attributes:
-           mutation_type, selection_coeff, population, slim_time, and nucleotide.
+        :meth:`tskit.TreeSequence.mutation`, but with additional attributes::
+
+           mutation_type, selection_coeff, population, slim_time, nucleotide.
+
         These are all recorded by SLiM in the metadata.
 
         :param int id_: The ID of the mutation (i.e., its index).
@@ -306,17 +311,18 @@ class SlimTreeSequence(tskit.TreeSequence):
         with 0, so that if your SLiM simulation has populations ``p1`` and ``p2``,
         then the tree sequence will have three populations (but with no nodes
         assigned to population 0), so that migration rate of 1.0 between ``p1`` and
-        ``p2`` needs a migration matrix of
+        ``p2`` needs a migration matrix of::
+
            [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
 
         :param float recombination_rate: The recombination rate - only a constant
             recombination rate is allowed.
         :param bool keep_first_generation: Whether to keep the individuals (and genomes)
             corresponding to the first SLiM generation in the resulting tree sequence
-        :param list population_configurations: See :meth:`msprime.simulate()` for
+        :param list population_configurations: See :meth:`msprime.simulate` for
             this argument; if not provided, each population will have zero growth rate
             and the same effective population size.
-        :param dict kwargs: Any other arguments to :meth:`msprime.simulate()`.
+        :param dict kwargs: Any other arguments to :meth:`msprime.simulate`.
         '''
         recomb = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
                                           rates = [recombination_rate, 0.0],
@@ -341,17 +347,23 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts.reference_sequence = self.reference_sequence
         return ts
 
-    def nucleotide_at(self, node, position):
+    def nucleotide_at(self, node, position, time=None):
         '''
-        Finds the nucleotide present in the genome of `node` at `position`.
-        Warning: if `node` is not actually in the tree sequence (e.g., not
-        ancestral to any samples) at `position`, then this function will return
-        the reference sequence nucleotide, possibly erroneously.
+        Finds the nucleotide present in the genome of ``node`` at ``position``.
+        Warning: if ``node`` is not actually in the tree sequence (e.g., not
+        ancestral to any samples) at ``position``, then this function will
+        return the reference sequence nucleotide, possibly erroneously.  If
+        `time` is provided, returns the last nucletide produced by a mutation
+        at ``position`` inherited by ``node`` that occurred at or before
+        ``time`` ago (using the `slim_time` attribute of mutation metadata
+        to infer this).
         
-        :param int node: the index of a node in the tree sequence
-        :param float position: a position along the genome
+        :param int node: The index of a node in the tree sequence.
+        :param float position: A position along the genome.
+        :param int time: The time ago that we want the nucleotide, or None,
+            in which case the ``time`` of ``node`` is used.
 
-        :returns: Index of the nucleotide in NUCLEOTIDES (0=A, 1=C, 2=G, 3=T).
+        :returns: Index of the nucleotide in ``NUCLEOTIDES`` (0=A, 1=C, 2=G, 3=T).
         '''
         if self.reference_sequence is None:
             raise ValueError("This tree sequence has no reference sequence.")
@@ -359,29 +371,35 @@ class SlimTreeSequence(tskit.TreeSequence):
             raise ValueError("Position {} not valid.".format(position))
         if node < 0 or node >= self.num_nodes:
             raise ValueError("Node {} not valid.".format(node))
+        if time is None:
+            time = self.node(node).time
         tree = self.at(position)
+        slim_time = self.slim_generation - time - 1.0
         site_pos = self.tables.sites.position
         reference = True
         if position in site_pos:
             site_index = np.where(site_pos == position)[0][0]
             site = self.site(site_index)
-            mut_nodes = [m.node for m in site.mutations]
+            mut_nodes = []
+            for mut in site.mutations:
+                if max([u.slim_time for u in mut.metadata]) <= slim_time:
+                    mut_nodes.append(mut.node)
             n = node
             while n > -1 and n not in mut_nodes:
                 n = tree.parent(n)
             if n >= 0:
-                reference = False
-                # look for the *last* mutation on this node
-                # and do careful error checking
+                # look for the *last* mutation on this node that happened
+                # before `time` and do careful error checking
                 last_mut_parent = -1
                 first_mut = True
                 for mut in site.mutations:
                     if mut.node == n:
+                        k = np.argmax([u.slim_time for u in mut.metadata])
                         assert(first_mut or last_mut_parent == mut.parent)
                         first_mut = False
                         last_mut_parent = mut.id
-                        assert(len(mut.metadata) == 1)
-                        out = mut.metadata[0].nucleotide
+                        reference = False
+                        out = mut.metadata[k].nucleotide
         if reference:
             out = NUCLEOTIDES.index(self.reference_sequence[int(position)])
         return out
