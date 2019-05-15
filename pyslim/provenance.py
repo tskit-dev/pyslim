@@ -7,12 +7,9 @@ import json
 import msprime
 import tskit
 
-__version__ = "undefined"
-try:
-    from . import _version
-    __version__ = _version.version
-except ImportError:
-    pass
+from . import _version
+
+__version__ = _version.pyslim_version
 
 
 @attr.s
@@ -41,7 +38,7 @@ def get_provenance(ts):
         out = ProvenanceMetadata(record['model_type'],
                                  record['generation'],
                                  file_version)
-    else: # 0.2
+    else: # >= 0.2
         out = ProvenanceMetadata(record['parameters']['model_type'],
                                  record['slim']["generation"],
                                  file_version)
@@ -50,8 +47,8 @@ def get_provenance(ts):
 
 def upgrade_slim_provenance(tables):
     """
-    Converts the last provenance entry from SLiM file version 0.1 to that
-    required by file version 0.2.
+    Copies the last provenance entry from a previous SLiM file version to that
+    required by the current file version.
 
     :param TableCollection tables: the table collection
     """
@@ -62,15 +59,21 @@ def upgrade_slim_provenance(tables):
         raise ValueError("Tree sequence contains no SLiM provenance entries.")
     info, record = slim_prov[len(slim_prov)-1]
     file_version = info[1]
-    if file_version != "0.1":
-        warnings.warn("File version is not v0.1; not doing anything.")
+    if not (file_version == "0.1" or file_version == "0.2"):
+        warnings.warn("File version is not v0.1 or v0.2; not doing anything.")
     is_slim, version = _slim_provenance_version(record)
     if not is_slim:
         raise ValueError("Not a SLiM provenance entry.")
-    new_record = make_slim_provenance_dict(
-                    record['model_type'],
-                    record['generation'])
-    new_record['parameters']['command'] = ['pyslim', 'convert']
+    if file_version == "0.1":
+        new_record = make_slim_provenance_dict(
+                        record['model_type'],
+                        record['generation'])
+        new_record['parameters']['command'] = ['pyslim', 'convert']
+    else:
+        new_record = make_slim_provenance_dict(
+                        record['parameters']['model_type'],
+                        record['slim']['generation'])
+        new_record['parameters']['command'] = ['pyslim', 'convert']
     tskit.validate_provenance(new_record)
     tables.provenances.add_row(json.dumps(new_record))
 
@@ -99,7 +102,7 @@ def _slim_provenance_version(record):
             file_version = record["file_version"]
         except:
             pass
-    is_slim = (software_name == "SLiM") and (file_version in ["0.1", "0.2"])
+    is_slim = (software_name == "SLiM") and (file_version in ["0.1", "0.2", "0.3"])
     return is_slim, file_version
 
 
@@ -154,7 +157,7 @@ def make_slim_provenance_dict(model_type, slim_generation):
         "schema_version": "1.0.0",
         "software": {
             "name" : "SLiM",
-            "version": "3.1"
+            "version": "3.3"
             },
         "parameters": {
             "command": ['pyslim'],
@@ -183,7 +186,7 @@ def make_slim_provenance_dict(model_type, slim_generation):
             }
         },
         "slim": {
-            "file_version": "0.2",
+            "file_version": "0.3",
             "generation": slim_generation,
             "model": ""
             }
