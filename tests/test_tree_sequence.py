@@ -7,7 +7,6 @@ from __future__ import division
 import pyslim
 import tskit
 import msprime
-import _msprime
 import tests
 import unittest
 import random
@@ -136,6 +135,17 @@ class TestMutationMetadata(tests.PyslimTestCase):
                 self.assertEqual(mut.metadata, md)
                 self.assertEqual(ts.mutation(j).metadata, md)
 
+    def test_slim_time(self):
+        # check that slim_times make sense
+        for ts in self.get_slim_examples():
+            # Mutation's slim_times are one less than the corresponding node's slim times
+            # in WF models, but not in WF models, for some reason.
+            is_wf = (ts.slim_provenance.model_type == "WF")
+            for mut in ts.mutations():
+                node_slim_time = ts.slim_generation - ts.node(mut.node).time
+                mut_slim_time = max([u.slim_time for u in mut.metadata])
+                self.assertGreaterEqual(node_slim_time, mut_slim_time)
+
 
 class TestPopulationMetadata(tests.PyslimTestCase):
     '''
@@ -216,22 +226,46 @@ class TestReferenceSequence(tests.PyslimTestCase):
             sts = ts.simplify(ts.samples()[:2])
             self.assertEqual(sts.reference_sequence, ts.reference_sequence)
 
-    def test_nucleotide_at_errors(self):
+    def test_mutation_at_errors(self):
         for ts in self.get_slim_examples():
             u = ts.samples()[0]
             with self.assertRaises(ValueError):
-                ts.nucleotide_at(-2, 3)
+                ts.mutation_at(-2, 3)
             with self.assertRaises(ValueError):
-                ts.nucleotide_at(u, -3)
+                ts.mutation_at(u, -3)
             with self.assertRaises(ValueError):
-                ts.nucleotide_at(ts.num_nodes + 2, 3)
+                ts.mutation_at(ts.num_nodes + 2, 3)
             with self.assertRaises(ValueError):
-                ts.nucleotide_at(u, ts.sequence_length)
+                ts.mutation_at(u, ts.sequence_length)
+
+    def test_nucleotide_at_errors(self):
+        for ts in self.get_slim_examples():
+            u = ts.samples()[0]
             mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md[0].nucleotide >= 0)
             if not has_nucleotides:
                 with self.assertRaises(ValueError):
                     ts.nucleotide_at(u, 3)
+
+    def test_mutation_at(self):
+        for ts in self.get_slim_examples():
+            for _ in range(100):
+                node = random.randint(0, ts.num_nodes - 1)
+                pos = random.randint(0, ts.sequence_length - 1)
+                tree = ts.at(pos)
+                parent = tree.parent(node)
+                a = ts.mutation_at(node, pos)
+                if parent == tskit.NULL:
+                    self.assertEqual(a, tskit.NULL)
+                else:
+                    b = ts.mutation_at(parent, pos)
+                    c = ts.mutation_at(node, pos, ts.node(parent).time)
+                    self.assertEqual(b, c)
+                    for k in np.where(node == ts.tables.mutations.node)[0]:
+                        mut = ts.mutation(k)
+                        if ts.site(mut.site).position == pos:
+                            b = mut.id
+                    self.assertEqual(a, b)
 
     def test_nucleotide_at(self):
         for ts in self.get_slim_examples():

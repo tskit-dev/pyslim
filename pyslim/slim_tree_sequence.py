@@ -347,6 +347,60 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts.reference_sequence = self.reference_sequence
         return ts
 
+    def mutation_at(self, node, position, time=None):
+        '''
+        Finds the mutation present in the genome of ``node`` at ``position``,
+        returning -1 if there is no such mutation recorded in the tree
+        sequence.  Warning: if ``node`` is not actually in the tree sequence
+        (e.g., not ancestral to any samples) at ``position``, then this
+        function will return -1, possibly erroneously.  If `time` is provided,
+        returns the last mutation at ``position`` inherited by ``node`` that
+        occurred at or before ``time`` ago (using the `slim_time` attribute of
+        mutation metadata to infer this).
+        
+        :param int node: The index of a node in the tree sequence.
+        :param float position: A position along the genome.
+        :param int time: The time ago that we want the nucleotide, or None,
+            in which case the ``time`` of ``node`` is used.
+
+        :returns: Index of the mutation in question, or -1 if none.
+        '''
+        if position < 0 or position >= self.sequence_length:
+            raise ValueError("Position {} not valid.".format(position))
+        if node < 0 or node >= self.num_nodes:
+            raise ValueError("Node {} not valid.".format(node))
+        if time is None:
+            time = self.node(node).time
+        tree = self.at(position)
+        slim_time = self.slim_generation - time
+        # Mutation's slim_times are one less than the corresponding node's slim times
+        # in WF models, but not in WF models, for some reason.
+        if self.slim_provenance.model_type == "WF":
+            slim_time -= 1.0
+        site_pos = self.tables.sites.position
+        out = tskit.NULL
+        if position in site_pos:
+            site_index = np.where(site_pos == position)[0][0]
+            site = self.site(site_index)
+            mut_nodes = []
+            # look for only mutations that occurred before `time`
+            # not strictly necessary if time was None
+            for mut in site.mutations:
+                if len(mut.metadata) == 0:
+                    raise ValueError("All mutations must have SLiM metadata.")
+                if max([u.slim_time for u in mut.metadata]) <= slim_time:
+                    mut_nodes.append(mut.node)
+            n = node
+            while n > -1 and n not in mut_nodes:
+                n = tree.parent(n)
+            if n >= 0:
+                # do careful error checking here
+                for mut in site.mutations:
+                    if mut.node == n:
+                        assert(out == tskit.NULL or out == mut.parent)
+                        out = mut.id
+        return out
+
     def nucleotide_at(self, node, position, time=None):
         '''
         Finds the nucleotide present in the genome of ``node`` at ``position``.
@@ -367,42 +421,24 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         if self.reference_sequence is None:
             raise ValueError("This tree sequence has no reference sequence.")
-        if position < 0 or position >= self.sequence_length:
-            raise ValueError("Position {} not valid.".format(position))
-        if node < 0 or node >= self.num_nodes:
-            raise ValueError("Node {} not valid.".format(node))
-        if time is None:
-            time = self.node(node).time
-        tree = self.at(position)
-        slim_time = self.slim_generation - time - 1.0
-        site_pos = self.tables.sites.position
-        reference = True
-        if position in site_pos:
-            site_index = np.where(site_pos == position)[0][0]
-            site = self.site(site_index)
-            mut_nodes = []
-            for mut in site.mutations:
-                if max([u.slim_time for u in mut.metadata]) <= slim_time:
-                    mut_nodes.append(mut.node)
-            n = node
-            while n > -1 and n not in mut_nodes:
-                n = tree.parent(n)
-            if n >= 0:
-                # look for the *last* mutation on this node that happened
-                # before `time` and do careful error checking
-                last_mut_parent = -1
-                first_mut = True
-                for mut in site.mutations:
-                    if mut.node == n:
-                        k = np.argmax([u.slim_time for u in mut.metadata])
-                        assert(first_mut or last_mut_parent == mut.parent)
-                        first_mut = False
-                        last_mut_parent = mut.id
-                        reference = False
-                        out = mut.metadata[k].nucleotide
-        if reference:
+        mut_id = self.mutation_at(node, position, time)
+        if mut_id == tskit.NULL:
             out = NUCLEOTIDES.index(self.reference_sequence[int(position)])
+        else:
+            mut = self.mutation(mut_id)
+            k = np.argmax([u.slim_time for u in mut.metadata])
+            out = mut.metadata[k].nucleotide
         return out
+
+    @property
+    def slim_provenance(self):
+        '''
+        Extracts model type, slim generation, and remembmered node count from the last
+        entry in the provenance table that is tagged with "program"="SLiM".
+
+        :rtype ProvenanceMetadata:
+        '''
+        return get_provenance(self)
 
     def _mark_first_generation(self):
         '''

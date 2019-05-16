@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 from __future__ import division
 
 import pyslim
+import msprime
 import random
 import unittest
 import base64
@@ -14,9 +15,13 @@ import os
 # recipes that record everyone ever
 _everyone_example_files = ["tests/examples/recipe_record_everyone"]
 
-_example_files = ["tests/examples/recipe_{}".format(x)
-                  for x in ['WF', 'nonWF', 'nucleotides', 'long_nucleotides']] + \
-                 _everyone_example_files
+_wf_example_files = ["tests/examples/recipe_{}".format(x)
+                  for x in ['WF', 'nucleotides', 'long_nucleotides']]
+
+_nonwf_example_files = ["tests/examples/recipe_{}".format(x)
+                  for x in ['nonWF']]
+
+_example_files = _wf_example_files + _nonwf_example_files + _everyone_example_files
 
 # this is of the form (input, basename)
 # TODO: test restarting of nucleotides after reference sequence dumping is enabled
@@ -96,6 +101,20 @@ class PyslimTestCase(unittest.TestCase):
             self.assertTrue(os.path.isfile(treefile))
             yield pyslim.load(treefile)
 
+    def get_wf_examples(self):
+        for filename in _wf_example_files:
+            treefile = filename + ".trees"
+            print("---->", treefile)
+            self.assertTrue(os.path.isfile(treefile))
+            yield pyslim.load(treefile)
+
+    def get_nonwf_examples(self):
+        for filename in _nonwf_example_files:
+            treefile = filename + ".trees"
+            print("---->", treefile)
+            self.assertTrue(os.path.isfile(treefile))
+            yield pyslim.load(treefile)
+
     def get_slim_restarts(self):
         for treefile, basename in _restart_files:
             self.assertTrue(os.path.isfile(treefile))
@@ -135,3 +154,26 @@ class PyslimTestCase(unittest.TestCase):
         out_ts = self.run_slim_restart(in_ts, basename, args=args)
         return out_ts
 
+    def get_msprime_examples(self):
+        demographic_events = [
+            msprime.MassMigration(
+            time=5, source=1, destination=0, proportion=1.0)
+        ]
+        for n in [2, 10, 20]:
+            for mutrate in [0.0]:
+                for recrate in [0.0, 0.01]:
+                    yield msprime.simulate(n, mutation_rate=mutrate,
+                                           recombination_rate=recrate,
+                                           length=200)
+                    population_configurations =[
+                        msprime.PopulationConfiguration(
+                        sample_size=n, initial_size=100),
+                        msprime.PopulationConfiguration(
+                        sample_size=n, initial_size=100)
+                    ]
+                    yield msprime.simulate(
+                        population_configurations=population_configurations,
+                        demographic_events=demographic_events,
+                        recombination_rate=recrate,
+                        mutation_rate=mutrate,
+                        length=250)

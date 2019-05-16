@@ -13,31 +13,6 @@ import random
 import json
 
 
-def get_msprime_examples():
-    demographic_events = [
-        msprime.MassMigration(
-        time=5, source=1, destination=0, proportion=1.0)
-    ]
-    for n in [2, 10, 20]:
-        for mutrate in [0.0]:
-            for recrate in [0.0, 0.01]:
-                yield msprime.simulate(n, mutation_rate=mutrate,
-                                       recombination_rate=recrate,
-                                       length=200)
-                population_configurations =[
-                    msprime.PopulationConfiguration(
-                    sample_size=n, initial_size=100),
-                    msprime.PopulationConfiguration(
-                    sample_size=n, initial_size=100)
-                ]
-                yield msprime.simulate(
-                    population_configurations=population_configurations,
-                    demographic_events=demographic_events,
-                    recombination_rate=recrate,
-                    mutation_rate=mutrate,
-                    length=250)
-
-
 class TestAnnotate(tests.PyslimTestCase):
     '''
     Tests for tools to annotate existing msprime-derived tree sequences.
@@ -138,7 +113,7 @@ class TestAnnotate(tests.PyslimTestCase):
         self.assertTrue(in_tables == out_tables)
 
     def test_basic_annotation(self):
-        for ts in get_msprime_examples():
+        for ts in self.get_msprime_examples():
             slim_gen = 4
             slim_ts = pyslim.annotate_defaults(ts, model_type="WF",
                                                slim_generation=slim_gen)
@@ -154,7 +129,7 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_haplotype_equality(loaded_ts, slim_ts)
 
     def test_annotate_individuals(self):
-        for ts in get_msprime_examples():
+        for ts in self.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
             tables = slim_ts.tables
             metadata = list(pyslim.extract_individual_metadata(tables))
@@ -175,7 +150,7 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_haplotype_equality(new_ts, slim_ts)
 
     def test_annotate_XY(self):
-        for ts in get_msprime_examples():
+        for ts in self.get_msprime_examples():
             for genome_type in ["X", "Y"]:
                 slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
                 tables = slim_ts.tables
@@ -207,7 +182,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 self.verify_haplotype_equality(new_ts, slim_ts)
 
     def test_annotate_nodes(self):
-        for ts in get_msprime_examples():
+        for ts in self.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
             tables = slim_ts.tables
             metadata = list(pyslim.extract_node_metadata(tables))
@@ -226,7 +201,7 @@ class TestAnnotate(tests.PyslimTestCase):
             # not testing SLiM because needs annotation of indivs to make sense
 
     def test_annotate_mutations(self):
-        for ts in get_msprime_examples():
+        for ts in self.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
             tables = slim_ts.tables
             metadata = list(pyslim.extract_mutation_metadata(tables))

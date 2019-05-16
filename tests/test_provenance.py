@@ -27,6 +27,16 @@ class TestProvenance(tests.PyslimTestCase):
             with self.assertWarns(Warning):
                 yield tskit.load(filename)
 
+    def test_get_provenance(self):
+        for ts in self.get_wf_examples():
+            prov = ts.slim_provenance
+            self.assertEqual(prov, pyslim.get_provenance(ts))
+            self.assertEqual(prov.model_type, "WF")
+        for ts in self.get_nonwf_examples():
+            prov = ts.slim_provenance
+            self.assertEqual(prov, pyslim.get_provenance(ts))
+            self.assertEqual(prov.model_type, "nonWF")
+
     def test_provenance_creation(self):
         record = pyslim.make_pyslim_provenance_dict()
         tskit.provenance.validate_provenance(record)
