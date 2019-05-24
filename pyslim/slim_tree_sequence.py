@@ -464,12 +464,11 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     def individuals_alive_at(self, time):
         """
-        Returns an array of length equal to the number of individuals giving
-        the IDs of all individuals that are known to be alive at the given time ago.
-        This is determined by seeing if their age at `time`, determined since
-        the time since they were born (their `.time` attribute) is less than or
-        equal to their `age` attribute (which will reflect their age at the last
-        time they were Remembered).
+        Returns an array giving the IDs of all individuals that are known to be
+        alive at the given time ago.  This is determined by seeing if their age
+        at `time`, determined since the time since they were born (their
+        `.time` attribute) is less than or equal to their `age` attribute
+        (which will reflect their age at the last time they were Remembered).
 
         :param float time: The time ago.
         """
