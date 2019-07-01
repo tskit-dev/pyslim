@@ -1,0 +1,29 @@
+initialize()
+{
+    setSeed(23);
+    initializeSLiMOptions(dimensionality="xy");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+    defineConstant("K", 10);
+}
+
+1 early() {
+    sim.addSubpop("p1", 10);
+    for (ind in p1.individuals)
+        ind.setSpatialPosition(p1.pointUniform());
+}
+
+early() {
+    sim.treeSeqRememberIndividuals(p1.individuals);
+}
+
+10 {
+    sim.treeSeqOutput("recipe_record_everyone_WF.trees");
+    catn("Done.");
+    sim.simulationFinished();
+}
+

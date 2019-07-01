@@ -145,8 +145,9 @@ class SlimTreeSequence(tskit.TreeSequence):
         self.individual_ages = np.zeros(ts.num_individuals, dtype='int')
         self.individual_populations = np.zeros(ts.num_individuals, dtype='int')
         for j, ind in enumerate(ts.individuals()):
-            md = decode_individual(ind.metadata)
-            self.individual_ages[j] = md.age
+            if self.slim_provenance.model_type != "WF":
+                md = decode_individual(ind.metadata)
+                self.individual_ages[j] = md.age
             populations = [self.node(n).population for n in ind.nodes]
             if len(set(populations)) > 1:
                 raise ValueError("Individual has nodes from more than one population.")

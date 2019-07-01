@@ -13,7 +13,8 @@ import base64
 import os
 
 # recipes that record everyone ever
-_everyone_example_files = ["tests/examples/recipe_record_everyone"]
+_everyone_example_files = ["tests/examples/recipe_record_everyone",
+                           "tests/examples/recipe_record_everyone_WF"]
 
 _wf_example_files = ["tests/examples/recipe_{}".format(x)
                   for x in ['WF', 'nucleotides', 'long_nucleotides']]

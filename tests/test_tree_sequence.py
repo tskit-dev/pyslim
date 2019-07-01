@@ -171,6 +171,7 @@ class TestEveryone(tests.PyslimTestCase):
 
     def test_alive_ages(self):
         for ts in self.get_slim_everyone_examples():
+            is_WF = (ts.slim_provenance.model_type == "WF")
             ages_mat = np.zeros((ts.num_individuals, ts.slim_generation))
             alive_mat = np.zeros((ts.num_individuals, ts.slim_generation))
             alive_now = ts.individuals_alive_at(0)
@@ -180,9 +181,13 @@ class TestEveryone(tests.PyslimTestCase):
                     alive_mat[j, time] = 1
 
             for j, ind in enumerate(ts.individuals()):
+                if is_WF:
+                    age = 0
+                else:
+                    age = ind.metadata.age
                 self.assertEqual(j in alive_now,
                                  ind.flags & pyslim.INDIVIDUAL_ALIVE > 0)
-                self.assertEqual(sum(alive_mat[j, :]), 1 + ind.metadata.age)
+                self.assertEqual(sum(alive_mat[j, :]), 1 + age)
                 self.assertEqual(alive_mat[j, int(ind.time)], 1)
                 self.assertEqual(ages_mat[j, int(ind.time)], 0)
                 for t in range(ts.slim_generation):
