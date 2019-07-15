@@ -75,9 +75,7 @@ class TestRecapitation(tests.PyslimTestCase):
 
 
 class TestIndividualMetadata(tests.PyslimTestCase):
-    '''
-    Tests for extra stuff related to Individuals.
-    '''
+    # Tests for extra stuff related to Individuals.
 
     def test_individual_derived_info(self):
         for ts in self.get_slim_examples():
@@ -93,13 +91,15 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                     self.assertEqual(ts.node(n).time, ind.time)
 
     def test_individual_embellishments(self):
-        '''
-        Test the individual additional information.
-        '''
+        # Test the individual additional information.
         for ts in self.get_slim_examples():
+            is_wf = (ts.slim_provenance.model_type == "WF")
             for j, ind in enumerate(ts.individuals()):
                 self.assertEqual(ts.individual_times[j], ind.time)
-                self.assertEqual(ts.individual_ages[j], ind.metadata.age)
+                if is_wf:
+                    self.assertEqual(ts.individual_ages[j], 0)
+                else:
+                    self.assertEqual(ts.individual_ages[j], ind.metadata.age)
                 self.assertEqual(ts.individual_populations[j], ind.population)
                 self.assertArrayEqual(ts.individual_locations[j], ind.location)
 

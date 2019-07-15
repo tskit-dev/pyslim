@@ -141,21 +141,24 @@ class SlimTreeSequence(tskit.TreeSequence):
         # pre-extract individual metadata
         self.individual_locations = ts.tables.individuals.location
         self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
-        self.individual_times = np.zeros(ts.num_individuals)
         self.individual_ages = np.zeros(ts.num_individuals, dtype='int')
-        self.individual_populations = np.zeros(ts.num_individuals, dtype='int')
-        for j, ind in enumerate(ts.individuals()):
-            if self.slim_provenance.model_type != "WF":
-                md = decode_individual(ind.metadata)
-                self.individual_ages[j] = md.age
-            populations = [self.node(n).population for n in ind.nodes]
-            if len(set(populations)) > 1:
-                raise ValueError("Individual has nodes from more than one population.")
-            self.individual_populations[j] = populations[0]
-            times = [self.node(n).time for n in ind.nodes]
-            if len(set(times)) > 1:
-                raise ValueError("Individual has nodes from more than one time.")
-            self.individual_times[j] = times[0]
+        if self.slim_provenance.model_type != "WF":
+            self.individual_ages = np.fromiter(map(lambda ind: decode_individual(ind.metadata).age, ts.individuals()), dtype='int64')
+
+        self.individual_times = np.zeros(ts.num_individuals)
+        self.individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
+        npops = [len(set(self.node(n).population for n in ind.nodes)) for ind in ts.individuals()]
+        ntimes = [len(set(self.node(n).time for n in ind.nodes)) for ind in ts.individuals()]
+        if max(npops) > 1:
+            raise ValueError("Individual has nodes from more than one population.")
+        if max(ntimes) > 1:
+            raise ValueError("Individual has nodes from more than one time.")
+        has_indiv = (ts.tables.nodes.individual >= 0)
+        which_indiv = ts.tables.nodes.individual[has_indiv]
+        # if we did not do the sanity check above then an individual with nodes in more than one pop
+        # would get the pop of their last node in the list
+        self.individual_populations[which_indiv] = ts.tables.nodes.population[has_indiv]
+        self.individual_times[which_indiv] = ts.tables.nodes.time[has_indiv]
 
     @classmethod
     def load(cls, path):
