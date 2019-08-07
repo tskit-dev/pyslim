@@ -12,10 +12,11 @@ Welcome to pyslim's documentation!
 
    introduction
    installation
-   development
+   vignette_space
    tutorial
    metadata
    python_api
+   development
 
 
 Indices and tables
