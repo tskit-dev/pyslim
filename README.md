@@ -10,3 +10,7 @@ To install `pyslim`, do
 ```
 pip install pyslim
 ```
+
+<a href='https://pyslim.readthedocs.io/en/latest/?badge=latest'>
+    <img src='https://readthedocs.org/projects/pyslim/badge/?version=latest' alt='Documentation Status' />
+</a>
