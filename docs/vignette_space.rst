@@ -153,9 +153,12 @@ This gets us
    There are 625 individuals from time 1999.0.
 
 
-These are now *tskit* times, which, confusingly,
-is measured in units of "time since the end of the simulation".
-So, this tells us that 625 of the individuals are those that we initialized the simulation with
+These "times" record the birth times of each individual.
+These are *tskit* times, which are in units of "time ago",
+so for instance, there are 398 individuals born one time unit before the end of the simulation
+and 320 born two time units before the end of the simulation.
+(This confusing choice of units is because tskit was developed for msprime, a coalescent simulator.)
+This tells us that 625 of the individuals are those that we initialized the simulation with
 (we ran it for 2000 time steps and it began at SLiM time step 1, which is 1999 time steps ago),
 and there's some more individuals around 1000 time steps ago, when we asked SLiM to remember
 them for us, and some more in the past few time steps, i.e., the present.
@@ -166,7 +169,7 @@ or (c) the start of the simulation.
 
 .. code-block:: python
 
-   for t in [0, 1000, 999]:
+   for t in [0, 1000, 1999]:
       alive = slim_ts.individuals_alive_at(t)
       print(f"There were {len(alive)} individuals alive {t} time steps in the past.")
 
