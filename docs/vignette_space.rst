@@ -209,6 +209,7 @@ Next, we will:
 
 1. Recapitate, running a coalescent simulation to build ancestral trees.
 2. Mutate, adding neutral variation.
+3. Save the resulting tree sequence to disk for future use.
 
 We *won't* simplify at this point, although it would not hurt,
 and if we did it would have to come *after* these steps.
@@ -227,6 +228,7 @@ and if we did it would have to come *after* these steps.
    recap_ts = slim_ts.recapitate(recombination_rate=1e-8, Ne=2000)
    ts = pyslim.SlimTreeSequence(
          msprime.mutate(recap_ts, rate=1e-8, keep=True))
+   ts.dump("spatial_sim.recap.trees")
 
    print(f"The tree sequence now has {ts.num_trees} trees,"
          f" and {ts.num_mutations} mutations.")
@@ -553,62 +555,70 @@ Simplification and VCF output
 *****************************
 
 Now we want to write out these data for analysis with other programs.
-Recall that the tree sequence contains information about *everyone* in the population.
-Before we output, we will remove this extra information.
-We could have done this earlier (e.g., before statistic computation)
-but since simplification reorders nodes and individuals,
-we would have added an extra layer of bookkeeping.
-However, it's necessary here because at this point,
-:meth:`ts.write_vcf <tskit.TreeSequence.write_vcf>` only outputs *all* sample genomes,
-so we need to remove the other ones,
-and make sure they are in the order we want.
-
 To do this, and make sure that everything stays nicely cross-referenced,
-we're going to loop through our individuals, writing their information to a file,
-while at the same time constructing a list of node IDs, in the same order.
-We'll use this as the `samples` argument to `simplify`,
-because in the simplified tree sequence the sample nodes are these, in order;
-and in the VCF output each two samples, in order, are represented as a diploid individual.
-In the resulting VCF file, the individuals will be called `msp_0`, `msp_1`, etcetera;
-so we'll record that in the individual file also.
+we're going to loop through the sampled individuals, writing their information to a file,
+while at the same time constructing a list of individual IDs,
+whose genomes we will write out to a VCF file.
 
 .. code-block:: python
 
-   nodelist = []
+   indivlist = []
+   indivnames = []
    with open("spatial_sim_individuals.txt", "w") as indfile:
-      indfile.writelines("\t".join(["vcf_label", "slim_id", "birth_time_ago", "age", "x", "y"]) + "\n")
-      j = 0
-      for group in group_order:
-         for i in groups[group]:
-            vcf_label = f"msp_{j}"
-            ind = ts.individual(i)
-            nodelist.extend(ind.nodes)
-            data = [vcf_label, str(ind.id), str(ind.time), str(ind.metadata.age),
-                    str(ind.location[0]), str(ind.location[1])]
-            indfile.writelines("\t".join(data) + "\n")
-            j += 1
+     indfile.writelines("\t".join(["vcf_label", "tskit_id", "slim_id"]
+                                  + ["birth_time_ago", "age", "x", "y"]) + "\n")
+     for group in group_order:
+        for i in groups[group]:
+           indivlist.append(i)
+           ind = ts.individual(i)
+           vcf_label = f"tsk_{ind.id}"
+           indivnames.append(vcf_label)
+           data = [vcf_label, str(ind.id), str(ind.metadata.pedigree_id), str(ind.time),
+                   str(ind.metadata.age), str(ind.location[0]), str(ind.location[1])]
+           indfile.writelines("\t".join(data) + "\n")
 
-   sts = ts.simplify(nodelist)
+
    with open("spatial_sim_genotypes.vcf", "w") as vcffile:
-      sts.write_vcf(vcffile, ploidy=2)
+     ts.write_vcf(vcffile, individuals=indivlist, individual_names=indivnames)
 
 
 ****************
 More information
 ****************
 
-1. We plan to use individual information when writing out to VCF,
-   but `this is not yet implemented <https://github.com/tskit-dev/tskit/issues/73>`_.
-
-2. The distinction between "nodes" (i.e., genomes) and "individuals" can be confusing,
+1. The distinction between "nodes" (i.e., genomes) and "individuals" can be confusing,
    as well as the idea of "samples".
    Please see the
    `tskit documentation <https://tskit.readthedocs.io/en/latest/data-model.html>`_
    for more explanation about these concepts.
 
-3. The general interface for computing statistics (explaining, for instance, the "indexes"
+2. The general interface for computing statistics (explaining, for instance, the "indexes"
    argument above) is described in
    `the tskit documentation <https://tskit.readthedocs.io/en/latest/stats.html>`_
    also.
 
+
+**************************
+What about simplification?
+**************************
+
+The tree sequence we worked with here contains more information than we need,
+including the first generation individuals.
+If we wanted to remove this, we could have used the
+:meth:`simplify <tskit.TreeSequence.simplify>` method,
+which reduced the tree sequence to the minimal required to record the information
+about a provided set of nodes.
+In the workflow above we didn't ever *simplify* the tree sequence,
+because we didn't need to.
+Because simplify reorders nodes and removes unused individuals and populations,
+it requires an extra layer of bookkeeping.
+Such relabeling also makes it harder to compare results across different analyses
+of the same data.
+
+Simplifying the tree sequence down to the nodes of the individuals
+in our "groups" would not change any subsequent analysis (except perhaps
+removing monomorphic sites in the VCF output),
+and would speed up computation of diversity.
+Since the calculation was fast already, it wasn't worth it in this case,
+but for much larger tree sequences it could be worth the extra code complexity.
 
