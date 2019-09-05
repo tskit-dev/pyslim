@@ -501,6 +501,13 @@ class SlimTreeSequence(tskit.TreeSequence):
         ages[alive] = self.individual_times[alive] - time
         return ages
 
+    def first_generation_individuals(self):
+        """
+        Returns the IDs of the individuals remembered as part of the first SLiM generation,
+        as determined by their flags.
+        """
+        return np.where(self.tables.individuals.flags & INDIVIDUAL_FIRST_GEN > 0)[0]
+
 
 def _set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,
