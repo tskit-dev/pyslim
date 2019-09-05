@@ -103,6 +103,14 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                 self.assertEqual(ts.individual_populations[j], ind.population)
                 self.assertArrayEqual(ts.individual_locations[j], ind.location)
 
+    def test_first_gen(self):
+        for ts in self.get_slim_examples():
+            firstgen = ts.first_generation_individuals()
+            firstgen_times = ts.individual_times[firstgen]
+            self.assertEqual(len(set(firstgen_times)), 1)
+            self.assertEqual(firstgen_times[0], np.max(ts.individual_times))
+            for i in firstgen:
+                self.assertGreaterEqual(ts.individual(i).flags & pyslim.INDIVIDUAL_FIRST_GEN, 0)
 
 class TestNodeMetadata(tests.PyslimTestCase):
     '''
