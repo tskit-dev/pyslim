@@ -550,9 +550,9 @@ than most modern ones are from each other.
 
 
 
-*****************************
-Simplification and VCF output
-*****************************
+**********
+VCF output
+**********
 
 Now we want to write out these data for analysis with other programs.
 To do this, and make sure that everything stays nicely cross-referenced,

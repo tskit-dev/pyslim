@@ -307,6 +307,9 @@ class SlimTreeSequence(tskit.TreeSequence):
         If you want to keep them, then set ``keep_first_generation`` to True;
         although this will make more work here.
 
+        This also means that you must *not* simplify before you recapitate your
+        SLiM-produced tree sequence.
+
         Note that ``Ne`` is not set automatically, so defaults to ``1.0``; you probably
         want to set it explicitly.  Similarly, migration is not set up
         automatically, so that if there are uncoalesced lineages in more than

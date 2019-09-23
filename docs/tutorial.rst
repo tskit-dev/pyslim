@@ -12,10 +12,12 @@ that we have run for 10,000 generations without neutral mutations.
 Now, we wish to extract whole-genome genotype data for only 1,000 individuals.
 A typical way to do this would be to
 
-1. :meth:`simplify` : For efficiency, subset the tree sequence to only the information relevant for those 1,000 individuals.
 
-2. :meth:`recapitate` : The simulation has likely not reached demographic equilibrium - it has not *coalesced* entirely;
+1. :meth:`recapitate` : The simulation has likely not reached demographic equilibrium - it has not *coalesced* entirely;
    recapitation uses coalescent simulation to provide a "prior history" for the initial generation of the simulation.
+
+1. :meth:`simplify` : For efficiency, subset the tree sequence to only the information relevant for those 1,000 individuals.
+   This needs to come *after* simplification.
 
 3. :meth:`mutate` : This adds neutral mutations on top of the tree sequence.
 
