@@ -294,8 +294,8 @@ class SlimTreeSequence(tskit.TreeSequence):
             pass
         return mut
 
-    def recapitate(self, recombination_rate, keep_first_generation=False,
-                   population_configurations=None, **kwargs):
+    def recapitate(self, recombination_rate=None, keep_first_generation=False,
+                   population_configurations=None, recombination_map=None, **kwargs):
         '''
         Returns a "recapitated" tree sequence, by using msprime to run a
         coalescent simulation from the "top" of this tree sequence, i.e.,
@@ -322,18 +322,34 @@ class SlimTreeSequence(tskit.TreeSequence):
 
            [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
 
-        :param float recombination_rate: The recombination rate - only a constant
-            recombination rate is allowed.
+        In general, all defaults are whatever the defaults of ``msprime.simulate`` are;
+        this includes recombination rate, so that if neither ``recombination_rate``
+        or a ``recombination_map`` are provided, there will be *no* recombination.
+
+        However, if ``recombination_rate`` *is* provided, then recapitation will
+        use a constant rate of recombination on a discretized map -- in other words,
+        recombinations in the coalescent portion of the simulation will only occur
+        at integer locations, just as in SLiM. If you do not want this to happen,
+        you need to construct a ``recombination_map`` explicitly.
+
+        :param float recombination_rate: A (constant) recombination rate,
+            in units of crossovers per nucleotide per unit of time.
         :param bool keep_first_generation: Whether to keep the individuals (and genomes)
             corresponding to the first SLiM generation in the resulting tree sequence
         :param list population_configurations: See :meth:`msprime.simulate` for
             this argument; if not provided, each population will have zero growth rate
             and the same effective population size.
+        :type recombination_map: :class`msprime.RecombinationMap`
+        :param recombination_map: The recombination map, or None,
+            if recombination_rate is specified.
         :param dict kwargs: Any other arguments to :meth:`msprime.simulate`.
         '''
-        recomb = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
-                                          rates = [recombination_rate, 0.0],
-                                          num_loci = int(self.sequence_length))
+        if recombination_rate is not None:
+            if recombination_map is not None:
+                raise ValueError("Cannot specify length/recombination_rate along with a recombination map")
+            recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
+                                                         rates = [recombination_rate, 0.0],
+                                                         num_loci = int(self.sequence_length))
 
         if population_configurations is None:
             population_configurations = [msprime.PopulationConfiguration()
@@ -347,7 +363,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         recap = msprime.simulate(
                     from_ts = ts,
                     population_configurations = population_configurations,
-                    recombination_map = recomb,
+                    recombination_map = recombination_map,
                     start_time = self.slim_generation,
                     **kwargs)
         ts = SlimTreeSequence.load_tables(recap.tables)
