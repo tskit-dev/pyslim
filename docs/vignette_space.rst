@@ -461,7 +461,7 @@ This is done using the :meth:`ts.divergence <tskit.TreeSequence.divergence>` met
 .. code-block:: python
 
    pairs = [(i, j) for i in range(6) for j in range(6)]
-   group_div = ts.divergence(sampled_nodes, indexes=pairs)[0].reshape((6, 6))
+   group_div = ts.divergence(sampled_nodes, indexes=pairs).reshape((6, 6))
 
    print("\t" + "\t".join(group_order))
    for i, group in enumerate(group_order):
@@ -496,7 +496,7 @@ and to keep track of which group each one belongs to.
 
    nind = len(ind_nodes)
    pairs = [(i, j) for i in range(nind) for j in range(nind) if i <= j]
-   ind_div = ts.divergence(ind_nodes, indexes=pairs)[0]
+   ind_div = ts.divergence(ind_nodes, indexes=pairs)
 
 Here we've only computed divergences in the *upper triangle* of the pairwise divergence matrix,
 with heterozygosities on the diagonal.
