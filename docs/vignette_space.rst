@@ -27,7 +27,7 @@ Here are notes:
 1. It does not have *any* mutations: we'll add these on afterwards.
 2. There is local fecundity regulation of population density: individuals with more neighbors
    have fewer offspring.
-3. We run the simulation for 1000 time steps, and "remember" everyone who is alive at time step 500.
+3. We run the simulation for 2000 time steps, and "remember" everyone who is alive at time step 1000.
 
 .. code-block:: none
 
@@ -261,13 +261,13 @@ Take a sample of individuals
 Now it's time to compute some things.
 In real life we don't get to work with *everyone* usually,
 so we'll take a subset of individuals.
-The range we have simulated has width and height 20 units,
+The range we have simulated has width and height 25 units,
 with a population density of around 1 per unit area.
 We'll get genomes to work with by pulling out
 
 1. All the modern individuals in the five squares of width 3 in the corners of the range
    and the center, and
-2. Five individuals sampled randomly from everyone alive 500 time steps ago.
+2. Five individuals sampled randomly from everyone alive 1000 time steps ago.
 
 .. code-block:: python
 
@@ -352,7 +352,7 @@ by indexing the rows of the individual location array:
 
 
 Using this, we can easily plot the locations of all the individuals from today
-(on the left) and 500 time steps ago (on the right).
+(on the left) and 1000 time steps ago (on the right).
 We have to do a bit of mucking around to set the colors so that they reflect
 which group each individual is in.
 
@@ -452,7 +452,7 @@ should be twice the number of individuals in the corresponding list.
    >>> [len(u) for u in sampled_nodes]
    [224, 144, 214, 166, 56, 10]
    
-So, in the 'topleft' corner there are 51 diploids. That checks out.   
+So, in the 'topleft' corner there are 112 diploids. That checks out.   
 
 Now, we can compute the matrix of pairwise mean sequence divergences
 between and within these sets.
@@ -461,7 +461,7 @@ This is done using the :meth:`ts.divergence <tskit.TreeSequence.divergence>` met
 .. code-block:: python
 
    pairs = [(i, j) for i in range(6) for j in range(6)]
-   group_div = ts.divergence(sampled_nodes, indexes=pairs)[0].reshape((6, 6))
+   group_div = ts.divergence(sampled_nodes, indexes=pairs).reshape((6, 6))
 
    print("\t" + "\t".join(group_order))
    for i, group in enumerate(group_order):
@@ -496,7 +496,7 @@ and to keep track of which group each one belongs to.
 
    nind = len(ind_nodes)
    pairs = [(i, j) for i in range(nind) for j in range(nind) if i <= j]
-   ind_div = ts.divergence(ind_nodes, indexes=pairs)[0]
+   ind_div = ts.divergence(ind_nodes, indexes=pairs)
 
 Here we've only computed divergences in the *upper triangle* of the pairwise divergence matrix,
 with heterozygosities on the diagonal.
