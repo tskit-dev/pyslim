@@ -261,7 +261,7 @@ Take a sample of individuals
 Now it's time to compute some things.
 In real life we don't get to work with *everyone* usually,
 so we'll take a subset of individuals.
-The range we have simulated has width and height 20 units,
+The range we have simulated has width and height 25 units,
 with a population density of around 1 per unit area.
 We'll get genomes to work with by pulling out
 
@@ -452,7 +452,7 @@ should be twice the number of individuals in the corresponding list.
    >>> [len(u) for u in sampled_nodes]
    [224, 144, 214, 166, 56, 10]
    
-So, in the 'topleft' corner there are 51 diploids. That checks out.   
+So, in the 'topleft' corner there are 112 diploids. That checks out.   
 
 Now, we can compute the matrix of pairwise mean sequence divergences
 between and within these sets.
