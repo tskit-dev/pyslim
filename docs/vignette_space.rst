@@ -27,7 +27,7 @@ Here are notes:
 1. It does not have *any* mutations: we'll add these on afterwards.
 2. There is local fecundity regulation of population density: individuals with more neighbors
    have fewer offspring.
-3. We run the simulation for 1000 time steps, and "remember" everyone who is alive at time step 500.
+3. We run the simulation for 2000 time steps, and "remember" everyone who is alive at time step 1000.
 
 .. code-block:: none
 
@@ -267,7 +267,7 @@ We'll get genomes to work with by pulling out
 
 1. All the modern individuals in the five squares of width 3 in the corners of the range
    and the center, and
-2. Five individuals sampled randomly from everyone alive 500 time steps ago.
+2. Five individuals sampled randomly from everyone alive 1000 time steps ago.
 
 .. code-block:: python
 
@@ -352,7 +352,7 @@ by indexing the rows of the individual location array:
 
 
 Using this, we can easily plot the locations of all the individuals from today
-(on the left) and 500 time steps ago (on the right).
+(on the left) and 1000 time steps ago (on the right).
 We have to do a bit of mucking around to set the colors so that they reflect
 which group each individual is in.
 
