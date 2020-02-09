@@ -53,7 +53,7 @@ def annotate_defaults(ts, model_type, slim_generation, reference_sequence=None):
     '''
     tables = ts.dump_tables()
     annotate_defaults_tables(tables, model_type, slim_generation)
-    return SlimTreeSequence.load_tables(tables, 
+    return SlimTreeSequence.load_tables(tables,
                 reference_sequence=reference_sequence)
 
 
@@ -82,14 +82,14 @@ class SlimTreeSequence(tskit.TreeSequence):
     '''
     This is just like a :class:`tskit.TreeSequence`, with a few more properties
     and methods, notably:
-    
+
     - :meth:`.recapitate`
-    
+
     You should create a :class:`.SlimTreeSequence` using one of
-    
+
     - :meth:`.SlimTreeSequence.load_tables` :meth:`.SlimTreeSequence.load`,
     - :func:`.load`, or :func:`.load_tables`.
-    
+
     :ivar slim_generation: The generation that the SLiM simulation was at upon writing;
         will be read from provenance if not provided.
     :ivar reference_sequence: None, or an string of length equal to the sequence
@@ -110,7 +110,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                 # add empty nucleotide slots to metadata
                 mut_bytes = tskit.unpack_bytes(tables.mutations.metadata,
                                                tables.mutations.metadata_offset)
-                mut_metadata = [_decode_mutation_pre_nucleotides(md) 
+                mut_metadata = [_decode_mutation_pre_nucleotides(md)
                                 for md in mut_bytes]
                 annotate_mutation_metadata(tables, mut_metadata)
             if provenance.file_version == "0.1":
@@ -216,9 +216,9 @@ class SlimTreeSequence(tskit.TreeSequence):
         Returns the population whose ID is given by `id_`, as documented in
         :meth:`tskit.TreeSequence.population`, but with additional attributes::
 
-            slim_id, selfing_fraction, female_cloning_fraction, 
-            male_cloning_fraction, sex_ratio, 
-            bounds_x0, bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1, 
+            slim_id, selfing_fraction, female_cloning_fraction,
+            male_cloning_fraction, sex_ratio,
+            bounds_x0, bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1,
             migration_records.
 
         These are all recorded by SLiM in the metadata.
@@ -301,11 +301,12 @@ class SlimTreeSequence(tskit.TreeSequence):
         coalescent simulation from the "top" of this tree sequence, i.e.,
         allowing any uncoalesced lineages to coalesce.
 
-        To allow this process, the first generation of the SLiM simulation has been
-        recorded in the tree sequence, but are not currently marked as samples,
-        so this process (or, simplify()) will remove any of these that are not needed.
-        If you want to keep them, then set ``keep_first_generation`` to True;
-        although this will make more work here.
+        To allow recapitation to be done correctly, the individuals of the
+        first generation of the SLiM simulation have been recorded in the tree
+        sequence, but are not marked as samples. This method (or,
+        :meth:`.simplify()`) will remove any non-samples that are not needed to
+        describe the resulting trees, so if you want to keep them you must set
+        ``keep_first_generation`` to True.
 
         This also means that you must *not* simplify before you recapitate your
         SLiM-produced tree sequence.
@@ -380,7 +381,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         returns the last mutation at ``position`` inherited by ``node`` that
         occurred at or before ``time`` ago (using the `slim_time` attribute of
         mutation metadata to infer this).
-        
+
         :param int node: The index of a node in the tree sequence.
         :param float position: A position along the genome.
         :param int time: The time ago that we want the nucleotide, or None,
@@ -434,7 +435,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         at ``position`` inherited by ``node`` that occurred at or before
         ``time`` ago (using the `slim_time` attribute of mutation metadata
         to infer this).
-        
+
         :param int node: The index of a node in the tree sequence.
         :param float position: A position along the genome.
         :param int time: The time ago that we want the nucleotide, or None,
