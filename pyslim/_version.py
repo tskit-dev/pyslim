@@ -1,2 +1,2 @@
 # coding: utf-8
-pyslim_version = '0.314'
+pyslim_version = '0.32'

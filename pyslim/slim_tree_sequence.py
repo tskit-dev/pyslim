@@ -101,10 +101,10 @@ class SlimTreeSequence(tskit.TreeSequence):
     def __init__(self, ts, reference_sequence=None):
         provenance = get_provenance(ts)
         slim_generation = provenance.slim_generation
-        if provenance.file_version != "0.3":
-            warnings.warn("This is an v{} SLiM tree sequence.".format(provenance.file_version) +
+        if provenance.file_version != "0.4":
+            warnings.warn("This is an version {} SLiM tree sequence.".format(provenance.file_version) +
                           " When you write this out, " +
-                          "it will be converted to v0.3 (which you should do).")
+                          "it will be converted to version 0.4.")
             tables = ts.dump_tables()
             if provenance.file_version == "0.1" or provenance.file_version == "0.2":
                 # add empty nucleotide slots to metadata
@@ -134,7 +134,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             upgrade_slim_provenance(tables)
             ts = tables.tree_sequence()
             provenance = get_provenance(ts)
-            assert(provenance.file_version == "0.3")
+            assert(provenance.file_version == "0.4")
         self._ll_tree_sequence = ts._ll_tree_sequence
         self.slim_generation = slim_generation
         self.reference_sequence = reference_sequence
@@ -349,8 +349,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             if recombination_map is not None:
                 raise ValueError("Cannot specify length/recombination_rate along with a recombination map")
             recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
-                                                         rates = [recombination_rate, 0.0],
-                                                         num_loci = int(self.sequence_length))
+                                                         rates = [recombination_rate, 0.0])
 
         if population_configurations is None:
             population_configurations = [msprime.PopulationConfiguration()
