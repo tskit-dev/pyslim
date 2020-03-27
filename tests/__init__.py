@@ -17,7 +17,7 @@ _everyone_example_files = ["tests/examples/recipe_record_everyone",
                            "tests/examples/recipe_record_everyone_WF"]
 
 _wf_example_files = ["tests/examples/recipe_{}".format(x)
-                  for x in ['WF', 'nucleotides', 'long_nucleotides']]
+                  for x in ['WF', 'nucleotides', 'long_nucleotides', 'roots']]
 
 _nonwf_example_files = ["tests/examples/recipe_{}".format(x)
                   for x in ['nonWF']]

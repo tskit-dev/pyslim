@@ -22,6 +22,8 @@ class TestRecapitation(tests.PyslimTestCase):
     def check_recap_consistency(self, ts, recap,
                                 keep_first_generation):
         self.assertEqual(ts.slim_generation, recap.slim_generation)
+        self.assertTrue(all(tree.num_roots == 1 for tree in recap.trees()))
+
         ts_samples = list(ts.samples())
         for u in recap.samples():
             n1 = recap.node(u)
@@ -52,7 +54,8 @@ class TestRecapitation(tests.PyslimTestCase):
             assert ts.num_populations == 2
             # if not we need migration rates
             for keep_first in [True, False]:
-                recap = ts.recapitate(recombination_rate = 1.0,
+                recomb_rate = 1.0 / ts.sequence_length
+                recap = ts.recapitate(recombination_rate = recomb_rate,
                                       keep_first_generation=keep_first)
                 # there should be no new mutations
                 self.assertEqual(ts.num_mutations, recap.num_mutations)
@@ -63,7 +66,7 @@ class TestRecapitation(tests.PyslimTestCase):
                 for t in recap.trees():
                     self.assertEqual(t.num_roots, 1)
 
-                recap = ts.recapitate(recombination_rate = 1.0,
+                recap = ts.recapitate(recombination_rate = recomb_rate,
                                       Ne = 1e-6, keep_first_generation=keep_first)
                 self.check_recap_consistency(ts, recap, keep_first)
                 if ts.slim_generation < 200:
