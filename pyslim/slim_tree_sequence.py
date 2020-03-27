@@ -348,8 +348,12 @@ class SlimTreeSequence(tskit.TreeSequence):
         if recombination_rate is not None:
             if recombination_map is not None:
                 raise ValueError("Cannot specify length/recombination_rate along with a recombination map")
-            recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
-                                                         rates = [recombination_rate, 0.0])
+            if hasattr(msprime.RecombinationMap, "discrete"):
+                args = dict(discrete=True)
+            else:
+                args = dict(num_loci=int(self.sequence_length))
+            recombination_map = msprime.RecombinationMap.uniform_map(
+                    self.sequence_length, recombination_rate, **args)
 
         if population_configurations is None:
             population_configurations = [msprime.PopulationConfiguration()

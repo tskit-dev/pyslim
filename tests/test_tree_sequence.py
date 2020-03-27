@@ -59,12 +59,14 @@ class TestRecapitation(tests.PyslimTestCase):
                 self.assertEqual(ts.num_sites, recap.num_sites)
                 self.assertListEqual(list(ts.tables.sites.position),
                                      list(recap.tables.sites.position))
+                self.assertTrue(all(tree.num_roots == 1 for tree in recap.trees()))
                 self.check_recap_consistency(ts, recap, keep_first)
                 for t in recap.trees():
                     self.assertEqual(t.num_roots, 1)
 
                 recap = ts.recapitate(recombination_rate = 1.0,
                                       Ne = 1e-6, keep_first_generation=keep_first)
+                self.assertTrue(all(tree.num_roots == 1 for tree in recap.trees()))
                 self.check_recap_consistency(ts, recap, keep_first)
                 if ts.slim_generation < 200:
                     for t in recap.trees():
