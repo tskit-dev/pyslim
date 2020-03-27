@@ -1,0 +1,41 @@
+initialize() {
+   setSeed(23);
+   initializeSLiMModelType("nonWF");
+   initializeSex("A");
+   initializeTreeSeq();
+   initializeMutationRate(0.0);
+   initializeMutationType("m1", 0.5, "f", 0.0);
+   initializeGenomicElementType("g1", m1, 1.0);
+   initializeGenomicElement(g1, 0, 1e8-1);
+   initializeRecombinationRate(1e-8);    
+   defineConstant("K", 1000);
+}
+
+reproduction(NULL, "F") {
+   subpop.addCrossed(individual,
+                     subpop.sampleIndividuals(1, sex="M"));
+}
+
+
+1 early() {
+   sim.addSubpop("p1", K);
+   sim.addSubpop("p2", K);
+}
+
+early() {
+   num_migrants = rpois(2, 0.01 * c(p1.individualCount, p2.individualCount));
+   migrants1 = sample(p1.individuals, num_migrants[0]);
+   migrants2 = sample(p2.individuals, num_migrants[1]);
+   p2.takeMigrants(migrants1);
+   p1.takeMigrants(migrants2);
+   p1.fitnessScaling = K / p1.individualCount;
+   p2.fitnessScaling = K / p2.individualCount;
+}
+
+1: early() {
+    catn(p1.individualCount + " " + p2.individualCount);
+}
+
+1000 late() {
+   sim.treeSeqOutput("migrants.trees");
+}

@@ -1,0 +1,29 @@
+initialize() {
+   setSeed(23);
+   initializeSLiMModelType("nonWF");
+   initializeSex("A");
+   initializeTreeSeq();
+   initializeMutationRate(0.0);
+   initializeMutationType("m1", 0.5, "f", 0.0);
+   initializeGenomicElementType("g1", m1, 1.0);
+   initializeGenomicElement(g1, 0, 1e8-1);
+   initializeRecombinationRate(1e-8);    
+   defineConstant("K", 1000);
+}
+
+reproduction(p1, "F") {
+   subpop.addCrossed(individual,
+                     subpop.sampleIndividuals(1, sex="M"));
+}
+
+1 early() {
+   sim.addSubpop("p1", K);
+}
+
+early() {
+   p1.fitnessScaling = K / p1.individualCount;
+}
+
+1000 late() {
+   sim.treeSeqOutput("example_sim.trees");
+}

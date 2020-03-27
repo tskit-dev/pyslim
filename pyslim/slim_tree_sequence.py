@@ -81,11 +81,20 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
 class SlimTreeSequence(tskit.TreeSequence):
     '''
     This is just like a :class:`tskit.TreeSequence`, with a few more properties
-    and methods, notably:
+    and methods, including:
 
-    - :meth:`.recapitate`
+    - :attr:`.slim_generation` - the SLiM "generation" at the end of the simulation
+    - :attr:`.reference_sequence` - if using a nucleotide model, the reference sequence
+    - :attr:`.individual_locations` - numpy array of individual locations
+    - :attr:`.individual_ages` - numpy array of individiual ages
+    - :attr:`.individual_times` - numpy array of how long ago each individual was born
+    - :attr:`.individual_populations` - numpy array of individual's populations
 
-    You should create a :class:`.SlimTreeSequence` using one of
+    All mutable properties of individuals (e.g., age) is as it was recorded during
+    the individual's last time step alive (or at the end of the simulation, if they
+    are still alive).
+
+    You can create a :class:`.SlimTreeSequence` using one of
 
     - :meth:`.SlimTreeSequence.load_tables` :meth:`.SlimTreeSequence.load`,
     - :func:`.load`, or :func:`.load_tables`.
