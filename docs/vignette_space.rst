@@ -29,69 +29,7 @@ Here are notes:
    have fewer offspring.
 3. We run the simulation for 2000 time steps, and "remember" everyone who is alive at time step 1000.
 
-.. code-block:: none
-
-   initialize() {
-       setSeed(23);
-       initializeSLiMModelType("nonWF");
-       initializeSLiMOptions(dimensionality="xy");
-       initializeTreeSeq();
-       initializeMutationRate(0.0);
-       initializeMutationType("m1", 0.5, "f", 0.0);
-       initializeGenomicElementType("g1", m1, 1.0);
-       initializeGenomicElement(g1, 0, 1e8-1);
-       initializeRecombinationRate(1e-8);    
-
-       defineConstant("LAMBDA", 2.0); // birth rate
-       defineConstant("K", 1);      // carrying capacity per unit area
-       defineConstant("W", 25);      // width and height of the area
-       defineConstant("MU", 0.5);     // death rate
-       defineConstant("SIGMA", 3.0);  // interaction distance
-       
-       // spatial interaction for local competition
-       initializeInteractionType("i1", "xy", reciprocal=T,
-                                 maxDistance = 3 * SIGMA);
-       i1.setInteractionFunction("n", 1.0/(2*PI*SIGMA^2), SIGMA);
-   }
-
-   reproduction() {
-       neighbor_density = i1.totalOfNeighborStrengths(individual);
-       num_offspring = rpois(1, LAMBDA / (1 + neighbor_density / K));
-       mate = i1.drawByStrength(individual, 1);  // single mating
-       if (size(mate) > 0) {
-           for (k in seqLen(num_offspring)) {
-               offspring = p1.addCrossed(individual, mate);
-               pos = individual.spatialPosition + rnorm(2, 0, SIGMA);
-               offspring.setSpatialPosition(p1.pointReflected(pos));
-           }
-       }
-   }
-
-   1 early() {
-       sim.addSubpop("p1", 1000);
-       p1.setSpatialBounds(c(0.0, 0.0, W, W));
-       for (ind in p1.individuals) {
-           ind.setSpatialPosition(p1.pointUniform());
-       }
-   }
-
-   early() { // survival probabilities
-       p1.fitnessScaling = 1 - MU;
-   }
-
-   late() {
-       i1.evaluate();
-   }
-
-   1000 early() {
-       sim.treeSeqRememberIndividuals(p1.individuals);
-   }
-
-   2000 {
-       sim.treeSeqOutput("spatial_sim.trees");
-       catn("Done.");
-       sim.simulationFinished();
-   }
+.. literalinclude:: vignette_space.slim
 
 
 Ok, now let's have a quick look at the output:
