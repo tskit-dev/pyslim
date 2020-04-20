@@ -543,6 +543,49 @@ class SlimTreeSequence(tskit.TreeSequence):
         """
         return np.where(self.tables.individuals.flags & INDIVIDUAL_FIRST_GEN > 0)[0]
 
+    def has_individual_parents(self):
+        '''
+        Finds which individuals have both their parent individuals also present
+        in the tree sequence, as far as we can tell. To do this, we return the
+        IDs of individuals for which:
+
+        - all edges terminating in that individual's nodes are in individuals,
+        - those parental individuals were alive when the individual was born,
+        - and there is at least one parental individual.
+
+        This returns a boolean array indicating for each individual whether all
+        these are true.  Note that this will return True if, for instance, all
+        the individual's granparents are still alive at their birth, and
+        present in the tree sequence, but the parents are not.
+
+        :return: A boolean array of length equal to ``targets``.
+        '''
+        is_WF = (self.slim_provenance.model_type == "WF")
+        edges = self.tables.edges
+        nodes = self.tables.nodes
+        # edges describing relationships between individuals
+        edge_parent_indiv = nodes.individual[edges.parent]
+        edge_child_indiv = nodes.individual[edges.child]
+        indiv_edges = np.logical_and(edge_parent_indiv != tskit.NULL,
+                                     edge_child_indiv != tskit.NULL)
+        # individual edges where the parent was alive at the birth time of the child
+        child_births = self.individual_times[edge_child_indiv[indiv_edges]]
+        parent_births = self.individual_times[edge_parent_indiv[indiv_edges]]
+        parent_deaths = parent_births - self.individual_ages[edge_parent_indiv[indiv_edges]]
+        alive_edges = indiv_edges.copy()
+        alive_edges[indiv_edges] = (child_births + is_WF >= parent_deaths)
+        # number of parent individuals per individual
+        num_parents = np.bincount(edge_child_indiv[alive_edges],
+                                  minlength=self.num_individuals)
+        # individuals whose only ancestors are individuals
+        without_parent_indivs = nodes.individual[edges.child[np.logical_not(alive_edges)]]
+        has_all_parents = np.repeat(True, self.num_individuals)
+        has_all_parents[without_parent_indivs[without_parent_indivs >= 0]] = False
+        # and either 1 or 2 parents
+        has_all_parents = np.logical_and(
+                has_all_parents,
+                num_parents > 0)
+        return has_all_parents
 
 def _set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,

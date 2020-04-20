@@ -2,6 +2,10 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**New features**:
+
+- added has_individual_parents, a method to find individuals with all parents
+  are also recorded as individuals
 
 ********************
 [0.401] - 2020-03-27
