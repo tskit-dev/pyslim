@@ -210,6 +210,70 @@ class TestEveryone(tests.PyslimTestCase):
                     self.assertEqual(alive_mat[j, int(ind.time + 1)], 0)
 
 
+class TestHasIndividualParents(tests.PyslimTestCase):
+
+    def verify_has_parents(self, ts):
+        is_WF = (ts.slim_provenance.model_type == "WF")
+        right_answer = np.repeat(True, ts.num_individuals)
+        node_indivs = ts.tables.nodes.individual
+        parent_ids = [set() for _ in ts.individuals()]
+        for t in ts.trees():
+            for i in ts.individuals():
+                for n in i.nodes:
+                    pn = t.parent(n)
+                    if pn != tskit.NULL:
+                        p = node_indivs[t.parent(n)]
+                        if p == tskit.NULL:
+                            right_answer[i.id] = False
+                        else:
+                            pdeath = ts.individual_times[p] - ts.individual_ages[p]
+                            if i.time + is_WF < pdeath:
+                                right_answer[i.id] = False
+                            else:
+                                parent_ids[i.id].add(p)
+        for j, p in enumerate(parent_ids):
+            if len(p) == 0:
+                right_answer[j] = False
+        has_parents = ts.has_individual_parents()
+        self.assertArrayEqual(right_answer, has_parents)
+
+    def test_everyone(self):
+        # since everyone is recorded, only the initial individuals should
+        # not have parents
+        for ts in self.get_slim_everyone_examples():
+            right_answer = np.repeat(True, ts.num_individuals)
+            right_answer[ts.first_generation_individuals()] = False
+            print(right_answer)
+            has_parents = ts.has_individual_parents()
+            self.assertArrayEqual(right_answer, has_parents)
+            self.verify_has_parents(ts)
+
+    def test_post_recap(self):
+        # the same should be true after recapitation
+        for ts in self.get_slim_everyone_examples():
+            right_answer = np.repeat(True, ts.num_individuals)
+            right_answer[ts.first_generation_individuals()] = False
+            ts = ts.recapitate(recombination_rate=0.01)
+            assert(ts.num_individuals == ts.num_individuals)
+            has_parents = ts.has_individual_parents()
+            self.assertArrayEqual(right_answer, has_parents)
+            self.verify_has_parents(ts)
+
+    def test_post_simplify(self):
+        for ts in self.get_slim_everyone_examples():
+            keep_indivs = np.random.choice(
+                    np.where(ts.individual_times < ts.slim_generation - 1)[0],
+                    size=30, replace=False)
+            keep_nodes = []
+            for i in keep_indivs:
+                keep_nodes.extend(ts.individual(i).nodes)
+            ts = ts.simplify(samples=keep_nodes, filter_individuals=True)
+            ts = ts.recapitate(recombination_rate=0.01)
+            has_parents = ts.has_individual_parents()
+            self.assertGreater(sum(has_parents), 0)
+            self.verify_has_parents(ts)
+
+
 class TestSimplify(tests.PyslimTestCase):
     '''
     Our simplify() is just a wrapper around the tskit simplify.
