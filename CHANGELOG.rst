@@ -6,6 +6,7 @@
 
 - added has_individual_parents, a method to find individuals with all parents
   are also recorded as individuals
+- added the `.slim_provenances` property to return all SLiM provenance entries
 
 ********************
 [0.401] - 2020-03-27

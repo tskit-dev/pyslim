@@ -19,36 +19,41 @@ class ProvenanceMetadata(object):
     file_version = attr.ib()
 
 
-def get_provenance(ts):
+def get_provenance(ts, only_last=True):
     '''
-    Extracts model type, slim generation, and remembmered node count from the last
-    entry in the provenance table that is tagged with "program"="SLiM".
+    Extracts model type, slim generation, and remembmered node count from either
+    the last entry in the provenance table that is tagged with "program"="SLiM"
+    (if ``only_last=True``) or a list of all of them (otherwise).
 
-    :param SlimTreeSequence: The tree sequence.
+    :param SlimTreeSequence ts: The tree sequence.
+    :param bool only_last: Whether to return only the last SLiM provenance entry,
+        (otherwise, returns a list of all SLiM entries).
     :rtype ProvenanceMetadata:
     '''
-    has_slim_provenance = False
-    for p in ts.tables.provenances:
+    provenances = []
+    for j, p in enumerate(ts.tables.provenances):
         this_record = json.loads(p.record)
         is_slim, this_file_version = _slim_provenance_version(this_record) 
         if is_slim:
             record = this_record
             file_version = this_file_version
-            has_slim_provenance = True
+            if file_version == "0.1":
+                out = ProvenanceMetadata(record['model_type'],
+                                         record['generation'],
+                                         file_version)
+            else: # >= 0.2
+                out = ProvenanceMetadata(record['parameters']['model_type'],
+                                         record['slim']["generation"],
+                                         file_version)
+            provenances.append(out)
 
-    if not has_slim_provenance:
+    if len(provenances) == 0:
         raise ValueError("Tree sequence contains no SLiM provenance entries"
                           "(or your pyslim is out of date).")
-
-    if file_version == "0.1":
-        out = ProvenanceMetadata(record['model_type'],
-                                 record['generation'],
-                                 file_version)
-    else: # >= 0.2
-        out = ProvenanceMetadata(record['parameters']['model_type'],
-                                 record['slim']["generation"],
-                                 file_version)
-    return out
+    if only_last:
+        return provenances[-1]
+    else:
+        return provenances
 
 
 def upgrade_slim_provenance(tables):

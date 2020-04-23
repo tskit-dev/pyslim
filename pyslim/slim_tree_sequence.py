@@ -472,12 +472,22 @@ class SlimTreeSequence(tskit.TreeSequence):
     @property
     def slim_provenance(self):
         '''
-        Extracts model type, slim generation, and remembmered node count from the last
-        entry in the provenance table that is tagged with "program"="SLiM".
+        Returns model type, slim generation, and remembmered node count from
+        the last entry in the provenance table that is tagged with "program"="SLiM".
 
         :rtype ProvenanceMetadata:
         '''
-        return get_provenance(self)
+        return get_provenance(self, only_last=True)
+
+    @property
+    def slim_provenances(self):
+        '''
+        Returns model type, slim generation, and remembmered node count from *all*
+        entries in the provenance table that is tagged with "program"="SLiM"
+
+        :rtype ProvenanceMetadata:
+        '''
+        return get_provenance(self, only_last=False)
 
     def _mark_first_generation(self):
         '''
