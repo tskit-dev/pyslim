@@ -219,9 +219,13 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         parent_ids = [set() for _ in ts.individuals()]
         for t in ts.trees():
             for i in ts.individuals():
+                if len(i.nodes) != 2:
+                    right_answer[i.id] = False
                 for n in i.nodes:
                     pn = t.parent(n)
-                    if pn != tskit.NULL:
+                    if pn == tskit.NULL:
+                        right_answer[i.id] = False
+                    else:
                         p = node_indivs[t.parent(n)]
                         if p == tskit.NULL:
                             right_answer[i.id] = False

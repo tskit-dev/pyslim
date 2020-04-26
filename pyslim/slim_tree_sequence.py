@@ -561,7 +561,7 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         - all edges terminating in that individual's nodes are in individuals,
         - those parental individuals were alive when the individual was born,
-        - and there is at least one parental individual.
+        - the parental individuals account for two whole genomes.
 
         This returns a boolean array indicating for each individual whether all
         these are true.  Note that this will return True if, for instance, all
@@ -584,17 +584,14 @@ class SlimTreeSequence(tskit.TreeSequence):
         parent_deaths = parent_births - self.individual_ages[edge_parent_indiv[indiv_edges]]
         alive_edges = indiv_edges.copy()
         alive_edges[indiv_edges] = (child_births + is_WF >= parent_deaths)
-        # number of parent individuals per individual
-        num_parents = np.bincount(edge_child_indiv[alive_edges],
-                                  minlength=self.num_individuals)
-        # individuals whose only ancestors are individuals
-        without_parent_indivs = nodes.individual[edges.child[np.logical_not(alive_edges)]]
-        has_all_parents = np.repeat(True, self.num_individuals)
-        has_all_parents[without_parent_indivs[without_parent_indivs >= 0]] = False
-        # and either 1 or 2 parents
-        has_all_parents = np.logical_and(
-                has_all_parents,
-                num_parents > 0)
+        # total genome inherited from parents
+        edge_spans = edges.right - edges.left
+        parental_span = np.bincount(edge_child_indiv[alive_edges],
+                weights=edge_spans[alive_edges], minlength=self.num_individuals)
+        # we could also check for edges without individual parents terminating
+        # in this individual, but this is unnecessary as the entire genome is
+        # accounted for
+        has_all_parents = (parental_span == 2 * self.sequence_length)
         return has_all_parents
 
 def _set_nodes_individuals(
