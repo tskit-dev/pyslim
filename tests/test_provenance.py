@@ -153,6 +153,17 @@ class TestProvenance(tests.PyslimTestCase):
             provenances = rts.slim_provenances
             self.assertEqual(len(provenances), 2)
             self.assertEqual(ts.slim_provenance, provenances[0])
+            # mrts = pyslim.SlimTreeSequence(msprime.mutate(rts, rate=0.001))
+            j = 0
+            for p in rts.provenances():
+                is_slim, _ = pyslim.slim_provenance_version(p)
+                if is_slim:
+                    sp = pyslim.parse_provenance(p)
+                    self.assertEqual(provenances[j], sp)
+                    j += 1
+                else:
+                    with self.assertRaises(ValueError):
+                        pyslim.parse_provenance(p)
 
     def test_provenance_creation(self):
         record = pyslim.make_pyslim_provenance_dict()
@@ -172,7 +183,7 @@ class TestProvenance(tests.PyslimTestCase):
         for record_text in old_provenance_examples:
             record = json.loads(record_text)
             prov = msprime.Provenance(timestamp='2018-08-25T14:59:13', record=json.dumps(record))
-            is_slim, version = pyslim.provenance._slim_provenance_version(json.loads(prov.record))
+            is_slim, version = pyslim.slim_provenance_version(prov)
             self.assertTrue(is_slim)
             if 'file_version' in record:
                 self.assertEqual(version, "0.1")
@@ -183,10 +194,10 @@ class TestProvenance(tests.PyslimTestCase):
             pyslim.upgrade_slim_provenance(tables) # modifies the tables
             new_ts = tables.tree_sequence()
             self.assertEqual(new_ts.num_provenances, 3)
-            new_record = json.loads(new_ts.provenance(2).record)
-            is_slim, version = pyslim.provenance._slim_provenance_version(new_record)
+            is_slim, version = pyslim.slim_provenance_version(new_ts.provenance(2))
             self.assertTrue(is_slim)
             self.assertEqual(version, "0.4")
+            new_record = json.loads(new_ts.provenance(2).record)
             if 'model_type' in record:
                 self.assertEqual(record['model_type'], new_record['parameters']['model_type'])
                 self.assertEqual(record['generation'], new_record['slim']["generation"])
