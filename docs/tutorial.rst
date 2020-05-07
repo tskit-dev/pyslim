@@ -115,6 +115,7 @@ can be done with the :meth:`.SlimTreeSequence.simplify` method:
 
 .. code-block:: python
 
+   import numpy as np
    keep_indivs = np.random.choice(rts.individuals_alive_at(0), 100, replace=False)
    keep_nodes = []
    for i in keep_indivs:
@@ -483,6 +484,252 @@ as illustrated in this minimal example::
 
 See the SLiM manual for more about this operation.
 
+
+***********************************************
+Extracting information about selected mutations
+***********************************************
+
+Here is a simple SLiM simulation with two types of mutation:
+`m1` are deleterious, and `m2` are beneficial.
+Let's see how to extract information about these mutations.
+
+.. literalinclude:: selection.slim
+
+If you want to follow along exactly with the below, set the seed to 23.
+First, let's see how many mutations there are:
+
+.. code-block:: python
+
+   ts = pyslim.load("selection.trees")
+   ts.num_mutations
+   # 5961
+   ts.num_sites
+   # 5941
+      
+Note that there are more mutations than sites;
+that's because some sites (looks like 20 of them) have multiple mutations.
+The information about the mutation is put in the mutation's metadata
+(formatted by hand for clarity):
+
+.. code-block:: python
+
+   m = ts.mutation(0)
+   print(m)
+   # {'id': 0,
+   #  'site': 0,
+   #  'node': 4425,
+   #  'derived_state': '1997240',
+   #  'parent': -1,
+   #  'metadata': [
+   #      MutationMetadata(mutation_type=1,
+   #                       selection_coeff=-0.07989247143268585,
+   #                       population=1,
+   #                       slim_time=998,
+   #                       nucleotide=-1)]
+   # }
+
+   print(ts.site(m.site))
+   # {'id': 0,
+   #  'position': 126.0,
+   #   'ancestral_state': '',
+   #    'mutations': [...],
+   #    'metadata': b''}
+
+Here, `m.site` tells us the ID of the *site* on the genome that the mutation occurred at, 
+and we can pull up information about that with the `ts.site( )` method.
+This mutation occurred at position 126 along the genome (from `site.position`)
+which previously had no mutations (since `site.ancestral_state` is the empty string, `''`)
+and was given SLiM mutation ID 1997240 (`m.derived_state`).
+The metadata (`m.metadata`, a dict) tells us this is of type `m1`,
+has selection coefficient -0.07989, and occurred in population 1 in generation 998.
+This is not a nucleotide model, so the nucleotide entry is `-1`.
+
+Note that the mutation's metadata is a *list* of metadata entries.
+That's because of SLiM's mutation stacking feature.
+We know that some sites have more than one mutation,
+so to get an example let's pull out the last mutation from one of those sites.
+
+.. code-block:: python
+
+   for s in ts.sites():
+      if len(s.mutations) > 1:
+         m = s.mutations[-1]
+         break
+
+   print(m)
+   # {'id': 193,
+   #  'site': 192,
+   #  'node': 2767,
+   #  'derived_state': '1998266,1293043',
+   #  'parent': 192,
+   #  'metadata': [MutationMetadata(mutation_type=1
+   #                                selection_coeff=-0.08409399539232254,
+   #                                population=1,
+   #                                slim_time=999,
+   #                                nucleotide=-1),
+   #               MutationMetadata(mutation_type=1,
+   #                                selection_coeff=-0.013351504690945148,
+   #                                               population=1,
+   #                                               slim_time=646,
+   #                                               nucleotide=-1)
+   #               ]
+   # }
+
+   print(ts.mutation(m.parent))
+   # {'id': 192,
+   #  'site': 192,
+   #  'node': 4940,
+   #  'derived_state': '1293043',
+   #  'parent': -1,
+   #  'metadata': [MutationMetadata(mutation_type=1,
+   #                                selection_coeff=-0.013351504690945148,
+   #                                population=1,
+   #                                slim_time=646,
+   #                                nucleotide=-1)]}
+
+
+This mutation (which is `ts.mutation(193)` in the tree sequence)
+was the result of SLiM adding a new mutation of type `m1` and selection coefficient -0.084
+on top of an existing mutation, also of type `m1` and with selection coefficient -0.013.
+This happened at generation 999, and the older mutation occurred at generation 646.
+The older mutation has SLiM mutation ID 1293043,
+and the newer mutation had SLiM mutation ID 1998266,
+so the resulting "derived state" is `'1998266,1293043'`.
+
+Now that we understand how SLiM mutations are stored in a tree sequence,
+let's look at the allele frequencies.
+The allele frequency spectrum for *all* mutations can be obtained using the
+`ts.allele_frequency_spectrum` method,
+shown here for a sample of size 10 to make the output easy to see:
+
+.. code-block:: python
+
+   samps = np.random.choice(ts.samples(), 10, replace=False)
+   ts.allele_frequency_spectrum([samps], span_normalise=False, polarised=True)
+   # [3898, 63, 9, 2, 415, 630, 465, 0, 0, 0, 0]
+
+(The `span_normalise=False` argument gives us counts rather than a density per unit length.)
+This shows us that there are 3898 alleles that are found among the tree sequence's samples
+that are not present in any of our 10 samples, 63 that are present in just one, etcetera.
+The surprisingly large number that are near 50% frequency are perhaps positively selected
+and on their way to fixation: we can check if that's true next.
+You may have noticed that the sum of the allele frequency spectrum is 5482,
+which is not obviously related to the number of mutations *or* the number of sites.
+That's because mutations that are not ancestral to any of the *samples* of the tree sequence
+(the 1000 individuals alive at the end of the simulation)
+don't count here: so mutations that were present in the simulation's first generation
+that haven't been inherited by the final generation contribute to this difference.
+
+At time of writing, we don't have a built-in ``allele_frequency`` method,
+so we'll use the following snippet:
+
+.. code-block:: python
+
+   def allele_counts(ts, sample_sets=None):
+       if sample_sets is None:
+          sample_sets = [ts.samples()] 
+       def f(x):
+          return x
+       return ts.sample_count_stat(sample_sets, f, len(sample_sets),
+                  span_normalise=False, windows='sites',
+                  polarised=True, mode='site', strict=False)
+
+This will return an array of counts, one for each site in the tree sequence,
+giving the number of *all* nonancestral alleles at that site found in the sample set
+(so, lumping together any of the various derived alleles we were looking at above).
+Then, we'll separate out the counts in this array to get the derived frequency spectra
+separately for sites with (a) only `m1` mutations, (b) only `m2` mutations,
+and (c) both (for completeness, if there are any).
+First, we need to know which site has which of these three mutation types (m1, m2, or both):
+
+.. code-block:: python
+
+   mut_type = np.zeros(ts.num_sites)
+   for j, s in enumerate(ts.sites()):
+      mt = []
+      for m in s.mutations:
+         for md in m.metadata:
+            mt.append(md.mutation_type)
+      if len(set(mt)) > 1:
+         mut_type[j] = 3
+      else:
+         mut_type[j] = mt[0]
+
+Now, we compute the frequency spectrum, and aggregate it.
+We'll use the function `np.bincount` to do this efficiently:
+
+.. code-block:: python
+
+   freqs = allele_counts(ts, [samps])
+   # convert the n x 1 array of floats to a vector of integers
+   freqs = freqs.flatten().astype(int)
+   mut_afs = np.zeros((len(samps)+1, 3), dtype='int64')
+   for k in range(3):
+      mut_afs[:, k] = np.bincount(freqs[mut_type == k+1], minlength=len(samps) + 1)
+
+   print(mut_afs)
+   # array([[3428,  448,    3],
+   #        [  50,   13,    0],
+   #        [   6,    3,    0],
+   #        [   1,    1,    0],
+   #        [ 237,  177,    1],
+   #        [ 367,  263,    0],
+   #        [ 275,  188,    2],
+   #        [   0,    0,    0],
+   #        [   0,    0,    0],
+   #        [   0,    0,    0],
+   #        [ 226,  252,    0]])
+
+The first column is the deleterious alleles, and the second is the beneficial ones;
+the third column describes the six sites that had both types of mutation.
+Interestingly, there are similar numbers of both types of mutation at intermediate frequency:
+perhaps because beneficial mutations are sweeping linked deleterious alleles along with them.
+Many fewer benefical alleles are at low frequency:
+3,428 deleterious alleles are not found in our sample of 10 genomes,
+while only 448 beneficial alleles are.
+
+Finally, let's pull out information on the allele with the largest selection coefficient.
+
+.. code-block:: python
+
+   sel_coeffs = np.array([m.metadata[0].selection_coeff for m in ts.mutations()])
+   which_max = np.argmax(sel_coeffs)
+   m = ts.mutation(which_max)
+   print(m)
+   # {'id': 256,
+   #  'site': 255,
+   #  'node': 4941,
+   #  'derived_state': '809254',
+   #  'parent': -1,
+   #  'metadata': [MutationMetadata(mutation_type=2,
+   #                                selection_coeff=5.109511852264404,
+   #                                population=1,
+   #                                slim_time=405,
+   #                                nucleotide=-1)]
+   # }
+
+   print(ts.site(m.site))
+   # {'id': 255,
+   #  'position': 44430.0,
+   #  'ancestral_state': '',
+   #  'mutations': [...],
+   #  'metadata': b''}
+
+This allele had a whopping selection coefficient of 5.1,
+and appeared about halfway through the simulation.
+Let's find its frequency in the full population:
+
+.. code-block:: python
+
+   full_freqs = allele_counts(ts)
+   print(f"Allele is found in {full_freqs[m.site][0]} copies,"
+         f" and has selection coefficient {m.metadata[0].selection_coeff}.")
+   # Allele is found in 1004.0 copies, and has selection coefficient 5.109511852264404.
+
+The allele is at about 50% in the population, so it is probably on its way to fixation.
+Using its SLiM ID (which is shown in its derived state, ``809254``),
+we could reload the tree sequence into SLiM,
+restart the simulation, and use its ID to track its subsequent progression.
 
 
 **********************************
