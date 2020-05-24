@@ -144,7 +144,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             ts = tables.tree_sequence()
             provenance = get_provenance(ts)
             assert(provenance.file_version == "0.4")
-        self._ll_tree_sequence = ts._ll_tree_sequence
+        super().__init__(ts._ll_tree_sequence)
         self.slim_generation = slim_generation
         self.reference_sequence = reference_sequence
         # pre-extract individual metadata
