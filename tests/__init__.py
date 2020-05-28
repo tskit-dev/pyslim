@@ -6,12 +6,14 @@ from __future__ import unicode_literals
 from __future__ import division
 
 import pyslim
+import tskit
 import msprime
 import random
 import unittest
 import base64
 import os
 import attr
+import json
 
 # possible attributes to simulation scripts are
 #  WF, nonWF
@@ -25,6 +27,7 @@ example_files['recipe_nonWF'] = {"nonWF": True, "pedigree": True}
 example_files['recipe_long_nonWF'] = {"nonWF": True}
 example_files['recipe_WF'] = {"WF": True, "pedigree": True}
 example_files['recipe_long_WF'] = {"WF": True}
+example_files['recipe_WF_migration'] = {"WF": True, "pedigree": True, "multipop": True}
 example_files['recipe_nonWF_early'] = {"nonWF": True, "pedigree": True, "remembered_early": True}
 example_files['recipe_WF_early'] = {"WF": True, "pedigree": True, "remembered_early": True}
 example_files['recipe_nucleotides'] = {"WF": True, "pedigree": True, "nucleotides": True}
@@ -43,7 +46,8 @@ for f in example_files:
     example_files[f]['basename'] = os.path.join("tests", "examples", f)
 
 
-# this is of the form (input, basename)
+# These SLiM scripts read in an existing trees file; the format in this list
+# is of the form: (<input trees file>, <basename of slim script and output file>)
 # TODO: test restarting of nucleotides after reference sequence dumping is enabled
 _restart_files = [("tests/examples/recipe_{}.trees".format(x),
                    "tests/examples/restart_{}".format(x))
@@ -137,12 +141,16 @@ class PyslimTestCase(unittest.TestCase):
                     yield ts
 
     def get_slim_restarts(self):
+        # Loads previously produced tree sequences and SLiM scripts 
+        # appropriate for restarting from these tree sequences.
         for treefile, basename in _restart_files:
             self.assertTrue(os.path.isfile(treefile))
             ts = pyslim.load(treefile)
             yield ts, basename
 
     def run_slim_restart(self, in_ts, basename, args=''):
+        # Saves out the tree sequence to the trees file that the SLiM script
+        # basename.slim will load from.
         infile = basename + ".init.trees"
         outfile = basename + ".trees"
         slimfile = basename + ".slim"
@@ -153,12 +161,11 @@ class PyslimTestCase(unittest.TestCase):
                 pass
         in_ts.dump(infile)
         out = run_slim_script(slimfile, args=args)
-        print("out:", out)
         try:
             os.remove(infile)
         except FileNotFoundError:
             pass
-        assert out == 0
+        self.assertEqual(out, 0)
         self.assertTrue(os.path.isfile(outfile))
         out_ts = pyslim.load(outfile)
         try:
@@ -167,11 +174,12 @@ class PyslimTestCase(unittest.TestCase):
             pass
         return out_ts
 
-    def run_msprime_restart(self, in_ts, sex=None):
+    def run_msprime_restart(self, in_ts, sex=None, WF=False):
         basename = "tests/examples/restart_msprime"
         args = " -d L={}".format(int(in_ts.sequence_length))
+        args += " -d \"WF={}\"".format('T' if WF else 'F')
         if sex is not None:
-            args = args + " -d \"SEX='{}'\"".format(sex)
+            args += " -d \"SEX='{}'\"".format(sex)
         out_ts = self.run_slim_restart(in_ts, basename, args=args)
         return out_ts
 
@@ -229,3 +237,51 @@ class PyslimTestCase(unittest.TestCase):
                         self.assertIn(p, out[ind]['parents'])
                 out[ind]['age'][(gen, stage)] = age
         return out
+
+    def assertTablesEqual(self, t1, t2, skip_provenance=False, check_metadata_schema=True):
+        if isinstance(t1, tskit.TreeSequence):
+            t1 = t1.tables
+        if isinstance(t2, tskit.TreeSequence):
+            t2 = t2.tables
+        if skip_provenance is True:
+            t1.provenances.clear()
+            t2.provenances.clear()
+        if skip_provenance == -1:
+            self.assertEqual(t1.provenances.num_rows + 1, t2.provenances.num_rows)
+            t2.provenances.truncate(t1.provenances.num_rows)
+        if check_metadata_schema:
+            # this is redundant now, but will help diagnose if things go wrong
+            self.assertEqual(t1.metadata_schema.schema,
+                             t2.metadata_schema.schema)
+            self.assertEqual(t1.populations.metadata_schema.schema,
+                             t2.populations.metadata_schema.schema)
+            self.assertEqual(t1.individuals.metadata_schema.schema,
+                             t2.individuals.metadata_schema.schema)
+            self.assertEqual(t1.nodes.metadata_schema.schema,
+                             t2.nodes.metadata_schema.schema)
+            self.assertEqual(t1.edges.metadata_schema.schema,
+                             t2.edges.metadata_schema.schema)
+            self.assertEqual(t1.sites.metadata_schema.schema,
+                             t2.sites.metadata_schema.schema)
+            self.assertEqual(t1.mutations.metadata_schema.schema,
+                             t2.mutations.metadata_schema.schema)
+            self.assertEqual(t1.migrations.metadata_schema.schema,
+                             t2.migrations.metadata_schema.schema)
+        if not check_metadata_schema:
+            # need to pull out metadata to compare as dicts before zeroing the schema
+            m1 = t1.metadata
+            m2 = t2.metadata
+            ms = tskit.MetadataSchema(None)
+            for t in (t1, t2):
+                t.metadata_schema = ms
+                t.populations.metadata_schema = ms
+                t.individuals.metadata_schema = ms
+                t.nodes.metadata_schema = ms
+                t.edges.metadata_schema = ms
+                t.sites.metadata_schema = ms
+                t.mutations.metadata_schema = ms
+                t.migrations.metadata_schema = ms
+            t1.metadata = b''
+            t2.metadata = b''
+            self.assertEqual(m1, m2)
+        self.assertEqual(t1, t2)

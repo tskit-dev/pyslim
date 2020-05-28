@@ -4,7 +4,12 @@ initialize()
     // need to define:
     //  L = sequence length
     //  SEX = A, X, Y or not defined
-    initializeSLiMModelType("nonWF");
+    //  WF = T or F
+    if (WF) {
+      initializeSLiMModelType("WF");
+    } else {
+      initializeSLiMModelType("nonWF");
+    }
     initializeTreeSeq();
     initializeMutationRate(1/L);
     initializeMutationType("m1", 0.5, "f", -0.1);

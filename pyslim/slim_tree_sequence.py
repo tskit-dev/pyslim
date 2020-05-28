@@ -8,10 +8,11 @@ from collections import OrderedDict
 import warnings
 import numpy as np
 
+from ._version import *
 from .slim_metadata import *
 from .provenance import *
 from .util import *
-from .slim_metadata import _decode_mutation_pre_nucleotides
+from .slim_metadata import _decode_mutation_pre_nucleotides, slim_metadata_schemas, _set_metadata_schemas
 
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
@@ -73,10 +74,10 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
+    set_tree_sequence_metadata(tables, model_type=model_type, slim_generation=slim_generation)
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     _set_sites_mutations(tables)
-    _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
 
 
 class SlimTreeSequence(tskit.TreeSequence):
@@ -101,7 +102,7 @@ class SlimTreeSequence(tskit.TreeSequence):
     - :func:`.load`, or :func:`.load_tables`.
 
     :ivar slim_generation: The generation that the SLiM simulation was at upon writing;
-        will be read from provenance if not provided.
+        will be read from metadata if not provided.
     :ivar reference_sequence: None, or an string of length equal to the sequence
         length that gives the entire reference sequence for nucleotide models.
     :vartype slim_generation: int
@@ -109,51 +110,24 @@ class SlimTreeSequence(tskit.TreeSequence):
     '''
 
     def __init__(self, ts, reference_sequence=None):
-        provenance = get_provenance(ts)
-        slim_generation = provenance.slim_generation
-        if provenance.file_version != "0.4":
-            warnings.warn("This is an version {} SLiM tree sequence.".format(provenance.file_version) +
-                          " When you write this out, " +
-                          "it will be converted to version 0.4.")
+        if not (isinstance(ts.metadata, dict) and 'SLiM' in ts.metadata):
+            # pre-0.5, need to upgrade
             tables = ts.dump_tables()
-            if provenance.file_version == "0.1" or provenance.file_version == "0.2":
-                # add empty nucleotide slots to metadata
-                mut_bytes = tskit.unpack_bytes(tables.mutations.metadata,
-                                               tables.mutations.metadata_offset)
-                mut_metadata = [_decode_mutation_pre_nucleotides(md)
-                                for md in mut_bytes]
-                annotate_mutation_metadata(tables, mut_metadata)
-            if provenance.file_version == "0.1":
-                # shift times
-                node_times = tables.nodes.time + slim_generation
-                tables.nodes.set_columns(
-                        flags=tables.nodes.flags,
-                        time=node_times,
-                        population=tables.nodes.population,
-                        individual=tables.nodes.individual,
-                        metadata=tables.nodes.metadata,
-                        metadata_offset=tables.nodes.metadata_offset)
-                migration_times = tables.migrations.time + slim_generation
-                tables.migrations.set_columns(
-                        left=tables.migrations.left,
-                        right=tables.migrations.right,
-                        node=tables.migrations.node,
-                        source=tables.migrations.source,
-                        dest=tables.migrations.dest,
-                        time=migration_times)
-            upgrade_slim_provenance(tables)
+            _upgrade_old_tables(tables)
             ts = tables.tree_sequence()
-            provenance = get_provenance(ts)
-            assert(provenance.file_version == "0.4")
+        assert(ts.metadata['SLiM']['file_version'] == slim_file_version)
+        slim_generation = ts.metadata['SLiM']['generation']
+        model_type = ts.metadata['SLiM']['model_type']
         super().__init__(ts._ll_tree_sequence)
         self.slim_generation = slim_generation
+        self.model_type = model_type
         self.reference_sequence = reference_sequence
         # pre-extract individual metadata
         self.individual_locations = ts.tables.individuals.location
         self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
         self.individual_ages = np.zeros(ts.num_individuals, dtype='int')
-        if self.slim_provenance.model_type != "WF":
-            self.individual_ages = np.fromiter(map(lambda ind: decode_individual(ind.metadata).age, ts.individuals()), dtype='int64')
+        if self.model_type != "WF":
+            self.individual_ages = np.fromiter(map(lambda ind: ind.metadata['age'], ts.individuals()), dtype='int64')
 
         self.individual_times = np.zeros(ts.num_individuals)
         self.individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
@@ -203,6 +177,23 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts = tables.tree_sequence()
         return cls(ts, **kwargs)
 
+    def dump(self, path, **kwargs):
+        '''
+        Dumps the tree sequence to the path specified. This is mostly just a wrapper for
+        tskit.TreeSequence.dump(), but also writes out the reference sequence.
+
+        :param str path: The file path to write the TreeSequence to.
+        :param **kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
+        '''
+        super().dump(path, **kwargs)
+        if self.reference_sequence is not None:
+            # to convert to a kastore store we need to reload from a file,
+            # and for it to be mutable we need to make it a dict
+            kas = dict(kastore.load(path))
+            kas['reference_sequence/data'] = np.frombuffer(self.reference_sequence.encode(),
+                                                           dtype=np.uint32)
+            kastore.dump(kas, path)
+
     def simplify(self, *args, **kwargs):
         '''
         This is a wrapper for :meth:`tskit.TreeSequence.simplify`.
@@ -241,7 +232,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         pop = super(SlimTreeSequence, self).population(id_)
         try:
-            pop.metadata = decode_population(pop.metadata)
+            pop.metadata = PopulationMetadata.fromdict(pop.metadata)
         except:
             pass
         return pop
@@ -263,7 +254,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         ind.population = self.individual_populations[id_]
         ind.time = self.individual_times[id_]
         try:
-            ind.metadata = decode_individual(ind.metadata)
+            ind.metadata = IndividualMetadata.fromdict(ind.metadata)
         except:
             pass
         return ind
@@ -281,7 +272,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         node = super(SlimTreeSequence, self).node(id_)
         try:
-            node.metadata = decode_node(node.metadata)
+            node.metadata = NodeMetadata.fromdict(node.metadata)
         except:
             pass
         return node
@@ -299,7 +290,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         mut = super(SlimTreeSequence, self).mutation(id_)
         try:
-            mut.metadata = decode_mutation(mut.metadata)
+            mut.metadata = [MutationMetadata.fromdict(x) for x in mut.metadata['mutation_list']]
         except:
             pass
         return mut
@@ -383,7 +374,13 @@ class SlimTreeSequence(tskit.TreeSequence):
                     recombination_map = recombination_map,
                     start_time = self.slim_generation,
                     **kwargs)
-        ts = SlimTreeSequence.load_tables(recap.tables)
+        # copy over the metadata
+        tables = recap.tables
+        # HACK to avoid recoding the metadata
+        tables.metadata = ts._ll_tree_sequence.get_metadata()
+        tables.metadata_schema = ts.metadata_schema
+        _set_metadata_schemas(tables)
+        ts = SlimTreeSequence.load_tables(tables)
         ts.reference_sequence = self.reference_sequence
         return ts
 
@@ -416,7 +413,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         slim_time = self.slim_generation - time
         # tskit time-ago begins at generation slim_generation - 1
         # in WF models when the tree sequence is saved out in early
-        if self.slim_provenance.model_type == "WF":
+        if self.metadata['SLiM']['model_type'] == "WF":
             time_adjust = (self.slim_generation
                     - self.individual(self.first_generation_individuals()[0]).time)
             slim_time -= time_adjust
@@ -479,8 +476,12 @@ class SlimTreeSequence(tskit.TreeSequence):
         Returns model type, slim generation, and remembmered node count from
         the last entry in the provenance table that is tagged with "program"="SLiM".
 
+        NOTE: you probably want to use the ``.metadata`` property instead.
+
         :rtype ProvenanceMetadata:
         '''
+        warnings.warn("This is deprecated: get information from "
+                      "ts.metadata['SLiM'] instead.", DeprecationWarning)
         return get_provenance(self, only_last=True)
 
     @property
@@ -562,7 +563,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             raise ValueError(f"Unknown stage '{remembered_stage}': "
                               "should be either 'early' or 'late'.")
         # sanity check "remembered_stage" (only possible for WF models)
-        if self.slim_provenance.model_type == "WF":
+        if self.metadata['SLiM']['model_type'] == "WF":
             first_gen = self.first_generation_individuals()
             if len(first_gen) > 0:
                 dt = (self.slim_generation
@@ -579,7 +580,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         birth_time = self.individual_times
         # birth_time - birth_offset is the first time ago they were alive
         # during stage 'stage'
-        if stage == "early" and self.slim_provenance.model_type == "WF":
+        if stage == "early" and self.metadata['SLiM']['model_type'] == "WF":
             birth_offset = 1
         else:
             birth_offset = 0
@@ -590,7 +591,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         ages = self.individual_ages
         # ages + age_offset + 1 is the number of 'stage' stages they are known
         # to have lived through
-        if (self.slim_provenance.model_type == "WF"
+        if (self.metadata['SLiM']['model_type'] == "WF"
                 or stage == remembered_stage):
             age_offset = 0
         else:
@@ -683,7 +684,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         child_births = self.individual_times[edge_child_indiv[indiv_edges]]
         parent_births = self.individual_times[edge_parent_indiv[indiv_edges]]
         alive_edges = indiv_edges.copy()
-        if self.slim_provenance.model_type == "WF":
+        if self.metadata['SLiM']['model_type'] == "WF":
             alive_edges[indiv_edges] = (child_births + 1 == parent_births)
         else:
             parent_deaths = parent_births - self.individual_ages[edge_parent_indiv[indiv_edges]]
@@ -697,6 +698,71 @@ class SlimTreeSequence(tskit.TreeSequence):
         # accounted for
         has_all_parents = (parental_span == 2 * self.sequence_length)
         return has_all_parents
+
+
+def _upgrade_old_tables(tables):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        provenance = get_provenance(tables)
+    file_version = provenance.file_version
+    slim_generation = provenance.slim_generation
+    warnings.warn("This is an version {} SLiM tree sequence.".format(file_version) +
+                  " When you write this out, " +
+                  "it will be converted to version {}.".format(slim_file_version))
+    if file_version == "0.1" or file_version == "0.2":
+        # add empty nucleotide slots to metadata
+        mut_bytes = tskit.unpack_bytes(tables.mutations.metadata,
+                                       tables.mutations.metadata_offset)
+        mut_metadata = [_decode_mutation_pre_nucleotides(md)
+                        for md in mut_bytes]
+        metadata, metadata_offset = tskit.pack_bytes(mut_metadata)
+        tables.mutations.set_columns(
+                site=tables.mutations.site,
+                node=tables.mutations.node,
+                parent=tables.mutations.parent,
+                derived_state=tables.mutations.derived_state,
+                derived_state_offset=tables.mutations.derived_state_offset,
+                metadata=tables.mutations.metadata,
+                metadata_offset=tables.mutations.metadata_offset)
+    if file_version == "0.1":
+        # shift times
+        node_times = tables.nodes.time + slim_generation
+        tables.nodes.set_columns(
+                flags=tables.nodes.flags,
+                time=node_times,
+                population=tables.nodes.population,
+                individual=tables.nodes.individual,
+                metadata=tables.nodes.metadata,
+                metadata_offset=tables.nodes.metadata_offset)
+        migration_times = tables.migrations.time + slim_generation
+        tables.migrations.set_columns(
+                left=tables.migrations.left,
+                right=tables.migrations.right,
+                node=tables.migrations.node,
+                source=tables.migrations.source,
+                dest=tables.migrations.dest,
+                time=migration_times)
+    if file_version in ["0.1", "0.2", "0.3", "0.4"]:
+        # note this uses defaults on the remaining keys!
+        set_tree_sequence_metadata(tables,
+                model_type=provenance.model_type,
+                slim_generation=slim_generation)
+    new_record = {
+                "schema_version": "1.0.0",
+                "software": {
+                    "name": "pyslim",
+                    "version": pyslim_version,
+                    },
+                "parameters": {
+                    "command": ["_upgrade_old_tables"],
+                    "old_file_version": file_version,
+                    "new_file_version": slim_file_version,
+                    },
+                "environment": get_environment(),
+            }
+    tskit.validate_provenance(new_record)
+    tables.provenances.add_row(json.dumps(new_record))
+
 
 def _set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,
@@ -937,24 +1003,3 @@ def _set_sites_mutations(
     mutation_metadata = [[MutationMetadata(*x)] for x in
                          zip(mutation_type, selection_coeff, population, slim_time)]
     annotate_mutation_metadata(tables, mutation_metadata)
-
-############
-# Provenance
-############
-# See provenances.py for the structure of a Provenance entry.
-
-
-def _set_provenance(tables, model_type, slim_generation):
-    '''
-    Appends to the provenance table of a :class:`TableCollection` a record containing
-    the information that SLiM expects to find there.
-
-    :param TableCollection tables: The table collection.
-    :param string model_type: The model type: either "WF" or "nonWF".
-    :param int slim_generation: The "current" generation in the SLiM simulation.
-    '''
-    pyslim_dict = make_pyslim_provenance_dict()
-    slim_dict = make_slim_provenance_dict(model_type, slim_generation)
-    tables.provenances.add_row(json.dumps(pyslim_dict))
-    tables.provenances.add_row(json.dumps(slim_dict))
-

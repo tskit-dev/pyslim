@@ -14,6 +14,9 @@ __version__ = _version.pyslim_version
 
 @attr.s
 class ProvenanceMetadata(object):
+    """
+    DEPRECATED: use the tree sequence metadata (under the 'SLiM' key) instead.
+    """
     model_type = attr.ib()
     slim_generation = attr.ib()
     file_version = attr.ib()
@@ -53,7 +56,7 @@ def slim_provenance_version(provenance):
             file_version = record["file_version"]
         except:
             pass
-    is_slim = (software_name == "SLiM") and (file_version in ["0.1", "0.2", "0.3", "0.4"])
+    is_slim = (software_name == "SLiM")
     return is_slim, file_version
 
 
@@ -61,6 +64,8 @@ def parse_provenance(provenance):
     '''
     Parses a SLiM provenance entry, returning a :class:`ProvenanceMetadata`
     object, or raising an error if the entry is not a SLiM provenance entry.
+
+    DEPRECATED: this method will dissappear at some point in the future.
 
     :param Provenance provenance: The provenance entry, as for instance obtained
         from ts.provenance(0).
@@ -83,24 +88,26 @@ def parse_provenance(provenance):
 
 def get_provenance(ts, only_last=True):
     '''
-    Extracts model type, slim generation, and remembmered node count from either
-    the last entry in the provenance table that is tagged with "program"="SLiM"
-    (if ``only_last=True``) or a list of all of them (otherwise).
+    Extracts model type and slim generation from either the last entry in the
+    provenance table that is tagged with "program"="SLiM" (if
+    ``only_last=True``) or a list of all of them (otherwise).
 
-    :param SlimTreeSequence ts: The tree sequence.
+    :param SlimTreeSequence ts: The tree sequence or table collection.
     :param bool only_last: Whether to return only the last SLiM provenance entry,
         (otherwise, returns a list of all SLiM entries).
     :rtype ProvenanceMetadata:
     '''
+    if isinstance(ts, tskit.TreeSequence):
+        ts = ts.tables
     provenances = []
-    for j, p in enumerate(ts.tables.provenances):
+    for j, p in enumerate(ts.provenances):
         is_slim, _ = slim_provenance_version(p) 
         if is_slim:
             out = parse_provenance(p)
             provenances.append(out)
 
     if len(provenances) == 0:
-        raise ValueError("Tree sequence contains no SLiM provenance entries"
+        raise ValueError("Tree sequence is not a SLiM tree sequence "
                           "(or your pyslim is out of date).")
     if only_last:
         return provenances[-1]
@@ -112,6 +119,9 @@ def upgrade_slim_provenance(tables):
     """
     Copies the last provenance entry from a previous SLiM file version to that
     required by the current file version.
+
+    DEPRECATED: this method will dissappear at some point in the future,
+    and this information is now stored in the tree sequence metadata.
 
     :param TableCollection tables: the table collection
     """
@@ -141,8 +151,8 @@ def upgrade_slim_provenance(tables):
 
 def get_environment():
     """
-    Returns a dictionary describing the environment in which msprime
-    is currently running.
+    Returns a dictionary describing the environment in which we are
+    currently running.
     """
     env = {
         "libraries": {
@@ -185,6 +195,8 @@ def make_pyslim_provenance_dict():
 def make_slim_provenance_dict(model_type, slim_generation):
     """
     Returns a dictionary encoding necessary provenance information for a SLiM tree sequence.
+    
+    DEPRECATED: this will be removed in the future; if you need this, open an issue on github.
     """
     document = {
         "schema_version": "1.0.0",
