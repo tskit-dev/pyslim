@@ -8,10 +8,11 @@ from collections import OrderedDict
 import warnings
 import numpy as np
 
+from ._version import *
 from .slim_metadata import *
 from .provenance import *
 from .util import *
-from .slim_metadata import _decode_mutation_pre_nucleotides
+from .slim_metadata import _decode_mutation_pre_nucleotides, slim_metadata_schemas
 
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
@@ -111,40 +112,14 @@ class SlimTreeSequence(tskit.TreeSequence):
     def __init__(self, ts, reference_sequence=None):
         provenance = get_provenance(ts)
         slim_generation = provenance.slim_generation
-        if provenance.file_version != "0.4":
-            warnings.warn("This is an version {} SLiM tree sequence.".format(provenance.file_version) +
-                          " When you write this out, " +
-                          "it will be converted to version 0.4.")
-            tables = ts.dump_tables()
-            if provenance.file_version == "0.1" or provenance.file_version == "0.2":
-                # add empty nucleotide slots to metadata
-                mut_bytes = tskit.unpack_bytes(tables.mutations.metadata,
-                                               tables.mutations.metadata_offset)
-                mut_metadata = [_decode_mutation_pre_nucleotides(md)
-                                for md in mut_bytes]
-                annotate_mutation_metadata(tables, mut_metadata)
-            if provenance.file_version == "0.1":
-                # shift times
-                node_times = tables.nodes.time + slim_generation
-                tables.nodes.set_columns(
-                        flags=tables.nodes.flags,
-                        time=node_times,
-                        population=tables.nodes.population,
-                        individual=tables.nodes.individual,
-                        metadata=tables.nodes.metadata,
-                        metadata_offset=tables.nodes.metadata_offset)
-                migration_times = tables.migrations.time + slim_generation
-                tables.migrations.set_columns(
-                        left=tables.migrations.left,
-                        right=tables.migrations.right,
-                        node=tables.migrations.node,
-                        source=tables.migrations.source,
-                        dest=tables.migrations.dest,
-                        time=migration_times)
-            upgrade_slim_provenance(tables)
-            ts = tables.tree_sequence()
-            provenance = get_provenance(ts)
-            assert(provenance.file_version == "0.4")
+        tables = ts.dump_tables()
+        if provenance.file_version != slim_file_version:
+            _upgrade_old_tables(tables, provenance.file_version, slim_generation)
+        # TODO: make this optional when file version increases
+        _include_metadata_schemas(tables)
+        ts = tables.tree_sequence()
+        provenance = get_provenance(ts)
+        assert(provenance.file_version == slim_file_version)
         super().__init__(ts._ll_tree_sequence)
         self.slim_generation = slim_generation
         self.reference_sequence = reference_sequence
@@ -153,7 +128,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
         self.individual_ages = np.zeros(ts.num_individuals, dtype='int')
         if self.slim_provenance.model_type != "WF":
-            self.individual_ages = np.fromiter(map(lambda ind: decode_individual(ind.metadata).age, ts.individuals()), dtype='int64')
+            self.individual_ages = np.fromiter(map(lambda ind: ind.metadata['age'], ts.individuals()), dtype='int64')
 
         self.individual_times = np.zeros(ts.num_individuals)
         self.individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
@@ -241,7 +216,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         pop = super(SlimTreeSequence, self).population(id_)
         try:
-            pop.metadata = decode_population(pop.metadata)
+            pop.metadata = PopulationMetadata.fromdict(pop.metadata)
         except:
             pass
         return pop
@@ -263,7 +238,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         ind.population = self.individual_populations[id_]
         ind.time = self.individual_times[id_]
         try:
-            ind.metadata = decode_individual(ind.metadata)
+            ind.metadata = IndividualMetadata.fromdict(ind.metadata)
         except:
             pass
         return ind
@@ -281,7 +256,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         node = super(SlimTreeSequence, self).node(id_)
         try:
-            node.metadata = decode_node(node.metadata)
+            node.metadata = NodeMetadata.fromdict(node.metadata)
         except:
             pass
         return node
@@ -299,7 +274,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         mut = super(SlimTreeSequence, self).mutation(id_)
         try:
-            mut.metadata = decode_mutation(mut.metadata)
+            mut.metadata = [MutationMetadata.fromdict(x) for x in mut.metadata['mutation_list']]
         except:
             pass
         return mut
@@ -695,6 +670,66 @@ class SlimTreeSequence(tskit.TreeSequence):
         # accounted for
         has_all_parents = (parental_span == 2 * self.sequence_length)
         return has_all_parents
+
+
+def _include_metadata_schemas(tables):
+    tables.edges.metadata_schema = slim_metadata_schemas['edge']
+    tables.sites.metadata_schema = slim_metadata_schemas['site']
+    tables.mutations.metadata_schema = slim_metadata_schemas['mutation']
+    tables.nodes.metadata_schema = slim_metadata_schemas['node']
+    tables.individuals.metadata_schema = slim_metadata_schemas['individual']
+    # must check for existing populations with null metadata
+    pop_schema = slim_metadata_schemas['population']
+    pop_table = tables.populations.copy()
+    tables.populations.clear()
+    tables.populations.metadata_schema = pop_schema
+    for pop in pop_table:
+        if len(pop.metadata) == 0:
+            md = default_slim_metadata['population']
+        else:
+            md = pop_schema.decode_row(pop.metadata)
+        tables.populations.add_row(metadata = md)
+
+
+def _upgrade_old_tables(tables, file_version, slim_generation):
+    warnings.warn("This is an version {} SLiM tree sequence.".format(file_version) +
+                  " When you write this out, " +
+                  "it will be converted to version {}.".format(slim_file_version))
+    if file_version == "0.1" or file_version == "0.2":
+        # add empty nucleotide slots to metadata
+        mut_bytes = tskit.unpack_bytes(tables.mutations.metadata,
+                                       tables.mutations.metadata_offset)
+        mut_metadata = [_decode_mutation_pre_nucleotides(md)
+                        for md in mut_bytes]
+        metadata, metadata_offset = tskit.pack_bytes(mut_metadata)
+        tables.mutations.set_columns(
+                site=tables.mutations.site,
+                node=tables.mutations.node,
+                parent=tables.mutations.parent,
+                derived_state=tables.mutations.derived_state,
+                derived_state_offset=tables.mutations.derived_state_offset,
+                metadata=tables.mutations.metadata,
+                metadata_offset=tables.mutations.metadata_offset)
+    if file_version == "0.1":
+        # shift times
+        node_times = tables.nodes.time + slim_generation
+        tables.nodes.set_columns(
+                flags=tables.nodes.flags,
+                time=node_times,
+                population=tables.nodes.population,
+                individual=tables.nodes.individual,
+                metadata=tables.nodes.metadata,
+                metadata_offset=tables.nodes.metadata_offset)
+        migration_times = tables.migrations.time + slim_generation
+        tables.migrations.set_columns(
+                left=tables.migrations.left,
+                right=tables.migrations.right,
+                node=tables.migrations.node,
+                source=tables.migrations.source,
+                dest=tables.migrations.dest,
+                time=migration_times)
+    upgrade_slim_provenance(tables)
+
 
 def _set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,

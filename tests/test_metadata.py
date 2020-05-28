@@ -13,6 +13,23 @@ import os
 import tempfile
 
 
+class TestMetadata(unittest.TestCase):
+
+    def test_default_metadata(self):
+        for k in pyslim.slim_metadata_schemas:
+            self.assertTrue(k in pyslim.default_slim_metadata)
+            schema = pyslim.slim_metadata_schemas[k]
+            entry = pyslim.default_slim_metadata[k]
+            encoded = schema.validate_and_encode_row(entry)
+            decoded = schema.decode_row(encoded)
+            print('entry', entry)
+            print('decoded', decoded)
+            if entry is None:
+                self.assertTrue(decoded is None)
+            else:
+                self.assertDictEqual(entry, decoded)
+
+
 class TestEncodeDecode(tests.PyslimTestCase):
     '''
     Tests for conversion to/from binary representations of metadata.
@@ -128,6 +145,11 @@ class TestAnnotate(tests.PyslimTestCase):
                 metadata.append(dm)
 
             pyslim.annotate_mutation_metadata(new_tables, metadata)
+            for k, (a, b) in enumerate(zip(tables.mutations, new_tables.mutations)):
+                if a != b:
+                    print(k)
+                    print('a', a)
+                    print('b', b)
             self.assertEqual(tables, new_tables)
 
     def test_annotate_nodes(self):
@@ -210,6 +232,22 @@ class TestDumpLoad(tests.PyslimTestCase):
         self.assertEqual(ts.sequence_length, ts2.sequence_length)
         self.assertEqual(ts.tables, ts2.tables)
 
+    def assert_equality_except_schemas(self, tables1, tables2):
+        t1 = tables1.copy()
+        t2 = tables2.copy()
+        ns = tskit.MetadataSchema(None)
+        for tables in (t1, t2):
+            tables.populations.metadata_schema = ns
+            tables.individuals.metadata_schema = ns
+            tables.nodes.metadata_schema = ns
+            tables.edges.metadata_schema = ns
+            tables.sites.metadata_schema = ns
+            tables.mutations.metadata_schema = ns
+            tables.migrations.metadata_schema = ns
+            # TODO: remove this when SLiM writes out full metadata
+            tables.populations.clear()
+        self.assertEqual(t1, t2)
+
     def test_load_tables(self):
         for ts in self.get_slim_examples():
             self.assertTrue(type(ts) is pyslim.SlimTreeSequence)
@@ -230,16 +268,19 @@ class TestDumpLoad(tests.PyslimTestCase):
             new_ts = pyslim.load_tables(msp_tables)
             self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
             self.verify_times(msp_ts, new_ts)
-            self.assertEqual(msp_tables, new_ts.tables)
+            new_tables = new_ts.tables
+            self.assert_equality_except_schemas(msp_tables, new_tables)
             # convert directly
             new_ts = pyslim.SlimTreeSequence(msp_ts)
             self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
             self.verify_times(msp_ts, new_ts)
-            self.assertEqual(msp_tables, new_ts.tables)
+            new_tables = new_ts.tables
+            self.assert_equality_except_schemas(msp_tables, new_tables)
             # load to pyslim from file
             slim_ts = pyslim.load(fn)
             self.assertTrue(type(slim_ts) is pyslim.SlimTreeSequence)
-            self.assertEqual(msp_tables, slim_ts.tables)
+            slim_tables = slim_ts.tables
+            self.assert_equality_except_schemas(msp_tables, slim_tables)
             self.assertEqual(slim_ts.slim_generation, new_ts.slim_generation)
 
     def test_dump_equality(self):
@@ -270,6 +311,7 @@ class TestNucleotides(tests.PyslimTestCase):
         -1, 0, 1, 2, or 3.
         '''
         for mut in ts.mutations():
+            print(mut)
             for u in mut.metadata:
                 self.assertGreaterEqual(u.nucleotide, -1)
                 self.assertLessEqual(u.nucleotide, 3)
@@ -277,4 +319,3 @@ class TestNucleotides(tests.PyslimTestCase):
     def test_nucleotides(self):
         for ts in self.get_slim_examples():
             self.check_nucleotides(ts)
-

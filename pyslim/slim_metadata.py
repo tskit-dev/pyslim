@@ -11,6 +11,143 @@ INDIVIDUAL_TYPE_FEMALE = 0
 INDIVIDUAL_TYPE_MALE = 1
 INDIVIDUAL_FLAG_MIGRATED = 0x01
 
+_raw_slim_metadata_schemas = {
+        "edge" : None,
+        "site" : None,
+        "mutation" : {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "mutation_list": {
+                    "type": "array",
+                    "noLengthEncodingExhaustBuffer": True,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "mutation_type": {
+                                "type": "integer",
+                                "binaryFormat": "i",
+                                "index": 1,
+                            },
+                            "selection_coeff": {
+                                "type": "number",
+                                "binaryFormat": "f",
+                                "index": 2,
+                            },
+                            "population": {
+                                "type": "integer",
+                                "binaryFormat": "i",
+                                "index": 3,
+                            },
+                            "slim_time": {
+                                "type": "integer",
+                                "binaryFormat": "i",
+                                "index": 4,
+                            },
+                            "nucleotide": {
+                                "type": "integer",
+                                "binaryFormat": "b",
+                                "index": 5,
+                            },
+                        },
+                    },
+                }
+            },
+        },
+        "node" : {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "slim_id": {"type": "integer", "binaryFormat": "q", "index": 0},
+                "is_null": {"type": "integer", "binaryFormat": "B", "index": 1},
+                "genome_type": {"type": "integer", "binaryFormat": "B", "index": 2},
+            },
+        },
+        "individual" : {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "pedigree_id": {"type": "integer", "binaryFormat": "q", "index": 1},
+                "age": {"type": "integer", "binaryFormat": "i", "index": 2},
+                "population": {
+                    "type": "integer",
+                    "binaryFormat": "i",
+                    "index": 3,
+                },
+                "sex": {"type": "integer", "binaryFormat": "i", "index": 4},
+                "flags": {"type": "integer", "binaryFormat": "I", "index": 5},
+            }, 
+        },
+        "population" : {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "slim_id": {"type": "integer", "binaryFormat": "i", "index": 1},
+                "selfing_fraction": {"type": "number", "binaryFormat": "d", "index": 2},
+                "female_cloning_fraction": {"type": "number", "binaryFormat": "d", "index": 3},
+                "male_cloning_fraction": {"type": "number", "binaryFormat": "d", "index": 4},
+                "sex_ratio": {"type": "number", "binaryFormat": "d", "index": 5},
+                "bounds_x0": {"type": "number", "binaryFormat": "d", "index": 6},
+                "bounds_x1": {"type": "number", "binaryFormat": "d", "index": 7},
+                "bounds_y0": {"type": "number", "binaryFormat": "d", "index": 8},
+                "bounds_y1": {"type": "number", "binaryFormat": "d", "index": 9},
+                "bounds_z0": {"type": "number", "binaryFormat": "d", "index": 10},
+                "bounds_z1": {"type": "number", "binaryFormat": "d", "index": 11},
+                "migration_records": {
+                    "type": "array",
+                    "index": 13,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "source_subpop": {"type": "integer", "binaryFormat": "i", "index": 1},
+                            "migration_rate": {"type": "number", "binaryFormat": "d", "index": 2},
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+
+slim_metadata_schemas = {k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k])
+        for k in _raw_slim_metadata_schemas}
+
+
+default_slim_metadata = {
+    "edge" : None,
+    "site" : None,
+    "mutation" : {
+        "mutation_list": []
+    },
+    "node" : {
+        "slim_id": tskit.NULL,
+        "is_null": 1,
+        "genome_type": 0,
+    },
+    "individual" : {
+        "pedigree_id": tskit.NULL,
+        "age": -1,
+        "population": tskit.NULL,
+        "sex": -1,
+        "flags": 0,
+    },
+    "population" : {
+        "slim_id": tskit.NULL,
+        "selfing_fraction": 0.0,
+        "female_cloning_fraction": 0.0,
+        "male_cloning_fraction": 0.0,
+        "sex_ratio": 0.5,
+        "bounds_x0": 0.0,
+        "bounds_x1": 0.0,
+        "bounds_y0": 0.0,
+        "bounds_y1": 0.0,
+        "bounds_z0": 0.0,
+        "bounds_z1": 0.0,
+        "migration_records": []
+    },
+}
+
+
 ###########
 # Mutations
 #  The metadata for a Mutation is a *collection* of these structs,
@@ -38,6 +175,13 @@ class MutationMetadata(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def asdict(self):
+        return attr.asdict(self)
+
+    @classmethod
+    def fromdict(cls, md):
+        return cls(**md)
 
 
 def decode_mutation(buff):
@@ -92,6 +236,8 @@ def _decode_mutation_pre_nucleotides(buff):
     '''
     Decodes mutation metadata for file versions 0.1 and 0.2, before
     the 'nucleotide' was added.
+    
+    **Only used in upgrading old tables.**
 
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`MutationTable`, as stored by SLiM.
@@ -116,7 +262,10 @@ def _decode_mutation_pre_nucleotides(buff):
                                             population=population,
                                             slim_time=slim_time,
                                             nucleotide = nucleotide))
-    return mut_structs
+    mut_schema = slim_metadata_schemas['mutation']
+    recoded = mut_schema.encode_row(
+        {'mutation_list': [mm.asdict() for mm in mut_structs]})
+    return recoded
 
 
 def encode_mutation(metadata_object):
@@ -147,8 +296,8 @@ def extract_mutation_metadata(tables):
     '''
     metadata = tskit.unpack_bytes(tables.mutations.metadata,
                                     tables.mutations.metadata_offset)
-    for md in metadata:
-        yield decode_mutation(md)
+    for mut in tables.mutations:
+        yield [MutationMetadata.fromdict(mm) for mm in mut.metadata['mutation_list']]
 
 
 def annotate_mutation_metadata(tables, metadata):
@@ -165,11 +314,12 @@ def annotate_mutation_metadata(tables, metadata):
     tables.mutations.clear()
     for mut, md in zip(orig_mutations, metadata):
         if md is None:
-            metadata = b''
+            metadata = default_slim_metadata['mutation']
         else:
-            metadata = encode_mutation(md)
+            metadata = {'mutation_list': [mm.asdict() for mm in md]}
         tables.mutations.add_row(site=mut.site, node=mut.node, derived_state=mut.derived_state,
                                  parent=mut.parent, metadata=metadata)
+
 
 #######
 # Nodes
@@ -183,6 +333,7 @@ def annotate_mutation_metadata(tables, metadata):
 
 _node_struct = struct.Struct("<qBB")
 
+
 @attr.s
 class NodeMetadata(object):
     slim_id = attr.ib()
@@ -190,10 +341,18 @@ class NodeMetadata(object):
     genome_type = attr.ib()
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        return self.asdict() == other.asdict()
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def asdict(self):
+        return attr.asdict(self)
+
+    @classmethod
+    def fromdict(cls, md):
+        return cls(**md)
+
 
 def decode_node(buff):
     '''
@@ -223,6 +382,7 @@ def decode_node(buff):
             md = NodeMetadata(slim_id=slim_id, is_null=is_null, genome_type=genome_type)
     return md
 
+
 def encode_node(metadata_object):
     '''
     Encodes :class:`NodeMetadata` objects as a bytes object, suitable to be put
@@ -247,10 +407,8 @@ def extract_node_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    metadata = tskit.unpack_bytes(tables.nodes.metadata,
-                                    tables.nodes.metadata_offset)
-    for md in metadata:
-        yield decode_node(md)
+    for n in tables.nodes:
+        yield NodeMetadata.fromdict(n.metadata)
 
 
 def annotate_node_metadata(tables, metadata):
@@ -267,9 +425,9 @@ def annotate_node_metadata(tables, metadata):
     tables.nodes.clear()
     for node, md in zip(orig_nodes, metadata):
         if md is None:
-            metadata = b''
+            metadata = default_slim_metadata['node']
         else:
-            metadata = encode_node(md)
+            metadata = md.asdict()
         tables.nodes.add_row(flags=node.flags, time=node.time, population=node.population,
                              individual=node.individual, metadata=metadata)
 
@@ -296,10 +454,18 @@ class IndividualMetadata(object):
     flags = attr.ib()
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        return self.asdict() == other.asdict()
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def asdict(self):
+        return attr.asdict(self)
+
+    @classmethod
+    def fromdict(cls, md):
+        return cls(**md)
+
 
 def decode_individual(buff):
     '''
@@ -356,10 +522,8 @@ def extract_individual_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    metadata = tskit.unpack_bytes(tables.individuals.metadata,
-                                    tables.individuals.metadata_offset)
-    for md in metadata:
-        yield decode_individual(md)
+    for ind in tables.individuals:
+        yield IndividualMetadata.fromdict(ind.metadata)
 
 
 def annotate_individual_metadata(tables, metadata):
@@ -376,9 +540,9 @@ def annotate_individual_metadata(tables, metadata):
     tables.individuals.clear()
     for ind, md in zip(orig_individuals, metadata):
         if md is None:
-            metadata = b''
+            metadata = default_slim_metadata['individual']
         else:
-            metadata = encode_individual(md)
+            metadata = md.asdict()
         tables.individuals.add_row(flags=ind.flags, location=ind.location, metadata=metadata)
 
 #######
@@ -411,7 +575,7 @@ class PopulationMigrationMetadata(object):
     migration_rate = attr.ib()
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        return self.asdict() == other.asdict()
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -419,6 +583,10 @@ class PopulationMigrationMetadata(object):
     def __iter__(self):
         for a in (self.source_subpop, self.migration_rate):
             yield a
+
+    def asdict(self):
+        return attr.asdict(self)
+
 
 @attr.s
 class PopulationMetadata(object):
@@ -436,10 +604,18 @@ class PopulationMetadata(object):
     migration_records = attr.ib()
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        return self.asdict() == other.asdict()
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def asdict(self):
+        return attr.asdict(self)
+
+    @classmethod
+    def fromdict(cls, md):
+        return cls(**md)
+
 
 def decode_population(buff):
     '''
@@ -537,10 +713,8 @@ def extract_population_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    metadata = tskit.unpack_bytes(tables.populations.metadata,
-                                    tables.populations.metadata_offset)
-    for md in metadata:
-        yield decode_population(md)
+    for pop in tables.populations:
+        yield PopulationMetadata.fromdict(pop.metadata)
 
 
 def annotate_population_metadata(tables, metadata):
@@ -557,8 +731,8 @@ def annotate_population_metadata(tables, metadata):
     tables.populations.clear()
     for md in metadata:
         if md is None:
-            metadata = b''
+            metadata = default_slim_metadata['population']
         else:
-            metadata = encode_population(md)
+            metadata = md.asdict()
         tables.populations.add_row(metadata=metadata)
 

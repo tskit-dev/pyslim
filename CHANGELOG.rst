@@ -2,6 +2,10 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**Notable changes**:
+
+- Switched to using tskit native encoding/decoding of metadata via schemas.
+
 **New features**:
 
 - added has_individual_parents, a method to find individuals with all parents
