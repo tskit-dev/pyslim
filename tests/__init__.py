@@ -41,7 +41,8 @@ for f in example_files:
     example_files[f]['basename'] = os.path.join("tests", "examples", f)
 
 
-# this is of the form (input, basename)
+# These SLiM scripts read in an existing trees file; the format in this list
+# is of the form: (<input trees file>, <basename of slim script and output file>)
 # TODO: test restarting of nucleotides after reference sequence dumping is enabled
 _restart_files = [("tests/examples/recipe_{}.trees".format(x),
                    "tests/examples/restart_{}".format(x))
@@ -135,12 +136,16 @@ class PyslimTestCase(unittest.TestCase):
                     yield ts
 
     def get_slim_restarts(self):
+        # Loads previously produced tree sequences and SLiM scripts 
+        # appropriate for restarting from these tree sequences.
         for treefile, basename in _restart_files:
             self.assertTrue(os.path.isfile(treefile))
             ts = pyslim.load(treefile)
             yield ts, basename
 
     def run_slim_restart(self, in_ts, basename, args=''):
+        # Saves out the tree sequence to the trees file that the SLiM script
+        # basename.slim will load from.
         infile = basename + ".init.trees"
         outfile = basename + ".trees"
         slimfile = basename + ".slim"
@@ -151,12 +156,11 @@ class PyslimTestCase(unittest.TestCase):
                 pass
         in_ts.dump(infile)
         out = run_slim_script(slimfile, args=args)
-        print("out:", out)
         try:
             os.remove(infile)
         except FileNotFoundError:
             pass
-        assert out == 0
+        self.assertEqual(out, 0)
         self.assertTrue(os.path.isfile(outfile))
         out_ts = pyslim.load(outfile)
         try:

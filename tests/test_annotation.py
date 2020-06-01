@@ -216,9 +216,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 self.assertEqual(md.selection_coeff, selcoefs[j])
 
     def test_reload_recapitate(self):
-        """
-        Test the ability of SLiM to load our files after recapitation.
-        """
+        # Test the ability of SLiM to load our files after recapitation.
         for ts, basename in self.get_slim_restarts():
             # recapitate, reload
             in_ts = ts.recapitate(recombination_rate=1e-2, Ne=10)
@@ -228,9 +226,7 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_slim_restart_equality(in_ts, out_ts)
 
     def test_reload_annotate(self):
-        """
-        Test the ability of SLiM to load our files after annotation.
-        """
+        # Test the ability of SLiM to load our files after annotation.
         for ts, basename in self.get_slim_restarts():
             tables = ts.tables
             metadata = list(pyslim.extract_mutation_metadata(tables))

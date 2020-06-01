@@ -231,6 +231,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         self.assertEqual(ts.num_samples, ts2.num_samples)
         self.assertEqual(ts.sequence_length, ts2.sequence_length)
         self.assertEqual(ts.tables, ts2.tables)
+        self.assertEqual(ts.reference_sequence, ts2.reference_sequence)
 
     def assert_equality_except_schemas(self, tables1, tables2):
         t1 = tables1.copy()
