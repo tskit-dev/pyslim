@@ -178,6 +178,23 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts = tables.tree_sequence()
         return cls(ts, **kwargs)
 
+    def dump(self, path, **kwargs):
+        '''
+        Dumps the tree sequence to the path specified. This is mostly just a wrapper for
+        tskit.TreeSequence.dump(), but also writes out the reference sequence.
+
+        :param str path: The file path to write the TreeSequence to.
+        :param dict **kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
+        '''
+        super().dump(path, **kwargs)
+        if self.reference_sequence is not None:
+            # to convert to a kastore store we need to reload from a file,
+            # and for it to be mutable we need to make it a dict
+            kas = dict(kastore.load(path))
+            kas['reference_sequence/data'] = np.frombuffer(self.reference_sequence.encode(),
+                                                           dtype=np.uint32)
+            kastore.dump(kas, path)
+
     def simplify(self, *args, **kwargs):
         '''
         This is a wrapper for :meth:`tskit.TreeSequence.simplify`.
