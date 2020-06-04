@@ -184,7 +184,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         tskit.TreeSequence.dump(), but also writes out the reference sequence.
 
         :param str path: The file path to write the TreeSequence to.
-        :param dict **kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
+        :param **kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
         '''
         super().dump(path, **kwargs)
         if self.reference_sequence is not None:

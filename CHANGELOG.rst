@@ -5,9 +5,11 @@
 **Notable changes**:
 
 - Switched to using tskit native encoding/decoding of metadata via schemas.
+- added to conda-forge (@winni2k)
 
 **New features**:
 
+- enabled dumping the reference sequence for nucleotide models
 - added has_individual_parents, a method to find individuals with all parents
   are also recorded as individuals
 - Provenance handling:
