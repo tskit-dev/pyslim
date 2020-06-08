@@ -22,7 +22,8 @@ A typical way to do this would be to
 
 2. :meth:`.SlimTreeSequence.simplify` : For efficiency, subset the tree
    sequence to only the information relevant for those 1,000 individuals
-   we wish to sample. This needs to come *after* recapitation (see below).
+   we wish to sample.
+   **Important: this needs to come *after* recapitation (see below).**
 
 3. :meth:`msprime.mutate` : This adds neutral mutations on top of the tree sequence.
 
@@ -49,8 +50,9 @@ Recapitation
    :align: right
 
 Although we can initialize a SLiM simulation with the results of a coalescent simulation,
-if during the simulation we don't actually use the genotypes for anything, it can be much
-more efficient to only coalesce the portions of the first-generation ancestors that have
+if during the simulation we don't actually use the genotypes for anything, it
+can be much more efficient to do this afterwards, hence only doing a coalescent
+simulation for the portions of the first-generation ancestors that have
 not yet coalesced. (See the SLiM manual for more explanation.)
 This is depicted in the figure at the right:
 imagine that the common ancestors of all samples did not exist at all sites within the
@@ -109,6 +111,25 @@ it is often not necessary in practice, because tree sequences are very compact,
 and many operations with them are quite fast.
 So, you should probably not make simplification a standard step in your workflow,
 only using it if necessary.
+
+It is important that simplification - if it happens at all -
+comes *after* recapitation. This is because simplification will remove some of the
+ancestral genomes in the first generation,
+which are necessary for recapitation.
+If we had simplified before recapitating,
+some of the first-generation blue chromosomes in the figure on the right
+would not be present, so the coalescent simulation would start from a more recent point in time
+than it really should.
+As an extreme example, suppose our SLiM simulation has a single diploid who has reproduced
+by clonal reproduction for 1,000 generations,
+so that the final tree sequence is just two vertical lines of descent going back
+to the two chromosomes in the initial individual alive 1,000 generations ago.
+Recapitation would produce a shared history for these two chromosomes,
+that would coalesce some time longer ago than 1,000 generations.
+However, if we simplified first, then those two branches going back 1,000 generations would be removed,
+since they don't convey any information about the shape of the tree;
+and so recapitation could well produce a common ancestor more recently than 1,000 generations,
+which is inconsistent with the SLiM simulation.
 
 Simplification to history of 100 individuals alive today
 can be done with the :meth:`.SlimTreeSequence.simplify` method:
