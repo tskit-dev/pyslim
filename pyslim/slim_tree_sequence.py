@@ -78,6 +78,14 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
 
 
+def _check_unique_groups(group, label):
+    n = np.bincount(1 + group)[1:]
+    x = np.bincount(1 + group, weights=label)[1:]
+    x2 = np.bincount(1 + group, weights=label ** 2)[1:]
+    # (a * x)**2 = a * (a * x**2)
+    return np.all(x**2 == n * x2)
+
+
 class SlimTreeSequence(tskit.TreeSequence):
     '''
     This is just like a :class:`tskit.TreeSequence`, with a few more properties
@@ -156,11 +164,9 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         self.individual_times = np.zeros(ts.num_individuals)
         self.individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
-        npops = [len(set(self.node(n).population for n in ind.nodes)) for ind in ts.individuals()]
-        ntimes = [len(set(self.node(n).time for n in ind.nodes)) for ind in ts.individuals()]
-        if max(npops) > 1:
+        if not _check_unique_groups(ts.tables.nodes.individual, ts.tables.nodes.population):
             raise ValueError("Individual has nodes from more than one population.")
-        if max(ntimes) > 1:
+        if not _check_unique_groups(ts.tables.nodes.individual, ts.tables.nodes.time):
             raise ValueError("Individual has nodes from more than one time.")
         has_indiv = (ts.tables.nodes.individual >= 0)
         which_indiv = ts.tables.nodes.individual[has_indiv]
