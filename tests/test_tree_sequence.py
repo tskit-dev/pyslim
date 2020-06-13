@@ -217,6 +217,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         right_answer = np.repeat(True, ts.num_individuals)
         node_indivs = ts.tables.nodes.individual
         parent_ids = [set() for _ in ts.individuals()]
+        node_parent_ids = [set() for _ in ts.nodes()]
         for t in ts.trees():
             for i in ts.individuals():
                 if len(i.nodes) != 2:
@@ -233,12 +234,25 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                             pdeath = ts.individual_times[p] - ts.individual_ages[p]
                             if i.time + is_WF < pdeath:
                                 right_answer[i.id] = False
-                            else:
-                                parent_ids[i.id].add(p)
+                            parent_ids[i.id].add(p)
+                            node_parent_ids[n].add(p)
         for j, p in enumerate(parent_ids):
             if len(p) == 0:
                 right_answer[j] = False
+        for j, p in enumerate(node_parent_ids):
+            if len(p) != 1:
+                ind = ts.node(j).individual
+                if ind != tskit.NULL:
+                    right_answer[ts.node(j).individual] = False
         has_parents = ts.has_individual_parents()
+        for j, (a, b) in enumerate(zip(right_answer, has_parents)):
+            if a != b:
+                print("------------")
+                print(j, a, b)
+                print(parent_ids[j])
+                for n in ts.individual(j).nodes:
+                    print(n, node_parent_ids[n])
+                print("------------")
         self.assertArrayEqual(right_answer, has_parents)
 
     def test_everyone(self):
@@ -273,6 +287,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                 keep_nodes.extend(ts.individual(i).nodes)
             ts = ts.simplify(samples=keep_nodes, filter_individuals=True)
             ts = ts.recapitate(recombination_rate=0.01)
+            ts.dump("temp.trees")
             has_parents = ts.has_individual_parents()
             self.assertGreater(sum(has_parents), 0)
             self.verify_has_parents(ts)

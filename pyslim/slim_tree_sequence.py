@@ -78,12 +78,22 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
 
 
-def _check_unique_groups(group, label):
-    n = np.bincount(1 + group)[1:]
-    x = np.bincount(1 + group, weights=label)[1:]
-    x2 = np.bincount(1 + group, weights=label ** 2)[1:]
+def _unique_labels_by_group(group, label, minlength=0):
+    '''
+    Given an array of integers ("group") from -1 and up and an array of numeric
+    "labels" of the same length, returns a logical value for each distinct
+    value of ``group``, except for -1, indicating if all the entries of
+    ``label`` that correspond to that value of ``group`` are identical. The
+    return value will be of length at least ``minlength``.
+
+    In other words, if the result is ``x``, then
+    ``x[j]`` is ``len(set(label[group == j])) == 1``.
+    '''
+    n = np.bincount(1 + group, minlength=minlength + 1)[1:]
+    x = np.bincount(1 + group, weights=label, minlength=minlength + 1)[1:]
+    x2 = np.bincount(1 + group, weights=label ** 2, minlength=minlength + 1)[1:]
     # (a * x)**2 = a * (a * x**2)
-    return np.all(x**2 == n * x2)
+    return (x**2 == n * x2)
 
 
 class SlimTreeSequence(tskit.TreeSequence):
@@ -164,9 +174,11 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         self.individual_times = np.zeros(ts.num_individuals)
         self.individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
-        if not _check_unique_groups(ts.tables.nodes.individual, ts.tables.nodes.population):
+        if not np.all(_unique_labels_by_group(ts.tables.nodes.individual,
+                                              ts.tables.nodes.population)):
             raise ValueError("Individual has nodes from more than one population.")
-        if not _check_unique_groups(ts.tables.nodes.individual, ts.tables.nodes.time):
+        if not np.all(_unique_labels_by_group(ts.tables.nodes.individual,
+                                              ts.tables.nodes.time)):
             raise ValueError("Individual has nodes from more than one time.")
         has_indiv = (ts.tables.nodes.individual >= 0)
         which_indiv = ts.tables.nodes.individual[has_indiv]
@@ -566,24 +578,31 @@ class SlimTreeSequence(tskit.TreeSequence):
         IDs of individuals for which:
 
         - all edges terminating in that individual's nodes are in individuals,
+        - each of the individual's nodes inherit from a single individual only,
         - those parental individuals were alive when the individual was born,
         - the parental individuals account for two whole genomes.
 
         This returns a boolean array indicating for each individual whether all
-        these are true.  Note that this will return True if, for instance, all
-        the individual's granparents are still alive at their birth, and
-        present in the tree sequence, but the parents are not.
+        these are true.
 
         :return: A boolean array of length equal to ``targets``.
         '''
         is_WF = (self.slim_provenance.model_type == "WF")
         edges = self.tables.edges
         nodes = self.tables.nodes
-        # edges describing relationships between individuals
         edge_parent_indiv = nodes.individual[edges.parent]
         edge_child_indiv = nodes.individual[edges.child]
-        indiv_edges = np.logical_and(edge_parent_indiv != tskit.NULL,
-                                     edge_child_indiv != tskit.NULL)
+        # nodes whose parent nodes are all in the same individual
+        unique_parent_nodes = _unique_labels_by_group(
+                edges.child,
+                edge_parent_indiv,
+                minlength=nodes.num_rows)
+        unique_parent_edges = unique_parent_nodes[edges.child]
+        # edges describing relationships between individuals
+        indiv_edges = np.logical_and(
+                np.logical_and(edge_parent_indiv != tskit.NULL,
+                                     edge_child_indiv != tskit.NULL),
+                unique_parent_edges)
         # individual edges where the parent was alive at the birth time of the child
         child_births = self.individual_times[edge_child_indiv[indiv_edges]]
         parent_births = self.individual_times[edge_parent_indiv[indiv_edges]]
