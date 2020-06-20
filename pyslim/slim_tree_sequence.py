@@ -10,6 +10,7 @@ import numpy as np
 
 from .slim_metadata import *
 from .provenance import *
+from .util import *
 from .slim_metadata import _decode_mutation_pre_nucleotides
 
 INDIVIDUAL_ALIVE = 2**16
@@ -76,24 +77,6 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     _set_populations(tables)
     _set_sites_mutations(tables)
     _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
-
-
-def _unique_labels_by_group(group, label, minlength=0):
-    '''
-    Given an array of integers ("group") from -1 and up and an array of numeric
-    "labels" of the same length, returns a logical value for each distinct
-    value of ``group``, except for -1, indicating if all the entries of
-    ``label`` that correspond to that value of ``group`` are identical. The
-    return value will be of length at least ``minlength``.
-
-    In other words, if the result is ``x``, then
-    ``x[j]`` is ``len(set(label[group == j])) == 1``.
-    '''
-    n = np.bincount(1 + group, minlength=minlength + 1)[1:]
-    x = np.bincount(1 + group, weights=label, minlength=minlength + 1)[1:]
-    x2 = np.bincount(1 + group, weights=label ** 2, minlength=minlength + 1)[1:]
-    # (a * x)**2 = a * (a * x**2)
-    return (x**2 == n * x2)
 
 
 class SlimTreeSequence(tskit.TreeSequence):
@@ -174,10 +157,10 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         self.individual_times = np.zeros(ts.num_individuals)
         self.individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
-        if not np.all(_unique_labels_by_group(ts.tables.nodes.individual,
+        if not np.all(unique_labels_by_group(ts.tables.nodes.individual,
                                               ts.tables.nodes.population)):
             raise ValueError("Individual has nodes from more than one population.")
-        if not np.all(_unique_labels_by_group(ts.tables.nodes.individual,
+        if not np.all(unique_labels_by_group(ts.tables.nodes.individual,
                                               ts.tables.nodes.time)):
             raise ValueError("Individual has nodes from more than one time.")
         has_indiv = (ts.tables.nodes.individual >= 0)
@@ -593,7 +576,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         edge_parent_indiv = nodes.individual[edges.parent]
         edge_child_indiv = nodes.individual[edges.child]
         # nodes whose parent nodes are all in the same individual
-        unique_parent_nodes = _unique_labels_by_group(
+        unique_parent_nodes = unique_labels_by_group(
                 edges.child,
                 edge_parent_indiv,
                 minlength=nodes.num_rows)
