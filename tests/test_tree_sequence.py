@@ -185,6 +185,16 @@ class TestIndividualAges(tests.PyslimTestCase):
             with self.assertRaises(ValueError):
                 ts.individual_ages_at(0, stage=stage)
 
+    def test_mismatched_remembered_stage(self):
+        for ts, ex in self.get_slim_examples("pedigree", "WF", return_info=True):
+            info = ex['info']
+            if "remembered_early" in ex:
+                bad_rs = "late"
+            else:
+                bad_rs = "early"
+            with self.assertWarns(UserWarning):
+                ts.individuals_alive_at(0, remembered_stage=bad_rs)
+
     def test_ages(self):
         for ts, ex in self.get_slim_examples("pedigree", return_info=True):
             info = ex['info']
@@ -418,6 +428,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     self.assertEqual(a, b)
 
     def test_nucleotide_at(self):
+        random.seed(42)
         for ts in self.get_slim_examples():
             if ts.num_mutations > 0:
                 mut_md = ts.mutation(0).metadata

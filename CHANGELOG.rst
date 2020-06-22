@@ -11,6 +11,12 @@
    * added the `slim_provenance_version` and `parse_provenance` methods to tell if
       provenance entries come from SLiM and to parse them
 
+**Bug fixes**:
+
+- fixed differential time offset for tree sequences saved out in early versus late:
+   prior to this, mutation_at and nucleotides_at would have been sometimes wrong if the tree sequence
+   was saved out during late
+
 ********************
 [0.401] - 2020-03-27
 ********************

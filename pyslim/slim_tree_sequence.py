@@ -412,11 +412,14 @@ class SlimTreeSequence(tskit.TreeSequence):
         if time is None:
             time = self.node(node).time
         tree = self.at(position)
+        # TODO: use mutation.time when this is available:
         slim_time = self.slim_generation - time
-        # Mutation's slim_times are one less than the corresponding node's slim times
-        # in WF models, but not in WF models, for some reason.
+        # tskit time-ago begins at generation slim_generation - 1
+        # in WF models when the tree sequence is saved out in early
         if self.slim_provenance.model_type == "WF":
-            slim_time -= 1.0
+            time_adjust = (self.slim_generation
+                    - self.individual(self.first_generation_individuals()[0]).time)
+            slim_time -= time_adjust
         site_pos = self.tables.sites.position
         out = tskit.NULL
         if position in site_pos:
@@ -553,11 +556,21 @@ class SlimTreeSequence(tskit.TreeSequence):
             individuals were Remembered during.
         """
         if stage not in ("late", "early"):
-            raise ValueError(f"Unknown stage '{stage}':"
+            raise ValueError(f"Unknown stage '{stage}': "
                               "should be either 'early' or 'late'.")
         if remembered_stage not in ("late", "early"):
-            raise ValueError(f"Unknown stage '{remembered_stage}':"
+            raise ValueError(f"Unknown stage '{remembered_stage}': "
                               "should be either 'early' or 'late'.")
+        # sanity check "remembered_stage" (only possible for WF models)
+        if self.slim_provenance.model_type == "WF":
+            dt = (self.slim_generation
+                    - self.individual(self.first_generation_individuals()[0]).time)
+            if (dt == 0) != (remembered_stage == "late"):
+                warnings.warn("It looks like the tree sequence was not saved to file "
+                        f"during remembered_stage={remembered_stage}. "
+                        "This may cause inaccuracies in deciding which individuals "
+                        "are alive at what times.")
+
         # birth_time is the time ago that they were first alive in 'late'
         # in a nonWF model they are alive for the same time step's 'early'
         # but in a WF model the first 'early' they were alive for is one more recent
@@ -819,8 +832,8 @@ def _set_populations(
         try:
             ind_md = decode_individual(md)
         except:
-            raise ValueError("Individuals do not have metadata:"
-                    + "need to run set_nodes_individuals() first?")
+            raise ValueError("Individuals do not have metadata: "
+                    "need to run set_nodes_individuals() first?")
         assert(ind_md.population < num_pops)
     if pop_id is None:
         pop_id = list(range(num_pops))

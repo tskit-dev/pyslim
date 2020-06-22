@@ -23,9 +23,11 @@ import attr
 example_files = {}
 example_files['recipe_nonWF'] = {"nonWF": True, "pedigree": True}
 example_files['recipe_WF'] = {"WF": True, "pedigree": True}
+example_files['recipe_nonWF_early'] = {"nonWF": True, "pedigree": True, "remembered_early": True}
+example_files['recipe_WF_early'] = {"WF": True, "pedigree": True, "remembered_early": True}
 example_files['recipe_nucleotides'] = {"WF": True, "pedigree": True, "nucleotides": True}
 example_files['recipe_long_nucleotides'] = {"WF": True, "nucleotides": True}
-example_files['recipe_roots'] = {"WF": True}
+example_files['recipe_roots'] = {"WF": True, "pedigree": True}
 for t in ("WF", "nonWF"):
     for s in ("early", "late"):
         value = {t: True, "everyone": True, "pedigree": True}
@@ -35,7 +37,6 @@ for t in ("WF", "nonWF"):
 
 
 for f in example_files:
-    print(f, example_files[f])
     example_files[f]['basename'] = os.path.join("tests", "examples", f)
 
 
