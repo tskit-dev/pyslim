@@ -138,17 +138,17 @@ class TestProvenance(tests.PyslimTestCase):
                 yield tskit.load(filename)
 
     def test_get_provenance(self):
-        for ts in self.get_wf_examples():
+        for ts in self.get_slim_examples("WF"):
             prov = ts.slim_provenance
             self.assertEqual(prov, pyslim.get_provenance(ts))
             self.assertEqual(prov.model_type, "WF")
-        for ts in self.get_nonwf_examples():
+        for ts in self.get_slim_examples("nonWF"):
             prov = ts.slim_provenance
             self.assertEqual(prov, pyslim.get_provenance(ts))
             self.assertEqual(prov.model_type, "nonWF")
 
     def test_get_all_provenances(self):
-        for ts in self.get_wf_examples():
+        for ts in self.get_slim_examples("WF"):
             rts = self.run_msprime_restart(ts)
             provenances = rts.slim_provenances
             self.assertEqual(len(provenances), 2)

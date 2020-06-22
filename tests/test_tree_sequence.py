@@ -174,46 +174,70 @@ class TestPopulationMetadata(tests.PyslimTestCase):
                 self.assertEqual(ts.population(j).metadata, md)
 
 
-class TestEveryone(tests.PyslimTestCase):
-    '''
-    Test things we calculate from tree sequences where 
-    everyone is remembered at all times.
-    '''
+class TestIndividualAges(tests.PyslimTestCase):
+    # tests for individuals_alive_at and individual_ages_at
 
-    def test_alive_ages(self):
-        for ts in self.get_slim_everyone_examples():
-            is_WF = (ts.slim_provenance.model_type == "WF")
-            ages_mat = np.zeros((ts.num_individuals, ts.slim_generation))
-            alive_mat = np.zeros((ts.num_individuals, ts.slim_generation))
-            alive_now = ts.individuals_alive_at(0)
-            for time in range(ts.slim_generation):
-                ages_mat[:, time] = ts.individual_ages_at(time)
-                for j in ts.individuals_alive_at(time):
-                    alive_mat[j, time] = 1
+    def test_errors(self):
+        ts = next(self.get_slim_examples("everyone"))
+        for stage in ['abcd', 10, None, []]:
+            with self.assertRaises(ValueError):
+                ts.individuals_alive_at(0, stage=stage)
+            with self.assertRaises(ValueError):
+                ts.individual_ages_at(0, stage=stage)
 
-            for j, ind in enumerate(ts.individuals()):
-                if is_WF:
-                    age = 0
+    def test_ages(self):
+        for ts, ex in self.get_slim_examples("pedigree", return_info=True):
+            info = ex['info']
+            remembered_stage = 'early' if 'remembered_early' in ex else 'late'
+            max_time_ago = ts.slim_generation
+            if remembered_stage == 'early':
+                max_time_ago -= 1
+            for time in range(0, max_time_ago):
+                # if written out during 'early' in a WF model,
+                # tskit time 0 will be the SLiM time step *before* slim_generation
+                slim_time = ts.slim_generation - time
+                if remembered_stage == 'early' and ts.slim_provenance.model_type == "WF":
+                    slim_time -= 1
+                if remembered_stage == 'early' and time == 0:
+                    # if we remember in early we don't know who's still there
+                    # in late of the last time step
+                    check_stages = ('early',)
                 else:
-                    age = ind.metadata.age
-                self.assertEqual(j in alive_now,
-                                 ind.flags & pyslim.INDIVIDUAL_ALIVE > 0)
-                self.assertEqual(sum(alive_mat[j, :]), 1 + age)
-                self.assertEqual(alive_mat[j, int(ind.time)], 1)
-                self.assertEqual(ages_mat[j, int(ind.time)], 0)
-                for t in range(ts.slim_generation):
-                    if t > ind.time:
-                        self.assertTrue(np.isnan(ages_mat[j, t]))
-                    if t == ind.time:
-                        self.assertEqual(ages_mat[j, t], 0)
-                if ind.time + 1 < ts.slim_generation:
-                    self.assertEqual(alive_mat[j, int(ind.time + 1)], 0)
+                    check_stages = ('early', 'late')
+                for stage in check_stages:
+                    alive = ts.individuals_alive_at(
+                                time,
+                                stage=stage,
+                                remembered_stage=remembered_stage)
+                    ages = ts.individual_ages_at(
+                                time,
+                                stage=stage,
+                                remembered_stage=remembered_stage)
+                    for ind in ts.individuals():
+                        if 'everyone' in ex or ind.time == 0:
+                            slim_id = ind.metadata.pedigree_id
+                            self.assertIn(slim_id, info)
+                            slim_alive = (slim_time, stage) in info[slim_id]['age']
+                            pyslim_alive = ind.id in alive
+                            print(time, (slim_time, stage))
+                            print(ind)
+                            print(info[slim_id])
+                            print(slim_alive, pyslim_alive)
+                            self.assertEqual(slim_alive, pyslim_alive)
+                            if slim_alive:
+                                slim_age = info[slim_id]['age'][(slim_time, stage)]
+                                if ts.slim_provenance.model_type == "WF":
+                                    # SLiM records -1 but we return 0 in late and 1 in early
+                                    slim_age = 0 + (stage == 'early')
+                                print('age:', ages[ind.id], slim_age)
+                                self.assertEqual(ages[ind.id], slim_age)
+                            else:
+                                self.assertTrue(np.isnan(ages[ind.id]))
 
 
 class TestHasIndividualParents(tests.PyslimTestCase):
 
     def verify_has_parents(self, ts):
-        is_WF = (ts.slim_provenance.model_type == "WF")
         right_answer = np.repeat(True, ts.num_individuals)
         node_indivs = ts.tables.nodes.individual
         parent_ids = [set() for _ in ts.individuals()]
@@ -231,9 +255,14 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                         if p == tskit.NULL:
                             right_answer[i.id] = False
                         else:
-                            pdeath = ts.individual_times[p] - ts.individual_ages[p]
-                            if i.time + is_WF < pdeath:
-                                right_answer[i.id] = False
+                            ptime = ts.individual_times[p]
+                            if ts.slim_provenance.model_type == "WF":
+                                if i.time + 1 != ptime:
+                                    right_answer[i.id] = False
+                            else:
+                                pdeath = ptime - ts.individual_ages[p]
+                                if i.time + 1 < pdeath:
+                                    right_answer[i.id] = False
                             parent_ids[i.id].add(p)
                             node_parent_ids[n].add(p)
         for j, p in enumerate(parent_ids):
@@ -258,7 +287,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
     def test_everyone(self):
         # since everyone is recorded, only the initial individuals should
         # not have parents
-        for ts in self.get_slim_everyone_examples():
+        for ts in self.get_slim_examples("everyone"):
             right_answer = np.repeat(True, ts.num_individuals)
             right_answer[ts.first_generation_individuals()] = False
             print(right_answer)
@@ -268,7 +297,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
 
     def test_post_recap(self):
         # the same should be true after recapitation
-        for ts in self.get_slim_everyone_examples():
+        for ts in self.get_slim_examples("everyone"):
             right_answer = np.repeat(True, ts.num_individuals)
             right_answer[ts.first_generation_individuals()] = False
             ts = ts.recapitate(recombination_rate=0.01)
@@ -278,7 +307,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             self.verify_has_parents(ts)
 
     def test_post_simplify(self):
-        for ts in self.get_slim_everyone_examples():
+        for ts in self.get_slim_examples("everyone"):
             keep_indivs = np.random.choice(
                     np.where(ts.individual_times < ts.slim_generation - 1)[0],
                     size=30, replace=False)
@@ -291,6 +320,25 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             has_parents = ts.has_individual_parents()
             self.assertGreater(sum(has_parents), 0)
             self.verify_has_parents(ts)
+
+    def test_pedigree(self):
+        for ts, ex in self.get_slim_examples("pedigree", return_info=True):
+            has_parents = ts.has_individual_parents()
+            info = ex['info']
+            slim_map = {}
+            for ind in ts.individuals():
+                slim_map[ind.metadata.pedigree_id] = ind.id
+            for hasp, ind in zip(has_parents, ts.individuals()):
+                slim_parents = info[ind.metadata.pedigree_id]['parents']
+                slim_hasp = len(slim_parents) > 0
+                for p in slim_parents:
+                    if p not in slim_map:
+                        slim_hasp = False
+                if hasp != slim_hasp:
+                    print(ind, hasp, slim_hasp)
+                    print(slim_parents)
+                    print(slim_map)
+                self.assertEqual(hasp, slim_hasp)
 
 
 class TestSimplify(tests.PyslimTestCase):
@@ -349,6 +397,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                         ts.nucleotide_at(u, 3)
 
     def test_mutation_at(self):
+        random.seed(42)
         for ts in self.get_slim_examples():
             for _ in range(100):
                 node = random.randint(0, ts.num_nodes - 1)

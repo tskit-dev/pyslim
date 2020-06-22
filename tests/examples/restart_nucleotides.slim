@@ -2,7 +2,7 @@ initialize()
 {
     setSeed(23);
 	defineConstant("L", 1e2);
-	initializeSLiMOptions(nucleotideBased=T);
+	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
     initializeTreeSeq();
 	initializeAncestralNucleotides(randomNucleotides(L));
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);

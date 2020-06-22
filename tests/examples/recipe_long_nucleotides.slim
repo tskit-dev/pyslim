@@ -2,8 +2,9 @@
 
 initialize() {
     setSeed(23);
+    defineConstant("OUTFILE", "recipe_long_nucleotides.trees");
 	defineConstant("L", 1e2);
-	initializeSLiMOptions(nucleotideBased=T);
+	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
     initializeTreeSeq();
 	initializeAncestralNucleotides(randomNucleotides(L));
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
@@ -16,8 +17,10 @@ initialize() {
 	sim.addSubpop("p1", 10);
 }
 
-100000 {
-    sim.treeSeqOutput("recipe_long_nucleotides.trees");
+100000 late() {
+    sim.treeSeqOutput(OUTFILE);
     catn("Done.");
     sim.simulationFinished();
 }
+
+// too big for pedigree output

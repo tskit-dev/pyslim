@@ -11,24 +11,40 @@ import random
 import unittest
 import base64
 import os
+import attr
 
-# recipes that record everyone ever
-_everyone_example_files = ["tests/examples/recipe_record_everyone",
-                           "tests/examples/recipe_record_everyone_WF"]
+# possible attributes to simulation scripts are
+#  WF, nonWF
+#  nucleotides
+#  everyone: records everyone ever
+#  pedigree: writes out accompanying info file containing the pedigree
+#  remembered_early: remembering and saving the ts happens during early
+# All files are of the form `tests/examples/{key}.slim`
+example_files = {}
+example_files['recipe_nonWF'] = {"nonWF": True, "pedigree": True}
+example_files['recipe_WF'] = {"WF": True, "pedigree": True}
+example_files['recipe_nucleotides'] = {"WF": True, "pedigree": True, "nucleotides": True}
+example_files['recipe_long_nucleotides'] = {"WF": True, "nucleotides": True}
+example_files['recipe_roots'] = {"WF": True}
+for t in ("WF", "nonWF"):
+    for s in ("early", "late"):
+        value = {t: True, "everyone": True, "pedigree": True}
+        if s == 'early':
+            value['remembered_early'] = True
+        example_files[f'recipe_record_everyone_{t}_{s}'] = value
 
-_wf_example_files = ["tests/examples/recipe_{}".format(x)
-                  for x in ['WF', 'nucleotides', 'long_nucleotides', 'roots']]
 
-_nonwf_example_files = ["tests/examples/recipe_{}".format(x)
-                  for x in ['nonWF']]
+for f in example_files:
+    print(f, example_files[f])
+    example_files[f]['basename'] = os.path.join("tests", "examples", f)
 
-_example_files = _wf_example_files + _nonwf_example_files + _everyone_example_files
 
 # this is of the form (input, basename)
 # TODO: test restarting of nucleotides after reference sequence dumping is enabled
 _restart_files = [("tests/examples/recipe_{}.trees".format(x),
                    "tests/examples/restart_{}".format(x))
                   for x in ['WF', 'nonWF']] # , 'nucleotides']]
+
 
 def run_slim_script(slimfile, args=''):
     outdir = os.path.dirname(slimfile)
@@ -37,12 +53,14 @@ def run_slim_script(slimfile, args=''):
     out = os.system("cd " + outdir + " && slim -s 23 " + args + " " + script + ">/dev/null")
     return out
 
+
 def setUp():
     # Make random tests reproducible.
     random.seed(210)
 
     # run SLiM
-    for basename in _example_files:
+    for f in example_files:
+        basename = example_files[f]['basename']
         treefile = basename + ".trees"
         print(treefile)
         try:
@@ -55,10 +73,17 @@ def setUp():
 
 
 def tearDown():
-    for filename in _example_files:
-        treefile = filename + ".trees"
+    for f in example_files:
+        basename = example_files[f]['basename']
+        treefile = basename + ".trees"
         try:
             os.remove(treefile)
+            pass
+        except FileNotFoundError:
+            pass
+        infofile = treefile + ".pedigree"
+        try:
+            os.remove(infofile)
             pass
         except FileNotFoundError:
             pass
@@ -85,36 +110,27 @@ class PyslimTestCase(unittest.TestCase):
             g2 = [v2.alleles[x] for x in v2.genotypes]
             self.assertArrayEqual(g1, g2)
 
-    def get_slim_example_files(self):
-        for filename in _example_files:
-            yield filename + ".trees"
-
-    def get_slim_examples(self):
-        for treefile in self.get_slim_example_files():
-            print("---->", treefile)
-            self.assertTrue(os.path.isfile(treefile))
-            yield pyslim.load(treefile)
-
-    def get_slim_everyone_examples(self):
-        for filename in _everyone_example_files:
-            treefile = filename + ".trees"
-            print("---->", treefile)
-            self.assertTrue(os.path.isfile(treefile))
-            yield pyslim.load(treefile)
-
-    def get_wf_examples(self):
-        for filename in _wf_example_files:
-            treefile = filename + ".trees"
-            print("---->", treefile)
-            self.assertTrue(os.path.isfile(treefile))
-            yield pyslim.load(treefile)
-
-    def get_nonwf_examples(self):
-        for filename in _nonwf_example_files:
-            treefile = filename + ".trees"
-            print("---->", treefile)
-            self.assertTrue(os.path.isfile(treefile))
-            yield pyslim.load(treefile)
+    def get_slim_examples(self, *args, return_info=False):
+        for ex in example_files.values():
+            basename = ex['basename']
+            use = True
+            for a in args:
+                if a not in ex:
+                    use = False
+            if use:
+                treefile = basename + ".trees"
+                print("---->", treefile)
+                self.assertTrue(os.path.isfile(treefile))
+                ts = pyslim.load(treefile)
+                if return_info:
+                    infofile = treefile + ".pedigree"
+                    if os.path.isfile(infofile):
+                        ex['info'] = self.get_slim_info(infofile)
+                    else:
+                        ex['info'] = None
+                    yield (ts, ex)
+                else:
+                    yield ts
 
     def get_slim_restarts(self):
         for treefile, basename in _restart_files:
@@ -178,3 +194,34 @@ class PyslimTestCase(unittest.TestCase):
                         recombination_rate=recrate,
                         mutation_rate=mutrate,
                         length=250)
+
+    def get_slim_info(self, fname):
+        # returns a dictionary whose keys are SLiM individual IDs, and whose values
+        # are dictionaries with two entries:
+        # - 'parents' is the SLiM IDs of the parents
+        # - 'age' is a dictionary whose keys are tuples (SLiM generation, stage)
+        #   and whose values are ages (keys not present are ones the indivdiual was
+        #   not alive for)
+        self.assertTrue(os.path.isfile(fname))
+        out = {}
+        with open(fname, 'r') as f:
+            header = f.readline().split()
+            self.assertSequenceEqual(
+                    header,
+                    ['generation', 'stage', 'individual', 'age', 'parent1', 'parent2'])
+            for line in f:
+                gen, stage, ind, age, p1, p2 = line.split()
+                gen = int(gen)
+                ind = int(ind)
+                age = int(age)
+                parents = tuple([int(p) for p in (p1, p2) if p != "-1"])
+                if ind not in out:
+                    out[ind] = {
+                            "parents" : parents,
+                            "age" : {}
+                            }
+                else:
+                    for p in parents:
+                        self.assertIn(p, out[ind]['parents'])
+                out[ind]['age'][(gen, stage)] = age
+        return out

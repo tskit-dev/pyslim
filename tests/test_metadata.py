@@ -220,7 +220,8 @@ class TestDumpLoad(tests.PyslimTestCase):
             self.assertEqual(tables, new_tables)
 
     def test_load(self):
-        for fn in self.get_slim_example_files():
+        for _, ex in self.get_slim_examples(return_info=True):
+            fn = ex['basename'] + ".trees"
             # load in msprime then switch
             msp_ts = tskit.load(fn)
             self.assertTrue(type(msp_ts) is msprime.TreeSequence)

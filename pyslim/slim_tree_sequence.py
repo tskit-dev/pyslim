@@ -512,38 +512,113 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts.reference_sequence = self.reference_sequence
         return ts
 
-    def individuals_alive_at(self, time):
+    def individuals_alive_at(self, time, stage="late", remembered_stage='late'):
         """
         Returns an array giving the IDs of all individuals that are known to be
-        alive at the given time ago.  This is determined by seeing if their age
-        at `time`, determined since the time since they were born (their
-        `.time` attribute) is less than or equal to their `age` attribute
-        (which will reflect their age at the last time they were Remembered).
+        alive at the given time ago.  This is determined using their birth time
+        ago (given by their `time` attribute) and, for nonWF models,
+        their `age` attribute (which is equal to their age at the last time
+        they were Remembered). See also :meth:`.individual_ages_at`.
 
-        :param float time: The time ago.
+        In WF models, birth occurs after "early", so that individuals are only
+        alive during "late" for the time step when they have age zero,
+        while in nonWF models, birth occurs before "early", so they are alive
+        for both stages.
+        
+        In both WF and nonWF models, mortality occurs between
+        "early" and "late", so that individuals are last alive during the
+        "early" stage of the time step of their final age, and if individuals
+        are alive during "late" they will also be alive during "early" of the
+        next time step. This means it is important to know during which stage
+        individuals were Remembered - for instance, if the call to
+        sim.treeSeqRememberIndividuals was made during "early" of a given time step,
+        then those individuals might not have survived until "late" of that
+        time step. Since SLiM does not record the stage at which individuals
+        were Remembered, you can specify this by setting ``remembered_stages``:
+        it should be the stage during which *all* calls to sim.treeSeqRememberIndividuals,
+        as well as to sim.treeSeqOutput(), were made.
+
+        Note also that in nonWF models, birth occurs before "early", so the
+        possible parents in a given time step are those that are alive in
+        "early" and have age greater than zero, or, equivalently, are alive in
+        "late" during the previous time step.
+        In WF models, birth occurs after "early", so possible parents in a
+        given time step are those that are alive during "early" of that time
+        step or are alive during "late" of the previous time step.
+
+        :param float time: The number of time steps ago.
+        :param str stage: The stage in the SLiM life cycle that we are inquiring
+            about (either "early" or "late"; defaults to "late").
+        :param str remembered_stage: The stage in the SLiM life cycle that
+            individuals were Remembered during.
         """
-        births = self.individual_times
+        if stage not in ("late", "early"):
+            raise ValueError(f"Unknown stage '{stage}':"
+                              "should be either 'early' or 'late'.")
+        if remembered_stage not in ("late", "early"):
+            raise ValueError(f"Unknown stage '{remembered_stage}':"
+                              "should be either 'early' or 'late'.")
+        # birth_time is the time ago that they were first alive in 'late'
+        # in a nonWF model they are alive for the same time step's 'early'
+        # but in a WF model the first 'early' they were alive for is one more recent
+        birth_time = self.individual_times
+        # birth_time - birth_offset is the first time ago they were alive
+        # during stage 'stage'
+        if stage == "early" and self.slim_provenance.model_type == "WF":
+            birth_offset = 1
+        else:
+            birth_offset = 0
+        # ages is the number of complete life cycles they are known to have lived through,
+        # and so individuals have lived through at least 'age + 1' of both stages.
+        # In nonWF models, they live for one more 'early' than 'late',
+        # but this is only reflected in their age if Remembered in 'early'.
         ages = self.individual_ages
-        alive_bool = np.logical_and(births >= time, births - ages <= time)
+        # ages + age_offset + 1 is the number of 'stage' stages they are known
+        # to have lived through
+        if (self.slim_provenance.model_type == "WF"
+                or stage == remembered_stage):
+            age_offset = 0
+        else:
+            if (remembered_stage == "early"
+                    and stage == "late"):
+                age_offset = -1
+            else:
+                age_offset = 1
+        # if adjusted age=0 then they are be alive at exactly one time step
+        alive_bool = np.logical_and(
+                birth_time >= time + birth_offset,
+                birth_time - ages <= time + birth_offset + age_offset)
         return np.where(alive_bool)[0]
 
-    def individual_ages_at(self, time):
+    def individual_ages_at(self, time, stage="late", remembered_stage="late"):
         """
         Returns the *ages* of each individual at the corresponding time ago,
         which will be `nan` if the individual is either not born yet or dead.
         This is computed as the time ago the individual was born (found by the
         `time` associated with the the individual's nodes) minus the `time`
         argument; while "death" is inferred from the individual's `age`,
-        recorded in metadata.
+        recorded in metadata. These values are the same as what would be shown
+        in SLiM during the corresponding time step and stage.
 
-        The age is the number of complete time steps the individual has lived
+        Since age increments at the end of each time step,
+        the age is the number of time steps ends the individual has lived
         through, so if they were born in time step `time`, then their age
         will be zero.
 
+        In a WF model, this method does not provide any more information than
+        does :meth:`.individuals_alive_at`, but for consistency, non-nan ages
+        will be 0 in "late" and 1 in "early".
+        See :meth:`.individuals_alive_at` for further discussion.
+
         :param float time: The reference time ago.
+        :param str stage: The stage in the SLiM life cycle used to determine who
+            is alive (either "early" or "late"; defaults to "late").
+        :param str remembered_stage: The stage in the SLiM life cycle that
+            individuals were Remembered during.
         """
         ages = np.repeat(np.nan, self.num_individuals)
-        alive = self.individuals_alive_at(time)
+        alive = self.individuals_alive_at(time, stage=stage,
+                                          remembered_stage=remembered_stage)
         ages[alive] = self.individual_times[alive] - time
         return ages
 
@@ -554,7 +629,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         """
         return np.where(self.tables.individuals.flags & INDIVIDUAL_FIRST_GEN > 0)[0]
 
-    def has_individual_parents(self):
+    def has_individual_parents(self, remembering_stage="late"):
         '''
         Finds which individuals have both their parent individuals also present
         in the tree sequence, as far as we can tell. To do this, we return the
@@ -568,9 +643,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         This returns a boolean array indicating for each individual whether all
         these are true.
 
+        See :meth:`.individuals_alive_at` for further discussion about how
+        this is determined based on when the individuals were Remembered.
+
         :return: A boolean array of length equal to ``targets``.
         '''
-        is_WF = (self.slim_provenance.model_type == "WF")
         edges = self.tables.edges
         nodes = self.tables.nodes
         edge_parent_indiv = nodes.individual[edges.parent]
@@ -586,12 +663,16 @@ class SlimTreeSequence(tskit.TreeSequence):
                 np.logical_and(edge_parent_indiv != tskit.NULL,
                                      edge_child_indiv != tskit.NULL),
                 unique_parent_edges)
-        # individual edges where the parent was alive at the birth time of the child
+        # individual edges where the parent was alive during "late"
+        # of the time step before the child is born
         child_births = self.individual_times[edge_child_indiv[indiv_edges]]
         parent_births = self.individual_times[edge_parent_indiv[indiv_edges]]
-        parent_deaths = parent_births - self.individual_ages[edge_parent_indiv[indiv_edges]]
         alive_edges = indiv_edges.copy()
-        alive_edges[indiv_edges] = (child_births + is_WF >= parent_deaths)
+        if self.slim_provenance.model_type == "WF":
+            alive_edges[indiv_edges] = (child_births + 1 == parent_births)
+        else:
+            parent_deaths = parent_births - self.individual_ages[edge_parent_indiv[indiv_edges]]
+            alive_edges[indiv_edges] = (child_births + 1 >= parent_deaths)
         # total genome inherited from parents
         edge_spans = edges.right - edges.left
         parental_span = np.bincount(edge_child_indiv[alive_edges],
