@@ -88,6 +88,119 @@ you must set migration rates or else coalescence will never happen
 (see below for an example, and :meth:`.SlimTreeSequence.recapitate` for more).
 
 
+++++++++++++++++++++++++++++++++++++++++++++++++
+Recapitation with a nonuniform recombination map
+++++++++++++++++++++++++++++++++++++++++++++++++
+
+Above, we recapitated using a uniform genetic map.
+But, msprime - like SLiM - can simulate with recombination drawn from an arbitrary genetic map.
+Let's say we've already got a recombination map as specified by SLiM,
+as a vector of "positions" and a vector of "rates".
+msprime also needs vectors of positions and rates, but the format is slightly different.
+To use the SLiM values for msprime, we need to do three things:
+
+1. Add a 0 at the beginning of the positions,
+2. add a 0 at the end of the rates, and
+3. add 1 to the final value in "positions".
+
+The reason why msprime "positions" must start with 0 (step 1) is that in SLiM,
+a position or "end" indicates the end of a recombination block such that its associated
+"rate" applies to everything to the left of that end (see ``initializeRecombinationRate``).
+In msprime, `the manual <https://msprime.readthedocs.io/en/stable/api.html#variable-recombination-rates>`_ says:
+
+    Given an index j in these lists, the rate of recombination per base per
+    generation is rates[j] over the interval positions[j] to positions[j + 1].
+    Consequently, the first position must be zero, and by convention the last
+    rate value is also required to be zero (although it is not used).
+
+This means that positions for msprime are both starts and ends.
+As a consequence, msprime needs a vector of positions that is 1 longer than what you give SLiM,
+and msprime also needs 1 fewer rates than it has positions,
+but you just add the 0.0 on at the end of the rates vector "by convention" (step 2).
+
+The reason for step 3 is that intervals for tskit (which msprime uses)
+are "closed on the left and open on the right",
+which means that the genomic interval from 0.0 to 100.0 includes 0.0 but does not include 100.0.
+If SLiM has a final genomic position of 99, then it could have mutations occurring at position 99.
+Such mutations would *not* be legal, on the other hand, if we set the tskit sequence length to 99,
+since the position 99 would be outside of the interval from 0 to 99.
+So, in SLiM when we record tree sequences, we use the last position plus one
+- i.e., the length of the genome - as the rightmost coordinate.
+
+For instance, suppose that we have a recombination map file in the following (tab-separated) format:
+
+.. literalinclude:: _static/recomb_rates.tsv
+
+This describes recombination rates across a 1Mb segment of genome
+with higher rates on the ends
+(for instance, 3.2 and 2.8 cM/Mb in the first and last 150Kb respectively)
+and lower rates in the middle (0.25 cM/Mb between 500Kb and 850Kb).
+The first column gives the starting position, in bp,
+for the window whose recombination rate is given in the second column.
+(*Note:* this is *not* a standard format for recombination maps
+- it is more usual for the *starting*
+position to be listed!)
+
+Here is SLiM code to read this file and set the recombination rates:
+
+.. code-block::
+
+   lines = readFile("recomb_rates.tsv");
+   header = strsplit(lines[0], "\t");
+   if (header[0] != "end_position"
+       | header[1] != "rate(cM/Mb)") {
+       stop("Unexpected format!");
+   }
+   rates = NULL;
+   ends = NULL;
+   nwindows = length(lines) - 1;
+   for (line in lines[1:nwindows]) {
+      components = strsplit(line, "\t");
+      ends = c(ends, asInteger(components[0]));
+      rates = c(rates, asFloat(components[1]));
+   }
+   initializeRecombinationRate(rates * 1e-8, ends);
+
+Now, here's code to take the same recombination map used in SLiM,
+and use it for recapitation in msprime:
+
+.. code-block:: python
+
+   import msprime, pyslim
+   import numpy as np
+   ts = pyslim.load("sim.trees")
+   positions = []
+   rates = []
+   with open('recomb_rates.tsv', 'r') as file:
+      header = file.readline().strip().split("\t")
+      assert(header[0] == "end_position" and header[1] == "rate(cM/Mb)")
+      for line in file:
+         components = line.split("\t")
+         positions.append(float(components[0]))
+         rates.append(1e-8 * float(components[1]))
+
+   # step 1   
+   positions.insert(0, 0) 
+   # step 2
+   rates.append(0.0)
+   # step 3
+   positions[-1] += 1
+
+   recomb_map = msprime.RecombinationMap(positions, rates)
+   rts = ts.recapitate(recombination_map=recomb_map, Ne=1000)
+   assert(max([t.num_roots for t in rts.trees()]) == 1)
+
+Next, one might wish to sanity check the result,
+for instance, by setting rates in one interval to zero
+and making sure that no recombinations occurred in that region.
+
+.. note::
+
+   Starting from msprime 1.0, there will be a ``discrete`` argument to
+   the RecombinationMap class; setting ``discrete=True`` will more closely
+   match the recombination model of SLiM.
+
+
 **************
 Simplification
 **************

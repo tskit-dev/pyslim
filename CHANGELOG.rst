@@ -10,6 +10,7 @@
    * added the `.slim_provenances` property to return all SLiM provenance entries
    * added the `slim_provenance_version` and `parse_provenance` methods to tell if
       provenance entries come from SLiM and to parse them
+- documentation for recapitation with a nonuniform map by :user:@TeresaPegan
 
 **Bug fixes**:
 
