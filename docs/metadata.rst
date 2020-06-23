@@ -18,11 +18,11 @@ In other words, SLiM's time counter measures the number of time steps
 and times in the tree sequence record how long before the end of the simulation.
 However, off-by-one errors are easy to make, so we'll spell it out in detail.
 
-When the tree sequence is written out, SLiM records the value of its' current generation,
-which can be found in :attr:`.SlimTreeSequence.slim_generation` property of a SLiM tree sequence.
+When the tree sequence is written out, SLiM records the value of its current generation,
+which can be found in the :attr:`.SlimTreeSequence.slim_generation` property of a SLiM tree sequence.
 In most cases, the "SLiM time" referred to by a ``time`` in the tree sequence
 (i.e., the value that would be reported by ``sim.generation``
-within SLiM at the point in time thus referred to)
+within SLiM at the point in time thus referenced)
 can be obtained by subtracting ``time`` from ``ts.slim_generation``.
 **However,** in WF models, birth happens between the "early()" and "late()" stages,
 so if the tree sequence was written out using ``sim.treeSeqOutput()`` during "early()" in a WF model,
@@ -49,7 +49,8 @@ and need this to be the same as the stage that any individuals were saved with `
 This argument, ``remembered_stage``, defaults to "late()";
 we recommend that you also default to always Remembering individuals, and saving out the tree sequence,
 during "late()" as well, unless you have good reason not to.
-(This means you *must specify* the stage, since it defaults to "early()"!)
+(This means you *must specify* the stage of the block in your SLiM script,
+since the stage defaults to "early()"!)
 
 
 ***********************
@@ -83,8 +84,6 @@ and write out the resulting tree sequence:
 Technical details
 *****************
 
-Tools for working with tree sequences are provided by a package called `tskit`.
-`pyslim` provides a thin interface between `msprime/tskit`.
 
 ++++++++++++++++
 Metadata entries
@@ -92,6 +91,6 @@ Metadata entries
 
 SLiM records additional information in the metadata columns of Population, Individual, Node, and Mutation tables.
 The information is recorded in a binary format, and is extracted and written by ``pyslim`` using the python ``struct`` module.
-Nothing besides this binary information can be stored in the metadata of these tables for the tree sequence to be used by SLiM,
+Nothing besides this binary information can be stored in the metadata of these tables if the tree sequence is to be used by SLiM,
 and so when ``pyslim`` annotates an existing tree sequence, anything in those columns is overwritten.
 For more detailed documentation on the contents and format of the metadata, see the SLiM manual.

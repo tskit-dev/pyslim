@@ -25,7 +25,7 @@ for mod_name in MODULES:
 # -- Project information -----------------------------------------------------
 
 project = 'pyslim'
-copyright = '2019, pySLiM developers'
+copyright = '2020, pySLiM developers'
 author = 'pySLiM developers'
 
 with open(os.path.abspath('../pyslim/_version.py')) as f:

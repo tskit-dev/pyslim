@@ -515,7 +515,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts.reference_sequence = self.reference_sequence
         return ts
 
-    def individuals_alive_at(self, time, stage="late", remembered_stage='late'):
+    def individuals_alive_at(self, time, stage='late', remembered_stage='late'):
         """
         Returns an array giving the IDs of all individuals that are known to be
         alive at the given time ago.  This is determined using their birth time
@@ -523,31 +523,31 @@ class SlimTreeSequence(tskit.TreeSequence):
         their `age` attribute (which is equal to their age at the last time
         they were Remembered). See also :meth:`.individual_ages_at`.
 
-        In WF models, birth occurs after "early", so that individuals are only
-        alive during "late" for the time step when they have age zero,
-        while in nonWF models, birth occurs before "early", so they are alive
+        In WF models, birth occurs after "early()", so that individuals are only
+        alive during "late()" for the time step when they have age zero,
+        while in nonWF models, birth occurs before "early()", so they are alive
         for both stages.
         
         In both WF and nonWF models, mortality occurs between
-        "early" and "late", so that individuals are last alive during the
-        "early" stage of the time step of their final age, and if individuals
-        are alive during "late" they will also be alive during "early" of the
+        "early()" and "late()", so that individuals are last alive during the
+        "early()" stage of the time step of their final age, and if individuals
+        are alive during "late()" they will also be alive during "early()" of the
         next time step. This means it is important to know during which stage
         individuals were Remembered - for instance, if the call to
-        sim.treeSeqRememberIndividuals was made during "early" of a given time step,
-        then those individuals might not have survived until "late" of that
+        sim.treeSeqRememberIndividuals() was made during "early()" of a given time step,
+        then those individuals might not have survived until "late()" of that
         time step. Since SLiM does not record the stage at which individuals
         were Remembered, you can specify this by setting ``remembered_stages``:
         it should be the stage during which *all* calls to sim.treeSeqRememberIndividuals,
         as well as to sim.treeSeqOutput(), were made.
 
-        Note also that in nonWF models, birth occurs before "early", so the
+        Note also that in nonWF models, birth occurs before "early()", so the
         possible parents in a given time step are those that are alive in
-        "early" and have age greater than zero, or, equivalently, are alive in
-        "late" during the previous time step.
-        In WF models, birth occurs after "early", so possible parents in a
-        given time step are those that are alive during "early" of that time
-        step or are alive during "late" of the previous time step.
+        "early()" and have age greater than zero, or, equivalently, are alive in
+        "late()" during the previous time step.
+        In WF models, birth occurs after "early()", so possible parents in a
+        given time step are those that are alive during "early()" of that time
+        step or are alive during "late()" of the previous time step.
 
         :param float time: The number of time steps ago.
         :param str stage: The stage in the SLiM life cycle that we are inquiring
