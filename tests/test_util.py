@@ -16,9 +16,10 @@ class TestUniqueLabelsByGroup(unittest.TestCase):
         x = pyslim.util.unique_labels_by_group(group, label, minlength)
         self.assertGreaterEqual(len(x), minlength)
         for g in range(len(x)):
-            if g != -1:
-                u = set(label[group == g])
-                self.assertEqual(len(u) == 1, x[g])
+            u = set(label[group == g])
+            if (len(u) == 1) != x[g]:
+                print(g, u, x[g], label[group == g], label.dtype)
+            self.assertEqual(len(u) == 1, x[g])
 
     def test_all_same(self):
         n = 10
@@ -50,12 +51,19 @@ class TestUniqueLabelsByGroup(unittest.TestCase):
         self.assertTrue(np.all(x))
 
     def test_unique_labels_by_group(self):
+        np.random.seed(23)
         for ng in 3 * np.arange(2, 15):
             for n in (10, 100):
                 for nl in (2, ng):
                     for minl in (-5, 10000000):
                         group = np.random.choice(np.arange(ng) - 1, size=n)
+                        # "integer" labels
                         label = minl + np.random.choice(np.arange(nl), size=n)
+                        self.verify_unique_labels_by_group(group, label, ng)
+                        # int32 labels
+                        self.verify_unique_labels_by_group(group, label.astype("int32"), ng)
+                        # and float labels
+                        label = minl + np.random.choice(np.random.uniform(0, 1, nl), size=n)
                         self.verify_unique_labels_by_group(group, label, ng)
 
 

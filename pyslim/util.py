@@ -11,10 +11,13 @@ def unique_labels_by_group(group, label, minlength=0):
     In other words, if the result is ``x``, then
     ``x[j]`` is ``len(set(label[group == j])) == 1``.
     '''
-    n = np.bincount(1 + group, minlength=minlength + 1)[1:]
-    x = np.bincount(1 + group, weights=label, minlength=minlength + 1)[1:]
-    x2 = np.bincount(1 + group, weights=label.astype("int64") ** 2, minlength=minlength + 1)[1:]
-    # (a * x)**2 = a * (a * x**2)
-    return np.logical_and(n > 0, x**2 == n * x2)
-
-
+    w = label.astype("float64")
+    n = np.bincount(1 + group, minlength=minlength + 1)
+    x = np.bincount(1 + group, weights=w, minlength=minlength + 1)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        xm = x/n
+    xm[n == 0] = 0
+    w -= xm[1 + group]
+    gw = np.bincount(1 + group, weights=np.abs(w), minlength=minlength + 1)[1:]
+    # after subtracting groupwise means, should be all zero
+    return np.logical_and(n[1:] > 0, np.abs(gw) < 1e-7)
