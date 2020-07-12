@@ -28,6 +28,7 @@ example_files['recipe_WF_early'] = {"WF": True, "pedigree": True, "remembered_ea
 example_files['recipe_nucleotides'] = {"WF": True, "pedigree": True, "nucleotides": True}
 example_files['recipe_long_nucleotides'] = {"WF": True, "nucleotides": True}
 example_files['recipe_roots'] = {"WF": True, "pedigree": True}
+example_files['recipe_nonWF_selfing'] = {"nonWF": True, "pedigree": True}
 for t in ("WF", "nonWF"):
     for s in ("early", "late"):
         value = {t: True, "everyone": True, "pedigree": True}

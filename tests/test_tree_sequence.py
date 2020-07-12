@@ -344,10 +344,6 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                 for p in slim_parents:
                     if p not in slim_map:
                         slim_hasp = False
-                if hasp != slim_hasp:
-                    print(ind, hasp, slim_hasp)
-                    print(slim_parents)
-                    print(slim_map)
                 self.assertEqual(hasp, slim_hasp)
 
 
