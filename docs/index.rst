@@ -14,6 +14,7 @@ Welcome to pyslim's documentation!
    installation
    tutorial
    vignette_space
+   vignette_continuing
    metadata
    python_api
    development

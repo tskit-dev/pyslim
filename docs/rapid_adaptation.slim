@@ -1,0 +1,17 @@
+initialize() {
+	setSeed(5);
+	initializeTreeSeq();
+	initializeMutationRate(1e-8);
+	initializeMutationType("m1", 0.5, "e", 0.1);
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, 99999999);
+	initializeRecombinationRate(1e-8);
+}
+
+1 {
+	sim.addSubpop("p1", 10000);
+}
+
+20 late() {
+	sim.treeSeqOutput("rapid_adaptation.trees");
+}
