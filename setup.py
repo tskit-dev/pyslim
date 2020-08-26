@@ -8,16 +8,6 @@ import os
 with codecs_open('README.md', encoding='utf-8') as f:
     long_description = f.read()
 
-try:
-    import tskit
-except ImportError:
-    warn("`tskit` not present and must be installed")
-
-try:
-    import kastore
-except ImportError:
-    warn("`kastore` not present and must be installed")
-
 # After exec'ing this file we have tskit_version defined.
 tskit_version = None  # Keep PEP8 happy.
 version_file = os.path.join("pyslim", "_version.py")
