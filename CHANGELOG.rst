@@ -3,6 +3,13 @@
 ***************************
 
 ********************
+[0.403] - 2020-08-27
+********************
+
+BUGFIX: if a tree had all first generation individuals removed
+   (e.g., if it had been simplified) then individuals_alive_at( ) failed.
+
+********************
 [0.402] - 2020-08-27
 ********************
 
