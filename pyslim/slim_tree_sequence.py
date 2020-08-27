@@ -21,6 +21,27 @@ INDIVIDUAL_FIRST_GEN = 2**18
 # something that in reference_sequence is NUCLEOTIDES[k]
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 
+class SimpleContainerSequence:
+    """
+    Simple wrapper to allow arrays of SimpleContainers (e.g. edges, nodes) that have a
+    function allowing access by index (e.g. ts.edge(i), ts.node(i)) to be treated as a
+    python sequence, allowing forward and reverse iteration.
+    """
+
+    def __init__(self, getter, length):
+        self.getter = getter
+        self.length = length
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index):
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError("Index out of bounds")
+        return self.getter(index)
+
 def load(path):
     '''
     Load the SLiM-compatible tree sequence found in the .trees file at ``path``.
@@ -79,7 +100,7 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     _set_provenance(tables, model_type=model_type, slim_generation=slim_generation)
 
 
-class SlimTreeSequence(tskit.TreeSequence):
+class SlimTreeSequence:
     '''
     This is just like a :class:`tskit.TreeSequence`, with a few more properties
     and methods, including:
@@ -145,7 +166,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             ts = tables.tree_sequence()
             provenance = get_provenance(ts)
             assert(provenance.file_version == "0.4")
-        super().__init__(ts._ll_tree_sequence)
+        self.ts = ts
         self.slim_generation = slim_generation
         self.reference_sequence = reference_sequence
         # pre-extract individual metadata
@@ -211,7 +232,7 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :rtype SlimTreeSequence:
         '''
-        sts = super(SlimTreeSequence, self).simplify(*args, **kwargs)
+        sts = self.ts.simplify(*args, **kwargs)
         if (type(sts) == tuple):
             ret = (SlimTreeSequence(sts[0]), sts[1])
             ret[0].reference_sequence = self.reference_sequence
@@ -239,12 +260,15 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :param int id_: The ID of the population (i.e., its index).
         '''
-        pop = super(SlimTreeSequence, self).population(id_)
+        pop = self.ts.population(id_)
         try:
             pop.metadata = decode_population(pop.metadata)
         except:
             pass
         return pop
+
+    def populations(self):
+        return SimpleContainerSequence(self.population, self.num_populations)
 
     def individual(self, id_):
         '''
@@ -259,7 +283,7 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :param int id_: The ID of the individual (i.e., its index).
         '''
-        ind = super(SlimTreeSequence, self).individual(id_)
+        ind = self.ts.individual(id_)
         ind.population = self.individual_populations[id_]
         ind.time = self.individual_times[id_]
         try:
@@ -267,6 +291,9 @@ class SlimTreeSequence(tskit.TreeSequence):
         except:
             pass
         return ind
+
+    def individuals(self):
+        return SimpleContainerSequence(self.individual, self.num_individuals)
 
     def node(self, id_):
         '''
@@ -279,12 +306,15 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :param int id_: The ID of the node (i.e., its index).
         '''
-        node = super(SlimTreeSequence, self).node(id_)
+        node = self.ts.node(id_)
         try:
             node.metadata = decode_node(node.metadata)
         except:
             pass
         return node
+
+    def nodes(self):
+        return SimpleContainerSequence(self.node, self.num_nodes)
 
     def mutation(self, id_):
         '''
@@ -297,12 +327,23 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :param int id_: The ID of the mutation (i.e., its index).
         '''
-        mut = super(SlimTreeSequence, self).mutation(id_)
+        mut = self.ts.mutation(id_)
         try:
             mut.metadata = decode_mutation(mut.metadata)
         except:
             pass
         return mut
+
+    def mutations(self):
+        return SimpleContainerSequence(self.mutation, self.num_mutations)
+
+    def site(self, id_):
+        site = self.ts.site(id_)
+        site.mutations = [self.mutation(mut.id) for mut in site.mutations]
+        return site
+
+    def sites(self):
+        return SimpleContainerSequence(self.site, self.num_sites)
 
     def recapitate(self, recombination_rate=None, keep_first_generation=False,
                    population_configurations=None, recombination_map=None, **kwargs):
@@ -373,10 +414,9 @@ class SlimTreeSequence(tskit.TreeSequence):
                                          for _ in range(self.num_populations)]
 
         if keep_first_generation:
-            ts = self._mark_first_generation()
+            ts = self._mark_first_generation().ts
         else:
-            ts = self
-
+            ts = self.ts
         recap = msprime.simulate(
                     from_ts = ts,
                     population_configurations = population_configurations,
@@ -697,6 +737,12 @@ class SlimTreeSequence(tskit.TreeSequence):
         # accounted for
         has_all_parents = (parental_span == 2 * self.sequence_length)
         return has_all_parents
+
+    def __getattr__(self, name):
+        """
+        Delegate all other attributes to the tskit TreeSequence
+        """
+        return getattr(self.ts, name)
 
 def _set_nodes_individuals(
         tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,
