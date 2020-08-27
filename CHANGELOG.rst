@@ -2,14 +2,20 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+********************
+[0.402] - 2020-08-27
+********************
+
+
+This is a compatibility release, for the tskit 0.3.0 release.
+
 **New features**:
 
-- added has_individual_parents, a method to find individuals with all parents
-  are also recorded as individuals
 - Provenance handling:
    * added the `.slim_provenances` property to return all SLiM provenance entries
    * added the `slim_provenance_version` and `parse_provenance` methods to tell if
       provenance entries come from SLiM and to parse them
+
 - documentation for recapitation with a nonuniform map by :user:@TeresaPegan
 
 **Bug fixes**:
@@ -17,6 +23,8 @@
 - fixed differential time offset for tree sequences saved out in early versus late:
    prior to this, mutation_at and nucleotides_at would have been sometimes wrong if the tree sequence
    was saved out during late
+
+- initialises correctly to work with tskit 0.3.0
 
 ********************
 [0.401] - 2020-03-27
