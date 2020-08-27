@@ -22,7 +22,9 @@ import attr
 # All files are of the form `tests/examples/{key}.slim`
 example_files = {}
 example_files['recipe_nonWF'] = {"nonWF": True, "pedigree": True}
+example_files['recipe_long_nonWF'] = {"nonWF": True}
 example_files['recipe_WF'] = {"WF": True, "pedigree": True}
+example_files['recipe_long_WF'] = {"WF": True}
 example_files['recipe_nonWF_early'] = {"nonWF": True, "pedigree": True, "remembered_early": True}
 example_files['recipe_WF_early'] = {"WF": True, "pedigree": True, "remembered_early": True}
 example_files['recipe_nucleotides'] = {"WF": True, "pedigree": True, "nucleotides": True}
@@ -112,12 +114,12 @@ class PyslimTestCase(unittest.TestCase):
             g2 = [v2.alleles[x] for x in v2.genotypes]
             self.assertArrayEqual(g1, g2)
 
-    def get_slim_examples(self, *args, return_info=False):
+    def get_slim_examples(self, return_info=False, **args):
         for ex in example_files.values():
             basename = ex['basename']
             use = True
             for a in args:
-                if a not in ex:
+                if a not in ex or ex[a] != args[a]:
                     use = False
             if use:
                 treefile = basename + ".trees"

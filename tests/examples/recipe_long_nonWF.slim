@@ -1,0 +1,31 @@
+initialize()
+{
+    setSeed(23);
+    defineConstant("OUTFILE", "recipe_long_nonWF.trees");
+    initializeSLiMModelType("nonWF");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.001);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+    defineConstant("K", 20);
+}
+
+reproduction() {
+    subpop.addCrossed(individual, subpop.sampleIndividuals(1));
+}
+
+1 early() {
+    sim.addSubpop("p1", K);
+}
+
+early() {
+    p1.fitnessScaling = K / p1.individualCount;
+}
+
+500 late() {
+    sim.treeSeqOutput(OUTFILE);
+    catn("Done.");
+    sim.simulationFinished();
+}

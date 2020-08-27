@@ -563,13 +563,15 @@ class SlimTreeSequence(tskit.TreeSequence):
                               "should be either 'early' or 'late'.")
         # sanity check "remembered_stage" (only possible for WF models)
         if self.slim_provenance.model_type == "WF":
-            dt = (self.slim_generation
-                    - self.individual(self.first_generation_individuals()[0]).time)
-            if (dt == 0) != (remembered_stage == "late"):
-                warnings.warn("It looks like the tree sequence was not saved to file "
-                        f"during remembered_stage={remembered_stage}. "
-                        "This may cause inaccuracies in deciding which individuals "
-                        "are alive at what times.")
+            first_gen = self.first_generation_individuals()
+            if len(first_gen) > 0:
+                dt = (self.slim_generation
+                        - self.individual(first_gen[0]).time)
+                if (dt == 0) != (remembered_stage == "late"):
+                    warnings.warn("It looks like the tree sequence was not saved to file "
+                            f"during remembered_stage={remembered_stage}. "
+                            "This may cause inaccuracies in deciding which individuals "
+                            "are alive at what times.")
 
         # birth_time is the time ago that they were first alive in 'late'
         # in a nonWF model they are alive for the same time step's 'early'

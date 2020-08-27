@@ -178,7 +178,7 @@ class TestIndividualAges(tests.PyslimTestCase):
     # tests for individuals_alive_at and individual_ages_at
 
     def test_errors(self):
-        ts = next(self.get_slim_examples("everyone"))
+        ts = next(self.get_slim_examples(everyone=True))
         for stage in ['abcd', 10, None, []]:
             with self.assertRaises(ValueError):
                 ts.individuals_alive_at(0, stage=stage)
@@ -186,7 +186,7 @@ class TestIndividualAges(tests.PyslimTestCase):
                 ts.individual_ages_at(0, stage=stage)
 
     def test_mismatched_remembered_stage(self):
-        for ts, ex in self.get_slim_examples("pedigree", "WF", return_info=True):
+        for ts, ex in self.get_slim_examples(pedigree=True, WF=True, return_info=True):
             info = ex['info']
             if "remembered_early" in ex:
                 bad_rs = "late"
@@ -195,8 +195,22 @@ class TestIndividualAges(tests.PyslimTestCase):
             with self.assertWarns(UserWarning):
                 ts.individuals_alive_at(0, remembered_stage=bad_rs)
 
+    def test_after_simplify(self):
+        for ts in self.get_slim_examples(remembered_early=False):
+            sts = ts.simplify()
+            orig_inds = ts.individuals_alive_at(0)
+            simp_inds = sts.individuals_alive_at(0)
+            odict = {ts.individual(i).metadata.pedigree_id: i for i in orig_inds}
+            sdict = {sts.individual(i).metadata.pedigree_id: i for i in simp_inds}
+            for slim_id in odict:
+                i = odict[slim_id]
+                ind = ts.individual(i)
+                n = ts.node(ind.nodes[0])
+                if n.flags & tskit.NODE_IS_SAMPLE:
+                    self.assertTrue(slim_id in sdict)
+
     def test_ages(self):
-        for ts, ex in self.get_slim_examples("pedigree", return_info=True):
+        for ts, ex in self.get_slim_examples(pedigree=True, return_info=True):
             info = ex['info']
             remembered_stage = 'early' if 'remembered_early' in ex else 'late'
             max_time_ago = ts.slim_generation
@@ -297,7 +311,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
     def test_everyone(self):
         # since everyone is recorded, only the initial individuals should
         # not have parents
-        for ts in self.get_slim_examples("everyone"):
+        for ts in self.get_slim_examples(everyone=True):
             right_answer = np.repeat(True, ts.num_individuals)
             right_answer[ts.first_generation_individuals()] = False
             print(right_answer)
@@ -307,7 +321,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
 
     def test_post_recap(self):
         # the same should be true after recapitation
-        for ts in self.get_slim_examples("everyone"):
+        for ts in self.get_slim_examples(everyone=True):
             right_answer = np.repeat(True, ts.num_individuals)
             right_answer[ts.first_generation_individuals()] = False
             ts = ts.recapitate(recombination_rate=0.01)
@@ -317,7 +331,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             self.verify_has_parents(ts)
 
     def test_post_simplify(self):
-        for ts in self.get_slim_examples("everyone"):
+        for ts in self.get_slim_examples(everyone=True):
             keep_indivs = np.random.choice(
                     np.where(ts.individual_times < ts.slim_generation - 1)[0],
                     size=30, replace=False)
@@ -332,7 +346,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             self.verify_has_parents(ts)
 
     def test_pedigree(self):
-        for ts, ex in self.get_slim_examples("pedigree", return_info=True):
+        for ts, ex in self.get_slim_examples(pedigree=True, return_info=True):
             has_parents = ts.has_individual_parents()
             info = ex['info']
             slim_map = {}
@@ -357,6 +371,7 @@ class TestSimplify(tests.PyslimTestCase):
             sts = ts.simplify()
             self.assertEqual(ts.sequence_length, sts.sequence_length)
             self.assertEqual(type(ts), type(sts))
+            print(sts.samples())
             self.assertEqual(sts.samples()[0], 0)    
 
 
