@@ -2,6 +2,25 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**Breaking changes**:
+
+- "First generation" individuals no longer need to be retained by SLiM to recapitate,
+  thanks to the "keep_input_roots" argument to simplify (new in tskit 0.3.0).
+  The FIRST_GEN flag and `.first_generation_individuals()` methods are now deprecated,
+  and if you want these to remain in the tree sequence you must explicitly Remember them.
+  (However, their *nodes* will remain if necessary for recapitation.)
+  If you wish to simplify an un-recapitated tree sequence you now can, but you must
+  pass `keep_input_roots=True`. This should only cause breakages if you made explicit
+  use of the first generation individuals, without explicitly Remembering them.
+
+- Information about the tree sequence is now stored in *top-level metadata*,
+  accessible through `ts.metadata['SLiM']`. Previous interfaces remain: for instance,
+  `ts.slim_generation` is now redundant with `ts.metadata['SLiM']['generation']`.
+  This should not cause breakages, but will cause warnings where none were previously:
+  for instance, `pyslim.SlimTreeSequence(msprime.mutate(ts))` may throw a warning
+  because `msprime.mutate( )` does not preserve top-level metadata, and so SLiM-relevant
+  information is retrieved from provenance (as in previous file versions).
+
 **Notable changes**:
 
 - Switched to using tskit native encoding/decoding of metadata via schemas.

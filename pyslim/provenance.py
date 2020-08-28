@@ -8,6 +8,7 @@ import msprime
 import tskit
 
 from . import _version
+from . import slim_tree_sequence
 
 __version__ = _version.pyslim_version
 
@@ -100,7 +101,7 @@ def get_provenance(ts, only_last=True):
     if isinstance(ts, tskit.TreeSequence):
         ts = ts.tables
     provenances = []
-    for j, p in enumerate(ts.provenances):
+    for p in ts.provenances:
         is_slim, _ = slim_provenance_version(p) 
         if is_slim:
             out = parse_provenance(p)
@@ -192,11 +193,11 @@ def make_pyslim_provenance_dict():
     }
     return document
 
-def make_slim_provenance_dict(model_type, slim_generation):
+def make_slim_provenance_dict(model_type, slim_generation,
+        stage='late', spatial_dimensionality='', spatial_periodicity='',
+        separate_sexes=False, nucleotide_based=False):
     """
-    Returns a dictionary encoding necessary provenance information for a SLiM tree sequence.
-    
-    DEPRECATED: this will be removed in the future; if you need this, open an issue on github.
+    Returns a dictionary encoding provenance information for a SLiM tree sequence.
     """
     document = {
         "schema_version": "1.0.0",
@@ -207,6 +208,11 @@ def make_slim_provenance_dict(model_type, slim_generation):
         "parameters": {
             "command": ['pyslim'],
             "model_type": model_type,
+            "stage": stage,
+            "spatial_dimensionality": spatial_dimensionality,
+            "spatial_periodicity": spatial_periodicity,
+            "separate_sexes": separate_sexes,
+            "nucleotide_based": nucleotide_based,
             },
         "environment": {},
         "metadata": {
@@ -222,11 +228,6 @@ def make_slim_provenance_dict(model_type, slim_generation):
                         "description" : "the individual was requested "
                               + "by the user to be remembered",
                           },
-                    "18": {
-                        "name" : "SLIM_TSK_INDIVIDUAL_FIRST_GEN",
-                        "description" : "the individual was in the first "
-                              + "generation of a new population"
-                          }
                 }
             }
         },

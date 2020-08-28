@@ -14,13 +14,23 @@ import os
 import numpy as np
 
 
+class TestMutate(tests.PyslimTestCase):
+    # Tests for making a tree sequence a SlimTreeSequence
+    # again after msprime.mutate.
+
+    def test_mutate(self):
+        for ts in self.get_slim_examples():
+            mts = msprime.mutate(ts, rate=1e-8, random_seed=5)
+            pts = pyslim.SlimTreeSequence(mts)
+            self.assertEqual(ts.metadata, pts.metadata)
+
+
 class TestRecapitation(tests.PyslimTestCase):
     '''
     Tests for recapitation.
     '''
 
-    def check_recap_consistency(self, ts, recap,
-                                keep_first_generation):
+    def check_recap_consistency(self, ts, recap):
         self.assertEqual(ts.slim_generation, recap.slim_generation)
         self.assertTrue(all(tree.num_roots == 1 for tree in recap.trees()))
 
@@ -29,18 +39,14 @@ class TestRecapitation(tests.PyslimTestCase):
             n1 = recap.node(u)
             self.assertGreaterEqual(n1.individual, 0)
             i1 = recap.individual(n1.individual)
-            firstgen = ((pyslim.INDIVIDUAL_FIRST_GEN & i1.flags) > 0)
             remembered = ((pyslim.INDIVIDUAL_REMEMBERED & i1.flags) > 0)
             alive = ((pyslim.INDIVIDUAL_ALIVE & i1.flags) > 0)
-            self.assertTrue(alive or remembered or (firstgen and keep_first_generation))
-            self.assertTrue((keep_first_generation and firstgen) or (u in ts_samples))
+            self.assertTrue(alive or remembered)
+            self.assertTrue(u in ts_samples)
             n2 = ts.node(u)
             self.assertEqual(n1.time, n2.time)
             self.assertEqual(n1.individual, n2.individual)
-            recap_flags = n1.flags
-            if keep_first_generation and firstgen and not remembered and not alive:
-                recap_flags = (recap_flags & ~msprime.NODE_IS_SAMPLE)
-            self.assertEqual(recap_flags, n2.flags)
+            self.assertEqual(n1.flags, n2.flags)
             self.assertEqual(n1.metadata, n2.metadata)
             self.assertEqual(n1.population, n2.population)
         self.assertLessEqual(ts.num_populations, recap.num_populations)
@@ -53,28 +59,25 @@ class TestRecapitation(tests.PyslimTestCase):
         for ts in self.get_slim_examples():
             if ts.num_populations <= 2:
                 # if not we need migration rates
-                for keep_first in [True, False]:
-                    recomb_rate = 1.0 / ts.sequence_length
-                    recap = ts.recapitate(recombination_rate = recomb_rate,
-                                          keep_first_generation=keep_first)
-                    # there should be no new mutations
-                    self.assertEqual(ts.num_mutations, recap.num_mutations)
-                    self.assertEqual(ts.num_sites, recap.num_sites)
-                    self.assertListEqual(list(ts.tables.sites.position),
-                                         list(recap.tables.sites.position))
-                    self.check_recap_consistency(ts, recap, keep_first)
+                recomb_rate = 1.0 / ts.sequence_length
+                recap = ts.recapitate(recombination_rate=recomb_rate)
+                # there should be no new mutations
+                self.assertEqual(ts.num_mutations, recap.num_mutations)
+                self.assertEqual(ts.num_sites, recap.num_sites)
+                self.assertListEqual(list(ts.tables.sites.position),
+                                     list(recap.tables.sites.position))
+                self.check_recap_consistency(ts, recap)
+                for t in recap.trees():
+                    self.assertEqual(t.num_roots, 1)
+
+                recap = ts.recapitate(recombination_rate=recomb_rate, Ne=1e-6)
+                self.check_recap_consistency(ts, recap)
+                if ts.slim_generation < 200:
                     for t in recap.trees():
                         self.assertEqual(t.num_roots, 1)
-
-                    recap = ts.recapitate(recombination_rate = recomb_rate,
-                                          Ne = 1e-6, keep_first_generation=keep_first)
-                    self.check_recap_consistency(ts, recap, keep_first)
-                    if ts.slim_generation < 200:
-                        for t in recap.trees():
-                            self.assertEqual(t.num_roots, 1)
-                            self.assertAlmostEqual(recap.node(t.root).time, 
-                                                   recap.slim_generation, 
-                                                   delta = 1e-4)
+                        self.assertAlmostEqual(recap.node(t.root).time, 
+                                               recap.slim_generation, 
+                                               delta=1e-4)
 
 
 class TestIndividualMetadata(tests.PyslimTestCase):
@@ -106,14 +109,17 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                 self.assertEqual(ts.individual_populations[j], ind.population)
                 self.assertArrayEqual(ts.individual_locations[j], ind.location)
 
-    def test_first_gen(self):
+    def test_first_gen_nodes(self):
+        # check that all the roots of the trees are present
         for ts in self.get_slim_examples():
-            firstgen = ts.first_generation_individuals()
-            firstgen_times = ts.individual_times[firstgen]
-            self.assertEqual(len(set(firstgen_times)), 1)
-            self.assertEqual(firstgen_times[0], np.max(ts.individual_times))
-            for i in firstgen:
-                self.assertGreaterEqual(ts.individual(i).flags & pyslim.INDIVIDUAL_FIRST_GEN, 0)
+            root_time = ts.slim_generation
+            if (ts.metadata['SLiM']['stage'] == 'early'
+                    or ts.metadata['SLiM']['model_type'] == 'nonWF'):
+                root_time -= 1
+            for t in ts.trees():
+                for u in t.roots:
+                    self.assertEqual(ts.node(u).time, root_time)
+
 
 class TestNodeMetadata(tests.PyslimTestCase):
     '''
@@ -148,7 +154,7 @@ class TestMutationMetadata(tests.PyslimTestCase):
 
     def test_slim_time(self):
         # check that slim_times make sense
-        for ts in self.get_slim_examples():
+        for ts in self.get_slim_examples(init_mutated=False):
             # Mutation's slim_times are one less than the corresponding node's slim times
             # in WF models, but not in WF models, for some reason.
             is_wf = (ts.slim_provenance.model_type == "WF")
@@ -213,6 +219,7 @@ class TestIndividualAges(tests.PyslimTestCase):
         for ts, ex in self.get_slim_examples(pedigree=True, return_info=True):
             info = ex['info']
             remembered_stage = 'early' if 'remembered_early' in ex else 'late'
+            self.assertEqual(remembered_stage, ts.metadata['SLiM']['stage'])
             max_time_ago = ts.slim_generation
             if remembered_stage == 'early':
                 max_time_ago -= 1
@@ -308,13 +315,21 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                 print("------------")
         self.assertArrayEqual(right_answer, has_parents)
 
+    def get_first_gen(self, ts):
+        root_time = ts.slim_generation
+        if ts.metadata['SLiM']['model_type'] != 'WF' or ts.metadata['SLiM']['stage'] != 'late':
+            root_time -= 1
+        first_gen = set(ts.tables.nodes.individual[ts.tables.nodes.time == root_time])
+        first_gen.discard(tskit.NULL)
+        return np.array(list(first_gen), dtype='int')
+
     def test_everyone(self):
         # since everyone is recorded, only the initial individuals should
         # not have parents
         for ts in self.get_slim_examples(everyone=True):
             right_answer = np.repeat(True, ts.num_individuals)
-            right_answer[ts.first_generation_individuals()] = False
-            print(right_answer)
+            first_gen = self.get_first_gen(ts)
+            right_answer[first_gen] = False
             has_parents = ts.has_individual_parents()
             self.assertArrayEqual(right_answer, has_parents)
             self.verify_has_parents(ts)
@@ -323,7 +338,8 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         # the same should be true after recapitation
         for ts in self.get_slim_examples(everyone=True):
             right_answer = np.repeat(True, ts.num_individuals)
-            right_answer[ts.first_generation_individuals()] = False
+            first_gen = self.get_first_gen(ts)
+            right_answer[first_gen] = False
             assert(ts.num_populations <= 2)
             ts = ts.recapitate(recombination_rate=0.01)
             assert(ts.num_individuals == ts.num_individuals)
@@ -342,7 +358,6 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             ts = ts.simplify(samples=keep_nodes, filter_individuals=True)
             assert(ts.num_populations <= 2)
             ts = ts.recapitate(recombination_rate=0.01)
-            ts.dump("temp.trees")
             has_parents = ts.has_individual_parents()
             self.assertGreater(sum(has_parents), 0)
             self.verify_has_parents(ts)

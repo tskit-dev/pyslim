@@ -10,10 +10,19 @@ initialize()
     initializeRecombinationRate(1e-2);
 }
 
+// output immediately! Nothing should have changed.
 1 early() { 
-    // output immediately! Nothing should have changed.
+  if (STAGE == "early") {
     sim.readFromPopulationFile("restart_nonWF.init.trees");
-    sim.treeSeqOutput("restart_nonWF.trees");
+    sim.treeSeqOutput("restart_nonWF.trees", simplify=F);
+  }
+}
+
+1 late() { 
+  if (STAGE == "late") {
+    sim.readFromPopulationFile("restart_nonWF.init.trees");
+    sim.treeSeqOutput("restart_nonWF.trees", simplify=F);
+  }
 }
 
 20 {

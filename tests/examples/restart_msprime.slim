@@ -16,14 +16,24 @@ initialize()
     initializeGenomicElementType("g1", m1, 1.0);
     initializeGenomicElement(g1, 0, L-1);
     initializeRecombinationRate(1/L);
-    if (exists("SEX"))
+    if (exists("SEX")) {
+        catn("SEX: " + SEX);
         initializeSex(SEX);
+    }
 }
 
+// output immediately! Nothing should have changed.
 1 early() { 
-    // output immediately! Nothing should have changed.
+  if (STAGE == "early") {
     sim.readFromPopulationFile("restart_msprime.init.trees");
     sim.treeSeqOutput("restart_msprime.trees");
+  }
+}
+1 late() { 
+  if (STAGE == "late") {
+    sim.readFromPopulationFile("restart_msprime.init.trees");
+    sim.treeSeqOutput("restart_msprime.trees");
+  }
 }
 
 20 {

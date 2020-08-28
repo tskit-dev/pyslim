@@ -34,6 +34,8 @@ example_files['recipe_nucleotides'] = {"WF": True, "pedigree": True, "nucleotide
 example_files['recipe_long_nucleotides'] = {"WF": True, "nucleotides": True}
 example_files['recipe_roots'] = {"WF": True, "pedigree": True}
 example_files['recipe_nonWF_selfing'] = {"nonWF": True, "pedigree": True}
+example_files['recipe_init_mutated_WF'] = {"WF": True, "init_mutated": True}
+example_files['recipe_init_mutated_nonWF'] = {"nonWF": True, "init_mutated": True}
 for t in ("WF", "nonWF"):
     for s in ("early", "late"):
         value = {t: True, "everyone": True, "pedigree": True}
@@ -46,17 +48,33 @@ for f in example_files:
     example_files[f]['basename'] = os.path.join("tests", "examples", f)
 
 
-# These SLiM scripts read in an existing trees file; the format in this list
-# is of the form: (<input trees file>, <basename of slim script and output file>)
-# TODO: test restarting of nucleotides after reference sequence dumping is enabled
-_restart_files = [("tests/examples/recipe_{}.trees".format(x),
-                   "tests/examples/restart_{}".format(x))
-                  for x in ['WF', 'nonWF']] # , 'nucleotides']]
+# These SLiM scripts read in an existing trees file; the "input" gives a .trees files produced
+# by recipes above that is appropriate for starting this script.
+restart_files = {}
+for t in ("WF", "nonWF"):
+    # recipes that read in and write out immediately ("no_op")
+    value = {t: True, "no_op": True, "input": f"tests/examples/recipe_{t}.trees"}
+    restart_files[f'restart_{t}'] = value
+restart_files['restart_nucleotides'] = {"WF": True, "nucleotides": True, "no_op": True, "input": f"tests/examples/recipe_nucleotides.trees"}
+restart_files['restart_and_run_WF'] = {"WF": True, "input": "recipe_init_mutated.trees"}
+restart_files['restart_and_run_nonWF'] = {"nonWF": True, "input": "recipe_init_mutated.trees"}
+
+for f in restart_files:
+    restart_files[f]['basename'] = os.path.join("tests", "examples", f)
 
 
-def run_slim_script(slimfile, args=''):
+def run_slim_script(slimfile, **kwargs):
     outdir = os.path.dirname(slimfile)
     script = os.path.basename(slimfile)
+    args = ''
+    for k in kwargs:
+        x = kwargs[k]
+        if x is not None:
+            if isinstance(x, str):
+                x = f"'{x}'"
+            if isinstance(x, bool):
+                x = 'T' if x else 'F'
+            args += f" -d \"{k}={x}\""
     print("running " + "cd " + outdir + " && slim -s 23 " + args + " " + script)
     out = os.system("cd " + outdir + " && slim -s 23 " + args + " " + script + ">/dev/null")
     return out
@@ -118,12 +136,12 @@ class PyslimTestCase(unittest.TestCase):
             g2 = [v2.alleles[x] for x in v2.genotypes]
             self.assertArrayEqual(g1, g2)
 
-    def get_slim_examples(self, return_info=False, **args):
+    def get_slim_examples(self, return_info=False, **kwargs):
         for ex in example_files.values():
             basename = ex['basename']
             use = True
-            for a in args:
-                if a not in ex or ex[a] != args[a]:
+            for a in kwargs:
+                if a not in ex or ex[a] != kwargs[a]:
                     use = False
             if use:
                 treefile = basename + ".trees"
@@ -140,15 +158,24 @@ class PyslimTestCase(unittest.TestCase):
                 else:
                     yield ts
 
-    def get_slim_restarts(self):
+    def get_slim_restarts(self, **kwargs):
         # Loads previously produced tree sequences and SLiM scripts 
         # appropriate for restarting from these tree sequences.
-        for treefile, basename in _restart_files:
-            self.assertTrue(os.path.isfile(treefile))
-            ts = pyslim.load(treefile)
-            yield ts, basename
+        for exname in restart_files:
+            ex = restart_files[exname]
+            use = True
+            for a in kwargs:
+                if a not in ex or ex[a] != kwargs[a]:
+                    use = False
+            if use:
+                basename = ex['basename']
+                treefile = ex['input']
+                print(f"restarting {treefile} as {basename}")
+                self.assertTrue(os.path.isfile(treefile))
+                ts = pyslim.load(treefile)
+                yield ts, basename
 
-    def run_slim_restart(self, in_ts, basename, args=''):
+    def run_slim_restart(self, in_ts, basename, **kwargs):
         # Saves out the tree sequence to the trees file that the SLiM script
         # basename.slim will load from.
         infile = basename + ".init.trees"
@@ -160,7 +187,9 @@ class PyslimTestCase(unittest.TestCase):
             except FileNotFoundError:
                 pass
         in_ts.dump(infile)
-        out = run_slim_script(slimfile, args=args)
+        if 'STAGE' not in kwargs:
+            kwargs['STAGE'] = in_ts.metadata['SLiM']['stage']
+        out = run_slim_script(slimfile, **kwargs)
         try:
             os.remove(infile)
         except FileNotFoundError:
@@ -176,11 +205,8 @@ class PyslimTestCase(unittest.TestCase):
 
     def run_msprime_restart(self, in_ts, sex=None, WF=False):
         basename = "tests/examples/restart_msprime"
-        args = " -d L={}".format(int(in_ts.sequence_length))
-        args += " -d \"WF={}\"".format('T' if WF else 'F')
-        if sex is not None:
-            args += " -d \"SEX='{}'\"".format(sex)
-        out_ts = self.run_slim_restart(in_ts, basename, args=args)
+        out_ts = self.run_slim_restart(
+                    in_ts, basename, WF=WF, SEX=sex, L=int(in_ts.sequence_length))
         return out_ts
 
     def get_msprime_examples(self):
@@ -238,7 +264,38 @@ class PyslimTestCase(unittest.TestCase):
                 out[ind]['age'][(gen, stage)] = age
         return out
 
-    def assertTablesEqual(self, t1, t2, skip_provenance=False, check_metadata_schema=True):
+    def assertTablesEqual(self, t1, t2, label=''):
+        # make it easy to see what's wrong
+        if hasattr(t1, "metadata_schema"):
+            if t1.metadata_schema != t2.metadata_schema:
+                print(f"{label} :::::::::: t1 ::::::::::::")
+                print(t1.metadata_schema)
+                print(f"{label} :::::::::: t2 ::::::::::::")
+                print(t2.metadata_schema)
+            self.assertEqual(t1.metadata_schema, t2.metadata_schema)
+        if t1.num_rows != t2.num_rows:
+            print(f"{label}: t1.num_rows {t1.num_rows} != {t2.num_rows} t2.num_rows")
+        for k, (e1, e2) in enumerate(zip(t1, t2)):
+            if e1 != e2:
+                print(f"{label} :::::::::: t1 ({k}) ::::::::::::")
+                print(e1)
+                print(f"{label} :::::::::: t2 ({k}) ::::::::::::")
+                print(e2)
+            self.assertEqual(e1, e2)
+        self.assertEqual(t1.num_rows, t2.num_rows)
+        self.assertEqual(t1, t2)
+
+    def assertMetadataEqual(self, t1, t2):
+        # check top-level metadata, first the parsed version:
+        self.assertEqual(t1.metadata_schema, t2.metadata_schema)
+        self.assertEqual(t1.metadata, t2.metadata)
+        # and now check the underlying bytes
+        # TODO: use the public interface if https://github.com/tskit-dev/tskit/issues/832 happens
+        md1 = t1._ll_tables.metadata
+        md2 = t2._ll_tables.metadata
+        self.assertEqual(md1, md2)
+
+    def assertTableCollectionsEqual(self, t1, t2, skip_provenance=False, check_metadata_schema=True):
         if isinstance(t1, tskit.TreeSequence):
             t1 = t1.tables
         if isinstance(t2, tskit.TreeSequence):
@@ -284,4 +341,15 @@ class PyslimTestCase(unittest.TestCase):
             t1.metadata = b''
             t2.metadata = b''
             self.assertEqual(m1, m2)
+        # go through one-by-one so we know which fails
+        self.assertTablesEqual(t1.populations, t2.populations, "populations")
+        self.assertTablesEqual(t1.individuals, t2.individuals, "individuals")
+        self.assertTablesEqual(t1.nodes, t2.nodes, "nodes")
+        self.assertTablesEqual(t1.edges, t2.edges, "edges")
+        self.assertTablesEqual(t1.sites, t2.sites, "sites")
+        self.assertTablesEqual(t1.mutations, t2.mutations, "mutations")
+        self.assertTablesEqual(t1.migrations, t2.migrations, "migrations")
+        self.assertTablesEqual(t1.provenances, t2.provenances, "provenances")
+        self.assertMetadataEqual(t1, t2)
+        self.assertEqual(t1.sequence_length, t2.sequence_length)
         self.assertEqual(t1, t2)

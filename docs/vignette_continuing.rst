@@ -126,6 +126,7 @@ and merge them.
    # shift times: in nodes and mutations
    # since tree sequences are not mutable, we do this in the tables directly
    # also, unmark the nodes at the end of the SLiM simulation as samples
+   import json
    tables = rts.tables
    tables.nodes.set_columns(
       flags=rts.tables.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE),
@@ -134,7 +135,7 @@ and merge them.
       individual=rts.tables.nodes.individual,
       metadata=rts.tables.nodes.metadata,
       metadata_offset=rts.tables.nodes.metadata_offset,
-      metadata_schema=rts.tables.nodes.metadata_schema.schema)
+      metadata_schema=json.dumps(rts.tables.nodes.metadata_schema.schema))
    tables.mutations.set_columns(
       site=rts.tables.mutations.site,
       node=rts.tables.mutations.node,
@@ -144,7 +145,7 @@ and merge them.
       parent=rts.tables.mutations.parent,
       metadata=rts.tables.mutations.metadata,
       metadata_offset=rts.tables.mutations.metadata_offset,
-      metadata_schema=rts.tables.mutations.metadata_schema.schema)
+      metadata_schema=json.dumps(rts.tables.mutations.metadata_schema.schema))
 
    # merge the two sets of tables
    tables.union(new_ts.tables, node_map,

@@ -51,75 +51,55 @@ the picture on the left below.
 Note that individuals are diploid (each has two chromosomes, or *nodes*),
 and that genealogical relationships are between the *nodes*, not the individuals.
 However, after we're done we are mainly interested in the genealogies
-of the *final* generation, and so as SLiM goes along it
-*simplifies* the tree sequence,
+of the *final* generation, and so as SLiM goes along, it *simplifies* the tree sequence,
 retaining only information necessary to describe the genealogies
-of certain individuals (exactly which individuals is discussed in the next section).
+of certain individuals (the current generation and any that have been *Remembered* along the way).
 At the end, we get a tree sequence that looks something like
 the situation on the right,
 in which many of the nodes and individuals have been removed.
 
-.. figure:: _static/pedigree0.png
-   :scale: 42%
-   :align: left
-
-.. figure:: _static/pedigree1.png
-   :scale: 42%
-   :align: right
+.. figure:: _static/pedigree01.png
+   :scale: 40%
 
 
-****************************
-Who is in the tree sequence?
-****************************
+*************************************
+Who and what is in the tree sequence?
+*************************************
 
-OK, but who *is* left in the tree sequence?
+OK, who and what exactly *is* left in the tree sequence?
 We clearly want all individuals of the *final* generation
 to have their genealogies recorded in the tree sequence.
-But, in the picture above there were individuals pictured
-in the tree sequence that were not alive at the end of the simulation.
-Who are they?
-Which individuals *are* present in a SLiM-produced tree sequence?
-**This is an important thing to understand:
-the tree sequence contains more individuals than only the final generation.**
-There are *three* ways an individual might be in the tree sequence.
+in the picture above there is one additional individuals pictured
+in the tree sequence that was not alive at the end of the simulation,
+because it was *remembered*, using the ``treeSeqRememberIndividuals()`` method.
+
 
 .. figure:: _static/pedigree2.png
-   :scale: 30%
-   :align: right
+   :scale: 40%
 
-1. *The final population:*
-   Everyone who was alive at the end of the simulation.
-   Their nodes are samples.
-
-2. *The remembered individuals:* 
-   Everyone who you asked SLiM to *remember*,
-   using the ``treeSeqRememberIndividuals()`` method.
-   Their nodes are also samples.
-
-3. *The initial population:*
-   Everyone who was alive at the *start* of the simulation,
-   *whether or not they are ancestral to the final population*.
-   Their nodes are *not* samples.
-
-This last category is a common source of confusion:
-why are these individuals there?
-This is to allow *recapitation*, described in the :ref:`sec_tutorial`:
-we need the first generation to be able to trace ancestry back from.
+The nodes (i.e., the chromosomes) of these individuals
+are the *samples* of the tree sequence.
+Saying that a chromosome is a *sample* implies that we have full information about
+its genealogy, and many operations on tree sequences act on the samples
+by default.
+See the `tskit data model <https://tskit.readthedocs.io/en/latest/data-model.html#nodes-genomes-or-individuals>`_ for more on this topic.
 The easiest way to pull out individuals alive at a particular time
-is with the :meth:`.SlimTreeSequence.individuals_alive_at()` method.
-See :ref:`sec_extracting_individuals` for more discussion.
-You can also tell which individuals are in which categories
-by looking at their *flags*;
-these three categories are marked with the :data:``.INDIVIDUAL_ALIVE``,
-:data:``.INDIVIDUAL_REMEMBERED``, and :data:``.INDIVIDUAL_FIRST_GEN`` flags, respectively.
-See examples below or in the Vignette for how to do these things.
+is with the :meth:`.SlimTreeSequence.individuals_alive_at()` method:
+see :ref:`sec_extracting_individuals` for more discussion.
 
 Here's a reminder of the terminology:
 
 
 .. figure:: _static/pedigree3.png
    :scale: 40%
-   :align: left
+
+.. note::
+
+   In previous versions of SLiM/pyslim, the *first generation* of individuals
+   were retained in the tree sequence, to allow recapitation.
+   This is no longer necessary, so these are *no longer present*, unless
+   you specifically Remember them -- see the :ref:`sec_tutorial_recapitation`
+   section of the tutorial for more discussion of how this works.
 
 
 ************************************************

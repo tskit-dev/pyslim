@@ -22,8 +22,6 @@ class TestMetadataSchemas(tests.PyslimTestCase):
             entry = pyslim.default_slim_metadata[k]
             encoded = schema.validate_and_encode_row(entry)
             decoded = schema.decode_row(encoded)
-            print('entry', entry)
-            print('decoded', decoded)
             if entry is None:
                 self.assertTrue(decoded is None)
             else:
@@ -122,6 +120,15 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                 self.assertGreater(ts.metadata['SLiM']['generation'], 0)
                 self.assertGreaterEqual(ts.metadata['SLiM']['generation'],
                         np.max(ts.tables.nodes.time))
+
+    def test_recover_metadata(self):
+        # msprime <=0.7.5 discards metadata, but we can recover it from provenance
+        for ts in self.get_slim_examples():
+            t = ts.tables
+            t.metadata_schema = tskit.MetadataSchema(None)
+            t.metadata = b''
+            new_ts = pyslim.load_tables(t)
+            self.assertEqual(new_ts.metadata, ts.metadata)
 
 
 class TestEncodeDecode(tests.PyslimTestCase):
@@ -284,7 +291,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 metadata.append(dm)
 
             pyslim.annotate_population_metadata(new_tables, metadata)
-            self.assertTablesEqual(tables, new_tables)
+            self.assertTableCollectionsEqual(tables, new_tables)
 
 
 class TestDumpLoad(tests.PyslimTestCase):
@@ -322,22 +329,6 @@ class TestDumpLoad(tests.PyslimTestCase):
         self.assertEqual(ts.tables, ts2.tables)
         self.assertEqual(ts.reference_sequence, ts2.reference_sequence)
 
-    def assert_equality_except_schemas(self, tables1, tables2):
-        t1 = tables1.copy()
-        t2 = tables2.copy()
-        ns = tskit.MetadataSchema(None)
-        for tables in (t1, t2):
-            tables.populations.metadata_schema = ns
-            tables.individuals.metadata_schema = ns
-            tables.nodes.metadata_schema = ns
-            tables.edges.metadata_schema = ns
-            tables.sites.metadata_schema = ns
-            tables.mutations.metadata_schema = ns
-            tables.migrations.metadata_schema = ns
-            # TODO: remove this when SLiM writes out full metadata
-            tables.populations.clear()
-        self.assertEqual(t1, t2)
-
     def test_load_tables(self):
         for ts in self.get_slim_examples():
             self.assertTrue(type(ts) is pyslim.SlimTreeSequence)
@@ -356,21 +347,21 @@ class TestDumpLoad(tests.PyslimTestCase):
             # transfer tables
             msp_tables = msp_ts.tables
             new_ts = pyslim.load_tables(msp_tables)
-            self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
+            self.assertTrue(isinstance(new_ts, pyslim.SlimTreeSequence))
             self.verify_times(msp_ts, new_ts)
             new_tables = new_ts.tables
-            self.assert_equality_except_schemas(msp_tables, new_tables)
+            self.assertTableCollectionsEqual(msp_tables, new_tables)
             # convert directly
             new_ts = pyslim.SlimTreeSequence(msp_ts)
             self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
             self.verify_times(msp_ts, new_ts)
             new_tables = new_ts.tables
-            self.assert_equality_except_schemas(msp_tables, new_tables)
+            self.assertTableCollectionsEqual(msp_tables, new_tables)
             # load to pyslim from file
             slim_ts = pyslim.load(fn)
             self.assertTrue(type(slim_ts) is pyslim.SlimTreeSequence)
             slim_tables = slim_ts.tables
-            self.assert_equality_except_schemas(msp_tables, slim_tables)
+            self.assertTableCollectionsEqual(msp_tables, slim_tables)
             self.assertEqual(slim_ts.slim_generation, new_ts.slim_generation)
 
     def test_dump_equality(self):

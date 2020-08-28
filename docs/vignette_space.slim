@@ -50,11 +50,11 @@ late() {
    i1.evaluate();
 }
 
-1000 early() {
+1000 late() {
    sim.treeSeqRememberIndividuals(p1.individuals);
 }
 
-2000 {
+2000 late() {
    sim.treeSeqOutput("spatial_sim.trees");
    catn("Done.");
    sim.simulationFinished();
