@@ -109,8 +109,7 @@ class TestAnnotate(tests.PyslimTestCase):
         in_tables.sort()
         out_tables = out_ts.tables
         out_tables.sort()
-        out_tables.provenances.truncate(in_tables.provenances.num_rows)
-        self.assertTrue(in_tables == out_tables)
+        self.assertTablesEqual(in_tables, out_tables, skip_provenance=-1)
 
     def test_basic_annotation(self):
         for ts in self.get_msprime_examples():
@@ -216,9 +215,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 self.assertEqual(md.selection_coeff, selcoefs[j])
 
     def test_reload_recapitate(self):
-        """
-        Test the ability of SLiM to load our files after recapitation.
-        """
+        # Test the ability of SLiM to load our files after recapitation.
         for ts, basename in self.get_slim_restarts():
             # recapitate, reload
             in_ts = ts.recapitate(recombination_rate=1e-2, Ne=10)
@@ -228,9 +225,7 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_slim_restart_equality(in_ts, out_ts)
 
     def test_reload_annotate(self):
-        """
-        Test the ability of SLiM to load our files after annotation.
-        """
+        # Test the ability of SLiM to load our files after annotation.
         for ts, basename in self.get_slim_restarts():
             tables = ts.tables
             metadata = list(pyslim.extract_mutation_metadata(tables))
@@ -254,3 +249,21 @@ class TestAnnotate(tests.PyslimTestCase):
             # check for equality, in everything but the last provenance
             self.verify_slim_restart_equality(in_ts, out_ts)
 
+
+class TestReload(tests.PyslimTestCase):
+    '''
+    Tests for basic things related to reloading with SLiM
+    '''
+
+    def test_load_without_provenance(self):
+        # with 0.5, SLiM should read info from metadata, not provenances
+        for in_ts, basename in self.get_slim_restarts():
+            in_tables = in_ts.tables
+            in_tables.provenances.clear()
+            in_ts = in_tables.tree_sequence()
+            out_ts = self.run_slim_restart(in_ts, basename)
+            out_tables = out_ts.tables
+            out_tables.provenances.clear()
+            print(in_tables.metadata_schema)
+            print(out_tables.metadata_schema)
+            self.assertEqual(in_tables, out_tables)

@@ -37,7 +37,7 @@ to SLiM time as follows:
 
    def slim_time(ts, time):
       slim_time = ts.slim_generation - time
-      if self.slim_provenance.model_type == "WF":
+      if self.metadata['model_type'] == "WF":
          time_adjust = (self.slim_generation
                  - self.individual(self.first_generation_individuals()[0]).time)
          slim_time -= time_adjust
@@ -94,3 +94,10 @@ The information is recorded in a binary format, and is extracted and written by 
 Nothing besides this binary information can be stored in the metadata of these tables if the tree sequence is to be used by SLiM,
 and so when ``pyslim`` annotates an existing tree sequence, anything in those columns is overwritten.
 For more detailed documentation on the contents and format of the metadata, see the SLiM manual.
+
+
+Of particular note is that *nodes* and *populations* may have empty metadata.
+SLiM will not use the metadata of nodes that are not associated with alive individuals,
+so this can safely be omitted (and makes recapitation easier).
+And, populations not used by SLiM will have empty metadata.
+All remaining metadata are required (besides edges and sites, whose metadata is not used at all).

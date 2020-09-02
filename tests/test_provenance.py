@@ -12,6 +12,8 @@ import random
 import json
 import tskit
 
+# *Note:* it is now deprecated to extract information from provenance,
+# but we still need to do it, to be able to load old file versions.
 
 _slim_v3_3_1_example = r'''
 {
@@ -137,22 +139,34 @@ class TestProvenance(tests.PyslimTestCase):
             with self.assertWarns(Warning):
                 yield tskit.load(filename)
 
+    def get_0_4_slim_examples(self):
+        for filename in ['tests/examples/recipe_WF.v3.4.trees',
+                         'tests/examples/recipe_nonWF.v3.4.trees']:
+            with self.assertWarns(Warning):
+                yield tskit.load(filename)
+
     def test_get_provenance(self):
         for ts in self.get_slim_examples(WF=True):
-            prov = ts.slim_provenance
-            self.assertEqual(prov, pyslim.get_provenance(ts))
+            with self.assertWarns(Warning):
+                prov = ts.slim_provenance
             self.assertEqual(prov.model_type, "WF")
-        for ts in self.get_slim_examples(nonWF=True):
-            prov = ts.slim_provenance
             self.assertEqual(prov, pyslim.get_provenance(ts))
+            self.assertEqual(prov, pyslim.get_provenance(ts.tables))
+        for ts in self.get_slim_examples(nonWF=True):
+            with self.assertWarns(Warning):
+                prov = ts.slim_provenance
             self.assertEqual(prov.model_type, "nonWF")
+            self.assertEqual(prov, pyslim.get_provenance(ts))
+            self.assertEqual(prov, pyslim.get_provenance(ts.tables))
 
     def test_get_all_provenances(self):
         for ts in self.get_slim_examples(WF=True):
-            rts = self.run_msprime_restart(ts)
+            rts = self.run_msprime_restart(ts, WF=True)
             provenances = rts.slim_provenances
             self.assertEqual(len(provenances), 2)
-            self.assertEqual(ts.slim_provenance, provenances[0])
+            with self.assertWarns(Warning):
+                last_prov = ts.slim_provenance
+            self.assertEqual(last_prov, provenances[0])
             # mrts = pyslim.SlimTreeSequence(msprime.mutate(rts, rate=0.001))
             j = 0
             for p in rts.provenances():
@@ -212,9 +226,10 @@ class TestProvenance(tests.PyslimTestCase):
             self.assertEqual(pts.num_provenances, 2)
             self.assertEqual(ts.provenance(0).record, pts.provenance(0).record)
             record = json.loads(ts.provenance(0).record)
-            new_record = json.loads(pts.provenance(1).record)
-            self.assertEqual(record['model_type'], new_record['parameters']['model_type'])
-            self.assertEqual(record['generation'], new_record['slim']["generation"])
+            self.assertTrue(isinstance(pts.metadata, dict))
+            self.assertTrue('SLiM' in pts.metadata)
+            self.assertEqual(record['model_type'], pts.metadata['SLiM']['model_type'])
+            self.assertEqual(record['generation'], pts.metadata['SLiM']["generation"])
             self.assertListEqual(list(ts.samples()), list(pts.samples()))
             self.assertArrayEqual(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -233,11 +248,12 @@ class TestProvenance(tests.PyslimTestCase):
             self.assertEqual(pts.num_provenances, 2)
             self.assertEqual(ts.provenance(0).record, pts.provenance(0).record)
             record = json.loads(ts.provenance(0).record)
-            new_record = json.loads(pts.provenance(1).record)
+            self.assertTrue(isinstance(pts.metadata, dict))
+            self.assertTrue('SLiM' in pts.metadata)
             self.assertEqual(record['parameters']['model_type'],
-                             new_record['parameters']['model_type'])
+                             pts.metadata['SLiM']['model_type'])
             self.assertEqual(record['slim']['generation'],
-                             new_record['slim']["generation"])
+                             pts.metadata['SLiM']["generation"])
             self.assertListEqual(list(ts.samples()), list(pts.samples()))
             self.assertArrayEqual(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -256,11 +272,12 @@ class TestProvenance(tests.PyslimTestCase):
             self.assertEqual(pts.num_provenances, 2)
             self.assertEqual(ts.provenance(0).record, pts.provenance(0).record)
             record = json.loads(ts.provenance(0).record)
-            new_record = json.loads(pts.provenance(1).record)
+            self.assertTrue(isinstance(pts.metadata, dict))
+            self.assertTrue('SLiM' in pts.metadata)
             self.assertEqual(record['parameters']['model_type'],
-                             new_record['parameters']['model_type'])
+                             pts.metadata['SLiM']['model_type'])
             self.assertEqual(record['slim']['generation'],
-                             new_record['slim']["generation"])
+                             pts.metadata['SLiM']["generation"])
             self.assertListEqual(list(ts.samples()), list(pts.samples()))
             self.assertArrayEqual(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -271,5 +288,32 @@ class TestProvenance(tests.PyslimTestCase):
                 self.assertEqual(t.parent(u), pt.parent(u))
                 if t.parent(u) != msprime.NULL_NODE:
                     self.assertEqual(t.branch_length(u), pt.branch_length(u))
+
+    def test_convert_0_4_files(self):
+        # Note that with version 0.5 and above, we *don't* get information from
+        # provenance, we get it from top-level metadata
+        for ts in self.get_0_4_slim_examples():
+            pts = pyslim.SlimTreeSequence(ts)
+            self.assertEqual(ts.num_provenances, 1)
+            self.assertEqual(pts.num_provenances, 2)
+            self.assertEqual(ts.provenance(0).record, pts.provenance(0).record)
+            record = json.loads(ts.provenance(0).record)
+            self.assertTrue(isinstance(pts.metadata, dict))
+            self.assertTrue('SLiM' in pts.metadata)
+            self.assertEqual(record['parameters']['model_type'],
+                             pts.metadata['SLiM']['model_type'])
+            self.assertEqual(record['slim']['generation'],
+                             pts.metadata['SLiM']['generation'])
+            self.assertListEqual(list(ts.samples()), list(pts.samples()))
+            self.assertArrayEqual(ts.tables.nodes.flags, pts.tables.nodes.flags)
+            samples = list(ts.samples())
+            t = ts.first()
+            pt = pts.first()
+            for _ in range(20):
+                u = random.sample(samples, 1)[0]
+                self.assertEqual(t.parent(u), pt.parent(u))
+                if t.parent(u) != msprime.NULL_NODE:
+                    self.assertEqual(t.branch_length(u), pt.branch_length(u))
+
 
 

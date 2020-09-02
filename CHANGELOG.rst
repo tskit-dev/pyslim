@@ -2,6 +2,15 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**Notable changes**:
+
+- Switched to using tskit native encoding/decoding of metadata via schemas.
+- added to conda-forge (@winni2k)
+
+**New features**:
+
+- enabled dumping the reference sequence for nucleotide models
+
 ********************
 [0.403] - 2020-08-27
 ********************
@@ -16,8 +25,11 @@ BUGFIX: if a tree had all first generation individuals removed
 
 This is a compatibility release, for the tskit 0.3.0 release.
 
+
 **New features**:
 
+- added has_individual_parents, a method to find individuals with all parents
+  are also recorded as individuals
 - Provenance handling:
    * added the `.slim_provenances` property to return all SLiM provenance entries
    * added the `slim_provenance_version` and `parse_provenance` methods to tell if

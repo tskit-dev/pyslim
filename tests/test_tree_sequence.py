@@ -51,30 +51,30 @@ class TestRecapitation(tests.PyslimTestCase):
 
     def test_recapitation(self):
         for ts in self.get_slim_examples():
-            assert ts.num_populations == 2
-            # if not we need migration rates
-            for keep_first in [True, False]:
-                recomb_rate = 1.0 / ts.sequence_length
-                recap = ts.recapitate(recombination_rate = recomb_rate,
-                                      keep_first_generation=keep_first)
-                # there should be no new mutations
-                self.assertEqual(ts.num_mutations, recap.num_mutations)
-                self.assertEqual(ts.num_sites, recap.num_sites)
-                self.assertListEqual(list(ts.tables.sites.position),
-                                     list(recap.tables.sites.position))
-                self.check_recap_consistency(ts, recap, keep_first)
-                for t in recap.trees():
-                    self.assertEqual(t.num_roots, 1)
-
-                recap = ts.recapitate(recombination_rate = recomb_rate,
-                                      Ne = 1e-6, keep_first_generation=keep_first)
-                self.check_recap_consistency(ts, recap, keep_first)
-                if ts.slim_generation < 200:
+            if ts.num_populations <= 2:
+                # if not we need migration rates
+                for keep_first in [True, False]:
+                    recomb_rate = 1.0 / ts.sequence_length
+                    recap = ts.recapitate(recombination_rate = recomb_rate,
+                                          keep_first_generation=keep_first)
+                    # there should be no new mutations
+                    self.assertEqual(ts.num_mutations, recap.num_mutations)
+                    self.assertEqual(ts.num_sites, recap.num_sites)
+                    self.assertListEqual(list(ts.tables.sites.position),
+                                         list(recap.tables.sites.position))
+                    self.check_recap_consistency(ts, recap, keep_first)
                     for t in recap.trees():
                         self.assertEqual(t.num_roots, 1)
-                        self.assertAlmostEqual(recap.node(t.root).time, 
-                                               recap.slim_generation, 
-                                               delta = 1e-4)
+
+                    recap = ts.recapitate(recombination_rate = recomb_rate,
+                                          Ne = 1e-6, keep_first_generation=keep_first)
+                    self.check_recap_consistency(ts, recap, keep_first)
+                    if ts.slim_generation < 200:
+                        for t in recap.trees():
+                            self.assertEqual(t.num_roots, 1)
+                            self.assertAlmostEqual(recap.node(t.root).time, 
+                                                   recap.slim_generation, 
+                                                   delta = 1e-4)
 
 
 class TestIndividualMetadata(tests.PyslimTestCase):
@@ -324,6 +324,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         for ts in self.get_slim_examples(everyone=True):
             right_answer = np.repeat(True, ts.num_individuals)
             right_answer[ts.first_generation_individuals()] = False
+            assert(ts.num_populations <= 2)
             ts = ts.recapitate(recombination_rate=0.01)
             assert(ts.num_individuals == ts.num_individuals)
             has_parents = ts.has_individual_parents()
@@ -339,6 +340,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             for i in keep_indivs:
                 keep_nodes.extend(ts.individual(i).nodes)
             ts = ts.simplify(samples=keep_nodes, filter_individuals=True)
+            assert(ts.num_populations <= 2)
             ts = ts.recapitate(recombination_rate=0.01)
             ts.dump("temp.trees")
             has_parents = ts.has_individual_parents()

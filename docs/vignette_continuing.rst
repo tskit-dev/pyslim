@@ -17,14 +17,14 @@ below we'll run a simulation in which
 3. evolves neutrally for another 1000 generations.
 
 To do this, we'll simulate step (2) first, with SLiM,
-then recapitate to add step (1), and then "continue" the simulating using msprime to add in (3).
+then recapitate to add step (1), and then "continue" the simulation using msprime to add in (3).
 
 
 ******************
 Positive selection
 ******************
 
-Here's a SLiM script that has rapid, strong selection acting genome-wide for 100 generations.
+Here's a SLiM script that has rapid, strong selection acting genome-wide for 20 generations.
 It is perhaps not very realistic, but it's dramatic.
 
 .. literalinclude:: rapid_adaptation.slim
