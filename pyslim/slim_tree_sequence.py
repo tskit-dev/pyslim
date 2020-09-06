@@ -24,11 +24,14 @@ INDIVIDUAL_FIRST_GEN = 2**18
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 
 
-def load(path):
+def load(path, legacy_metadata=False):
     '''
     Load the SLiM-compatible tree sequence found in the .trees file at ``path``.
 
     :param string path: The path to a .trees file.
+    :param bool legacy_metadata: If True, then the resulting tree sequence will
+        provide old-style metadata: as objects instead of dictionaries. This
+        option is deprecated and will dissappear at some point in the future.
     '''
     ts = SlimTreeSequence.load(path)
     return ts
@@ -107,11 +110,16 @@ class SlimTreeSequence(tskit.TreeSequence):
         will be read from metadata if not provided.
     :ivar reference_sequence: None, or an string of length equal to the sequence
         length that gives the entire reference sequence for nucleotide models.
+    :ivar legacy_metadata: Whether this tree sequence returns metadata in objects
+        (as in older versions of pyslim) rather than dicts: see
+        `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#sec-legacy-metadata>`_.
+        This option is deprecated and will disappear at some point.
     :vartype slim_generation: int
     :vartype reference_sequence: string
     '''
 
-    def __init__(self, ts, reference_sequence=None):
+    def __init__(self, ts, reference_sequence=None, legacy_metadata=False):
+        self.legacy_metadata = legacy_metadata
         if not (isinstance(ts.metadata, dict) and 'SLiM' in ts.metadata
                 and ts.metadata['SLiM']['file_version'] == slim_file_version):
             tables = ts.dump_tables()
@@ -152,7 +160,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         self.individual_times[which_indiv] = ts.tables.nodes.time[has_indiv]
 
     @classmethod
-    def load(cls, path):
+    def load(cls, path, legacy_metadata=False):
         '''
         Load a :class:`SlimTreeSequence` from a .trees file on disk.
 
@@ -167,7 +175,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             reference_sequence = int_rs.tostring().decode('ascii')
         else:
             reference_sequence = None
-        return cls(ts, reference_sequence)
+        return cls(ts, reference_sequence=reference_sequence, legacy_metadata=legacy_metadata)
 
     @classmethod
     def load_tables(cls, tables, **kwargs):
@@ -241,10 +249,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the population (i.e., its index).
         '''
         pop = super(SlimTreeSequence, self).population(id_)
-        try:
-            pop.metadata = PopulationMetadata.fromdict(pop.metadata)
-        except:
-            pass
+        if self.legacy_metadata:
+            try:
+                pop.metadata = PopulationMetadata.fromdict(pop.metadata)
+            except:
+                pass
         return pop
 
     def individual(self, id_):
@@ -263,10 +272,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         ind = super(SlimTreeSequence, self).individual(id_)
         ind.population = self.individual_populations[id_]
         ind.time = self.individual_times[id_]
-        try:
-            ind.metadata = IndividualMetadata.fromdict(ind.metadata)
-        except:
-            pass
+        if self.legacy_metadata:
+            try:
+                ind.metadata = IndividualMetadata.fromdict(ind.metadata)
+            except:
+                pass
         return ind
 
     def node(self, id_):
@@ -281,10 +291,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the node (i.e., its index).
         '''
         node = super(SlimTreeSequence, self).node(id_)
-        try:
-            node.metadata = NodeMetadata.fromdict(node.metadata)
-        except:
-            pass
+        if self.legacy_metadata:
+            try:
+                node.metadata = NodeMetadata.fromdict(node.metadata)
+            except:
+                pass
         return node
 
     def mutation(self, id_):
@@ -299,10 +310,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the mutation (i.e., its index).
         '''
         mut = super(SlimTreeSequence, self).mutation(id_)
-        try:
-            mut.metadata = [MutationMetadata.fromdict(x) for x in mut.metadata['mutation_list']]
-        except:
-            pass
+        if self.legacy_metadata:
+            try:
+                mut.metadata = [MutationMetadata.fromdict(x) for x in mut.metadata['mutation_list']]
+            except:
+                pass
         return mut
 
     def recapitate(self,
@@ -401,8 +413,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         (e.g., not ancestral to any samples) at ``position``, then this
         function will return -1, possibly erroneously.  If `time` is provided,
         returns the last mutation at ``position`` inherited by ``node`` that
-        occurred at or before ``time`` ago (using the `slim_time` attribute of
-        mutation metadata to infer this).
+        occurred at or before ``time`` ago.
 
         :param int node: The index of a node in the tree sequence.
         :param float position: A position along the genome.
@@ -448,8 +459,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         return the reference sequence nucleotide, possibly erroneously.  If
         `time` is provided, returns the last nucletide produced by a mutation
         at ``position`` inherited by ``node`` that occurred at or before
-        ``time`` ago (using the `slim_time` attribute of mutation metadata
-        to infer this).
+        ``time`` ago.
 
         :param int node: The index of a node in the tree sequence.
         :param float position: A position along the genome.
@@ -465,8 +475,8 @@ class SlimTreeSequence(tskit.TreeSequence):
             out = NUCLEOTIDES.index(self.reference_sequence[int(position)])
         else:
             mut = self.mutation(mut_id)
-            k = np.argmax([u.slim_time for u in mut.metadata])
-            out = mut.metadata[k].nucleotide
+            k = np.argmax([u["slim_time"] for u in mut.metadata["mutation_list"]])
+            out = mut.metadata["mutation_list"][k]["nucleotide"]
         return out
 
     @property
@@ -481,12 +491,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         warnings.warn("This is deprecated: get information from "
                       "ts.metadata['SLiM'] instead.", DeprecationWarning)
-        try:
-            out = get_provenance(self, only_last=True)
-        except Exception as e:
-            print(e)
-            raise(e)
-        return out
+        return get_provenance(self, only_last=True)
 
     @property
     def slim_provenances(self):
@@ -763,8 +768,8 @@ def _upgrade_old_tables(tables):
                 parent=tables.mutations.parent,
                 derived_state=tables.mutations.derived_state,
                 derived_state_offset=tables.mutations.derived_state_offset,
-                metadata=tables.mutations.metadata,
-                metadata_offset=tables.mutations.metadata_offset)
+                metadata=metadata,
+                metadata_offset=metadata_offset)
     if file_version == "0.1":
         # shift times
         node_times = tables.nodes.time + slim_generation
@@ -900,24 +905,35 @@ def _set_nodes_individuals(
     if any([p != 2 for p in ploidy]):
         raise ValueError("Not all individuals have two assigned nodes.")
 
-    tables.nodes.set_columns(flags=tables.nodes.flags, time=tables.nodes.time,
-                             population=tables.nodes.population, individual=node_ind,
-                             metadata=tables.nodes.metadata,
-                             metadata_offset=tables.nodes.metadata_offset)
-
     loc_vec, loc_off = tskit.pack_bytes(location)
-    tables.individuals.set_columns(
-            flags=ind_flags, location=loc_vec, location_offset=loc_off)
 
-    individual_metadata = [IndividualMetadata(*x) for x in
-                           zip(ind_id, age, ind_population, ind_sex, slim_ind_flags)]
+    ims = tables.individuals.metadata_schema
+    individual_metadata = [
+            {'pedigree_id': iid, 'age': a, 'subpopulation': int(pop), 'sex': sex, 'flags': f}
+            for (iid, a, pop, sex, f) in
+            zip(ind_id, age, ind_population, ind_sex, slim_ind_flags)]
+    assert(len(individual_metadata) == num_individuals)
+    individual_metadata, individual_metadata_offset = tskit.pack_bytes(
+            [ims.validate_and_encode_row(r) for r in individual_metadata])
+    tables.individuals.set_columns(
+            flags=ind_flags, location=loc_vec, location_offset=loc_off,
+            metadata=individual_metadata,
+            metadata_offset=individual_metadata_offset)
+    assert(tables.individuals.num_rows == num_individuals)
+    
     node_metadata = [None for _ in range(num_nodes)]
     for j in samples:
-        node_metadata[j] = NodeMetadata(slim_id=node_id[j], is_null=node_is_null[j],
-                                        genome_type=node_type[j])
-
-    annotate_individual_metadata(tables, individual_metadata)
-    annotate_node_metadata(tables, node_metadata)
+        node_metadata[j] = {'slim_id': node_id[j],
+                            'is_null': node_is_null[j],
+                            'genome_type': node_type[j]
+                            }
+    nms = tables.nodes.metadata_schema
+    node_metadata, node_metadata_offset = tskit.pack_bytes(
+            [nms.validate_and_encode_row(r) for r in node_metadata])
+    tables.nodes.set_columns(flags=tables.nodes.flags, time=tables.nodes.time,
+                             population=tables.nodes.population, individual=node_ind,
+                             metadata=node_metadata,
+                             metadata_offset=node_metadata_offset)
 
 
 def _set_populations(
@@ -931,14 +947,13 @@ def _set_populations(
     table.
     '''
     num_pops = max(tables.nodes.population) + 1
-    for md in tskit.unpack_bytes(tables.individuals.metadata,
-                                   tables.individuals.metadata_offset):
-        try:
-            ind_md = decode_individual(md)
-        except:
-            raise ValueError("Individuals do not have metadata: "
+    for ind in tables.individuals:
+        md = ind.metadata
+        if not (isinstance(md, dict) and 'subpopulation' in md):
+            raise ValueError("Individuals do not have valid metadata: "
                     "need to run set_nodes_individuals() first?")
-        assert(ind_md.population < num_pops)
+        if md['subpopulation'] >= num_pops:
+            raise ValueError("Bad population in individual metadata.")
     if pop_id is None:
         pop_id = list(range(num_pops))
     assert(len(pop_id) == num_pops)
@@ -988,14 +1003,27 @@ def _set_populations(
     assert(len(migration_records) == num_pops)
     for mrl in migration_records:
         for mr in mrl:
-            assert(type(mr) is PopulationMigrationMetadata)
+            assert(isinstance(mr, dict))
 
-    population_metadata = [PopulationMetadata(*x) for x in
-                           zip(pop_id, selfing_fraction, female_cloning_fraction,
-                               male_cloning_fraction, sex_ratio, bounds_x0,
-                               bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1,
-                               migration_records)]
-    annotate_population_metadata(tables, population_metadata)
+    population_metadata = [
+            {
+                "slim_id" : pid,
+                "selfing_fraction" : sf,
+                "female_cloning_fraction" : fcf,
+                "male_cloning_fraction" : mcf,
+                "sex_ratio" : sr,
+                "bounds_x0" : x0, "bounds_x1" : x1,
+                "bounds_y0" : y0, "bounds_y1" : y1,
+                "bounds_z0" : z0, "bounds_z1" : z1,
+                "migration_records" : mr,
+            } for (pid, sf, fcf, mcf, sr, x0, x1, y0, y1, z0, z1, mr) in
+            zip(pop_id, selfing_fraction, female_cloning_fraction,
+                male_cloning_fraction, sex_ratio, bounds_x0,
+                bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1,
+                migration_records)]
+    ms = tables.populations.metadata_schema
+    tables.populations.packset_metadata(
+            [ms.validate_and_encode_row(r) for r in population_metadata])
 
 
 def _set_sites_mutations(
@@ -1036,6 +1064,17 @@ def _set_sites_mutations(
         slim_time = [0 for _ in range(num_mutations)]
     assert(len(slim_time) == num_mutations)
 
-    mutation_metadata = [[MutationMetadata(*x)] for x in
+    mutation_metadata = [
+            {"mutation_list": 
+                [{"mutation_type": mt,
+                  "selection_coeff": sc,
+                  "subpopulation": pop,
+                  "slim_time": st,
+                  "nucleotide": -1
+                  }]
+            }
+            for (mt, sc, pop, st) in
                          zip(mutation_type, selection_coeff, population, slim_time)]
-    annotate_mutation_metadata(tables, mutation_metadata)
+    ms = tables.mutations.metadata_schema
+    tables.mutations.packset_metadata(
+            [ms.validate_and_encode_row(r) for r in mutation_metadata])

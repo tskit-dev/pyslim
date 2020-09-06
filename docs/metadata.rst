@@ -101,3 +101,18 @@ SLiM will not use the metadata of nodes that are not associated with alive indiv
 so this can safely be omitted (and makes recapitation easier).
 And, populations not used by SLiM will have empty metadata.
 All remaining metadata are required (besides edges and sites, whose metadata is not used at all).
+
+
+.. _sec_legacy_metadata:
+
+===============
+Legacy metadata
+===============
+
+TODO: fill this in
+
+Need to change
+
+- `node.metadata.X` to `node.metadata["X"]`
+- `mutation.metadata[k].X` to `mutation.metadata["mutation_list"][k]["X"]`
+- `individual.metadata.population` to `individual.metadata["subpopulation"]` (note the *sub*)
