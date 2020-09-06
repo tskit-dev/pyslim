@@ -216,7 +216,9 @@ class TestProvenance(tests.PyslimTestCase):
                 self.assertEqual(record['model_type'], new_record['parameters']['model_type'])
                 self.assertEqual(record['generation'], new_record['slim']["generation"])
             else:
-                self.assertEqual(record['parameters']['model_type'], new_record['parameters']['model_type'])
+                self.assertEqual(
+                        record['parameters']['model_type'],
+                        new_record['parameters']['model_type'])
                 self.assertEqual(record['slim']['generation'], new_record['slim']["generation"])
 
     def test_convert_0_1_files(self):

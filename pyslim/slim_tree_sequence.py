@@ -12,15 +12,17 @@ from ._version import *
 from .slim_metadata import *
 from .provenance import *
 from .util import *
-from .slim_metadata import _decode_mutation_pre_nucleotides, slim_metadata_schemas, _set_metadata_schemas
+from .slim_metadata import _decode_mutation_pre_nucleotides, _set_metadata_schemas
 
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
+# no longer used but keep for a while
 INDIVIDUAL_FIRST_GEN = 2**18
 
 # A nucleotide k in mutation metadata actually means
 # something that in reference_sequence is NUCLEOTIDES[k]
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
+
 
 def load(path):
     '''
@@ -74,7 +76,7 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
-    set_tree_sequence_metadata(tables, model_type=model_type, slim_generation=slim_generation)
+    set_tree_sequence_metadata(tables, **default_slim_metadata['tree_sequence']['SLiM'])
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     _set_sites_mutations(tables)
@@ -110,17 +112,22 @@ class SlimTreeSequence(tskit.TreeSequence):
     '''
 
     def __init__(self, ts, reference_sequence=None):
-        if not (isinstance(ts.metadata, dict) and 'SLiM' in ts.metadata):
-            # pre-0.5, need to upgrade
+        if not (isinstance(ts.metadata, dict) and 'SLiM' in ts.metadata
+                and ts.metadata['SLiM']['file_version'] == slim_file_version):
             tables = ts.dump_tables()
-            _upgrade_old_tables(tables)
+            if not (isinstance(tables.metadata, dict) and 'SLiM' in tables.metadata):
+                _set_metadata_from_provenance(tables)
+            if tables.metadata['SLiM']['file_version'] != slim_file_version:
+                _upgrade_old_tables(tables)
+                # cannot assign directly to keys of metadata
+                md = tables.metadata
+                md['SLiM']['file_version'] = slim_file_version
+                tables.metadata = md
             ts = tables.tree_sequence()
-        assert(ts.metadata['SLiM']['file_version'] == slim_file_version)
         slim_generation = ts.metadata['SLiM']['generation']
-        model_type = ts.metadata['SLiM']['model_type']
+        self.model_type = ts.metadata['SLiM']['model_type']
         super().__init__(ts._ll_tree_sequence)
         self.slim_generation = slim_generation
-        self.model_type = model_type
         self.reference_sequence = reference_sequence
         # pre-extract individual metadata
         self.individual_locations = ts.tables.individuals.location
@@ -183,15 +190,15 @@ class SlimTreeSequence(tskit.TreeSequence):
         tskit.TreeSequence.dump(), but also writes out the reference sequence.
 
         :param str path: The file path to write the TreeSequence to.
-        :param **kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
+        :param kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
         '''
-        super().dump(path, **kwargs)
+        super(SlimTreeSequence, self).dump(path, **kwargs)
         if self.reference_sequence is not None:
             # to convert to a kastore store we need to reload from a file,
             # and for it to be mutable we need to make it a dict
             kas = dict(kastore.load(path))
             kas['reference_sequence/data'] = np.frombuffer(self.reference_sequence.encode(),
-                                                           dtype=np.uint32)
+                                                           dtype=np.int8)
             kastore.dump(kas, path)
 
     def simplify(self, *args, **kwargs):
@@ -199,6 +206,9 @@ class SlimTreeSequence(tskit.TreeSequence):
         This is a wrapper for :meth:`tskit.TreeSequence.simplify`.
         The only difference is that this method returns the
         derived class :class:`.SlimTreeSequence`.
+
+        If you have not yet recapitated your SlimTreeSequence, you probably want to
+        pass ``keep_input_roots=True``, so that recapitation is possible in the future.
 
         :rtype SlimTreeSequence:
         '''
@@ -295,22 +305,21 @@ class SlimTreeSequence(tskit.TreeSequence):
             pass
         return mut
 
-    def recapitate(self, recombination_rate=None, keep_first_generation=False,
-                   population_configurations=None, recombination_map=None, **kwargs):
+    def recapitate(self,
+                   recombination_rate=None,
+                   population_configurations=None,
+                   recombination_map=None, **kwargs):
         '''
         Returns a "recapitated" tree sequence, by using msprime to run a
         coalescent simulation from the "top" of this tree sequence, i.e.,
         allowing any uncoalesced lineages to coalesce.
 
-        To allow recapitation to be done correctly, the individuals of the
-        first generation of the SLiM simulation have been recorded in the tree
-        sequence, but are not marked as samples. This method (or,
-        :meth:`.simplify()`) will remove any non-samples that are not needed to
-        describe the resulting trees, so if you want to keep them you must set
-        ``keep_first_generation`` to True.
-
-        This also means that you must *not* simplify before you recapitate your
-        SLiM-produced tree sequence.
+        To allow recapitation to be done correctly, the nodes of the
+        first generation of the SLiM simulation from whom all samples inherit
+        are still present in the tree sequence, but are not marked as samples.
+        If you simplify the tree sequence before recapitating you must ensure
+        these are not removed, which you do by passing the argument
+        ``keep_input_roots=True`` to :meth:`.simplify()`.
 
         Note that ``Ne`` is not set automatically, so defaults to ``1.0``; you probably
         want to set it explicitly.  Similarly, migration is not set up
@@ -336,8 +345,6 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :param float recombination_rate: A (constant) recombination rate,
             in units of crossovers per nucleotide per unit of time.
-        :param bool keep_first_generation: Whether to keep the individuals (and genomes)
-            corresponding to the first SLiM generation in the resulting tree sequence
         :param list population_configurations: See :meth:`msprime.simulate` for
             this argument; if not provided, each population will have zero growth rate
             and the same effective population size.
@@ -346,43 +353,45 @@ class SlimTreeSequence(tskit.TreeSequence):
             if recombination_rate is specified.
         :param dict kwargs: Any other arguments to :meth:`msprime.simulate`.
         '''
+        if "keep_first_generation" in kwargs:
+            raise ValueError("The keep_first_generation argument is deprecated:"
+                             "the FIRST_GEN flag is no longer used.")
+
+        # toggle for hacks below to deal with old msprime
+        discrete_msprime = hasattr(msprime, "RateMap")
+
         if recombination_rate is not None:
             if recombination_map is not None:
                 raise ValueError("Cannot specify length/recombination_rate along with a recombination map")
-            # temporary hack to deal with old msprime
-            if hasattr(msprime.RecombinationMap, "discrete"):
+            if discrete_msprime:
                 recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
-                                                             rates = [recombination_rate, 0.0],
-                                                             discrete=True)
+                                                             rates = [recombination_rate, 0.0])
             else:
                 recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
                                                              rates = [recombination_rate, 0.0],
                                                              num_loci = int(self.sequence_length))
+        if discrete_msprime and ('discrete_genome' not in kwargs):
+            kwargs['discrete_genome'] = True
 
         if population_configurations is None:
             population_configurations = [msprime.PopulationConfiguration()
                                          for _ in range(self.num_populations)]
 
-        if keep_first_generation:
-            ts = self._mark_first_generation()
-        else:
-            ts = self
-
         recap = msprime.simulate(
-                    from_ts = ts,
+                    from_ts = self,
                     population_configurations = population_configurations,
                     recombination_map = recombination_map,
                     start_time = self.slim_generation,
                     **kwargs)
-        # copy over the metadata
-        tables = recap.tables
-        # HACK to avoid recoding the metadata
-        tables.metadata = ts._ll_tree_sequence.get_metadata()
-        tables.metadata_schema = ts.metadata_schema
-        _set_metadata_schemas(tables)
-        ts = SlimTreeSequence.load_tables(tables)
-        ts.reference_sequence = self.reference_sequence
-        return ts
+        # HACK to deal with older msprime that doesn't retain metadata
+        # by copying over the metadata
+        if recap.metadata == b'':
+            tables = recap.tables
+            tables.metadata = self._ll_tree_sequence.get_metadata()
+            tables.metadata_schema = self.metadata_schema
+            _set_metadata_schemas(tables)
+            recap = tables.tree_sequence()
+        return SlimTreeSequence(recap, reference_sequence=self.reference_sequence)
 
     def mutation_at(self, node, position, time=None):
         '''
@@ -409,14 +418,6 @@ class SlimTreeSequence(tskit.TreeSequence):
         if time is None:
             time = self.node(node).time
         tree = self.at(position)
-        # TODO: use mutation.time when this is available:
-        slim_time = self.slim_generation - time
-        # tskit time-ago begins at generation slim_generation - 1
-        # in WF models when the tree sequence is saved out in early
-        if self.metadata['SLiM']['model_type'] == "WF":
-            time_adjust = (self.slim_generation
-                    - self.individual(self.first_generation_individuals()[0]).time)
-            slim_time -= time_adjust
         site_pos = self.tables.sites.position
         out = tskit.NULL
         if position in site_pos:
@@ -426,9 +427,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             # look for only mutations that occurred before `time`
             # not strictly necessary if time was None
             for mut in site.mutations:
-                if len(mut.metadata) == 0:
-                    raise ValueError("All mutations must have SLiM metadata.")
-                if max([u.slim_time for u in mut.metadata]) <= slim_time:
+                if mut.time >= time:
                     mut_nodes.append(mut.node)
             n = node
             while n > -1 and n not in mut_nodes:
@@ -473,7 +472,7 @@ class SlimTreeSequence(tskit.TreeSequence):
     @property
     def slim_provenance(self):
         '''
-        Returns model type, slim generation, and remembmered node count from
+        Returns model type, slim generation, and remembered node count from
         the last entry in the provenance table that is tagged with "program"="SLiM".
 
         NOTE: you probably want to use the ``.metadata`` property instead.
@@ -482,12 +481,17 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         warnings.warn("This is deprecated: get information from "
                       "ts.metadata['SLiM'] instead.", DeprecationWarning)
-        return get_provenance(self, only_last=True)
+        try:
+            out = get_provenance(self, only_last=True)
+        except Exception as e:
+            print(e)
+            raise(e)
+        return out
 
     @property
     def slim_provenances(self):
         '''
-        Returns model type, slim generation, and remembmered node count from *all*
+        Returns model type, slim generation, and remembered node count from *all*
         entries in the provenance table that is tagged with "program"="SLiM"
 
         :rtype ProvenanceMetadata:
@@ -498,6 +502,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         Mark all 'first generation' individuals' nodes as samples, and return
         the corresponding tree sequence.
+
+        DEPRECATED
         '''
         tables = self.dump_tables()
         first_gen_nodes = ((tables.nodes.individual > 0)
@@ -516,7 +522,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         ts.reference_sequence = self.reference_sequence
         return ts
 
-    def individuals_alive_at(self, time, stage='late', remembered_stage='late'):
+    def individuals_alive_at(self, time, stage='late', remembered_stage=None):
         """
         Returns an array giving the IDs of all individuals that are known to be
         alive at the given time ago.  This is determined using their birth time
@@ -553,26 +559,26 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param float time: The number of time steps ago.
         :param str stage: The stage in the SLiM life cycle that we are inquiring
             about (either "early" or "late"; defaults to "late").
-        :param str remembered_stage: The stage in the SLiM life cycle that
-            individuals were Remembered during.
+        :param str remembered_stage: The stage in the SLiM life cycle
+            that individuals were Remembered during (defaults to the stage the
+            tree sequence was recorded at, stored in metadata).
         """
         if stage not in ("late", "early"):
             raise ValueError(f"Unknown stage '{stage}': "
                               "should be either 'early' or 'late'.")
+
+        if remembered_stage is None:
+            remembered_stage = self.metadata['SLiM']['stage']
+
         if remembered_stage not in ("late", "early"):
-            raise ValueError(f"Unknown stage '{remembered_stage}': "
+            raise ValueError(f"Unknown remembered_stage '{remembered_stage}': "
                               "should be either 'early' or 'late'.")
-        # sanity check "remembered_stage" (only possible for WF models)
-        if self.metadata['SLiM']['model_type'] == "WF":
-            first_gen = self.first_generation_individuals()
-            if len(first_gen) > 0:
-                dt = (self.slim_generation
-                        - self.individual(first_gen[0]).time)
-                if (dt == 0) != (remembered_stage == "late"):
-                    warnings.warn("It looks like the tree sequence was not saved to file "
-                            f"during remembered_stage={remembered_stage}. "
-                            "This may cause inaccuracies in deciding which individuals "
-                            "are alive at what times.")
+        if remembered_stage != self.metadata['SLiM']['stage']:
+            warnings.warn(f"Provided remembered_stage '{remembered_stage}' does not"
+                          " match the stage at which the tree sequence was saved"
+                          f" ('{self.metadata['SLiM']['stage']}'). This is not necessarily"
+                          " an error, but mismatched stages will lead to inconsistencies:"
+                          " make sure you know what you're doing.")
 
         # birth_time is the time ago that they were first alive in 'late'
         # in a nonWF model they are alive for the same time step's 'early'
@@ -642,10 +648,17 @@ class SlimTreeSequence(tskit.TreeSequence):
         """
         Returns the IDs of the individuals remembered as part of the first SLiM generation,
         as determined by their flags.
+
+        .. warning::
+        
+            This method is deprecated, because from SLiM version 3.5
+            the first generation individuals are no longer marked as such:
+            only tree sequences from older versions of SLiM will have
+            these individuals.
         """
         return np.where(self.tables.individuals.flags & INDIVIDUAL_FIRST_GEN > 0)[0]
 
-    def has_individual_parents(self, remembering_stage="late"):
+    def has_individual_parents(self):
         '''
         Finds which individuals have both their parent individuals also present
         in the tree sequence, as far as we can tell. To do this, we return the
@@ -700,6 +713,34 @@ class SlimTreeSequence(tskit.TreeSequence):
         return has_all_parents
 
 
+def _set_metadata_from_provenance(tables):
+    # note this uses defaults on keys not present in provenance,
+    # which prior to 0.5 was everything but generation and model_type
+    values = default_slim_metadata['tree_sequence']['SLiM']
+    prov = None
+    file_version = 'unknown'
+    # use only the last SLiM provenance
+    for p in tables.provenances:
+        is_slim, this_file_version = slim_provenance_version(p) 
+        if is_slim:
+            prov = p
+            file_version = this_file_version
+    values['file_version'] = file_version
+    try:
+        record = json.loads(prov.record)
+        if file_version == "0.1":
+            values['model_type'] = record['model_type']
+            values['generation'] = record['generation']
+        else:
+            for k in values:
+                if k in record['parameters']:
+                    values[k] = record['parameters'][k]
+            values['generation'] = record['slim']['generation']
+    except:
+        raise ValueError("Failed to obtain metadata from provenance.")
+    set_tree_sequence_metadata(tables, **values)
+
+
 def _upgrade_old_tables(tables):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -742,11 +783,6 @@ def _upgrade_old_tables(tables):
                 source=tables.migrations.source,
                 dest=tables.migrations.dest,
                 time=migration_times)
-    if file_version in ["0.1", "0.2", "0.3", "0.4"]:
-        # note this uses defaults on the remaining keys!
-        set_tree_sequence_metadata(tables,
-                model_type=provenance.model_type,
-                slim_generation=slim_generation)
     new_record = {
                 "schema_version": "1.0.0",
                 "software": {

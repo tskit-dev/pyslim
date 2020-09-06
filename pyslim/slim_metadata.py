@@ -34,6 +34,10 @@ _raw_slim_metadata_schemas = {
                             "type": "integer",
                             "description": "The 'SLiM generation' counter when this tree sequence was recorded."
                         },
+                        "stage" : {
+                            "type": "string",
+                            "description": "The stage of the SLiM life cycle when this tree sequence was recorded."
+                        },
                         "file_version" : {
                             "type": "string",
                             "description": "The SLiM 'file format version' of this tree sequence."
@@ -352,12 +356,13 @@ default_slim_metadata = {
     "tree_sequence" : {
          "SLiM" : {
              "model_type" : "nonWF",
-             "generation" : 0,
+             "generation" : 1,
              "file_version" : slim_file_version,
              "spatial_dimensionality" : "",
              "spatial_periodicity" : "",
              "separate_sexes" : False,
              "nucleotide_based" : False,
+             "stage" : "late"
          }
     },
     "edge" : None,
@@ -399,11 +404,15 @@ default_slim_metadata = {
 
 def set_tree_sequence_metadata(tables,
         model_type,
-        slim_generation,
+        generation,
         spatial_dimensionality='',
         spatial_periodicity='',
         separate_sexes=False,
-        nucleotide_based=False):
+        nucleotide_based=False,
+        stage='late',
+        file_version=None):
+    if file_version is None:
+        file_version = slim_file_version
     if isinstance(tables.metadata, bytes):
         if len(tables.metadata) > 0:
             raise ValueError("Tree sequence has top-level metadata but no schema: this is a problem "
@@ -420,12 +429,13 @@ def set_tree_sequence_metadata(tables,
     tables.metadata_schema = tskit.MetadataSchema(schema_dict)
     metadata_dict['SLiM'] = {
             "model_type": model_type,
-            "generation": slim_generation,
-            "file_version": slim_file_version,
+            "generation": generation,
+            "file_version": file_version,
             "spatial_dimensionality": spatial_dimensionality,
             "spatial_periodicity": spatial_periodicity,
             "separate_sexes": separate_sexes,
-            "nucleotide_based": nucleotide_based
+            "nucleotide_based": nucleotide_based,
+            "stage": stage,
             }
     tables.metadata = metadata_dict
     _set_metadata_schemas(tables)

@@ -23,9 +23,9 @@ A typical way to do this would be to
 2. :meth:`.SlimTreeSequence.simplify` : For efficiency, subset the tree
    sequence to only the information relevant for those 1,000 individuals
    we wish to sample.
-   **Important: this needs to come *after* recapitation (see below).**
+   **Important: this should probably come *after* recapitation (see below).**
 
-3. :meth:`msprime.mutate` : This adds neutral mutations on top of the tree sequence.
+3. :meth:`msprime.mutate` : Adds neutral mutations to the tree sequence.
 
 These steps are described below.
 First, to get something to work with,
@@ -41,6 +41,8 @@ you should get exactly the same results as me,
 when you run the code below.)
 
 
+.. _sec_tutorial_recapitation:
+
 ************
 Recapitation
 ************
@@ -55,13 +57,14 @@ can be much more efficient to do this afterwards, hence only doing a coalescent
 simulation for the portions of the first-generation ancestors that have
 not yet coalesced. (See the SLiM manual for more explanation.)
 This is depicted in the figure at the right:
-imagine that the common ancestors of all samples did not exist at all sites within the
-SLiM simulation. Recapitation starts at the *top* of the genealogies,
+imagine that at some sites, some of the samples
+don't share a common ancestor within the SLiMulated portion of history (shown in blue).
+Recapitation starts at the *top* of the genealogies,
 and runs a coalescent simulation back through time
 to fill out the rest of genealogical history relevant to the samples.
-The purple nodes are new ancestral genomes that have been added to the tree sequence.
+The purple chromosomes are new ancestral nodes that have been added to the tree sequence.
 This is important - if we did not do this,
-then effectively the initial population would be genetically homogeneous,
+then effectively we are assuming the initial population would be genetically homogeneous,
 and so our simulation would have less genetic variation than it should have
 (since the component of variation from the initial population would be omitted).
 
@@ -70,7 +73,7 @@ Doing this is as simple as:
 .. code-block:: python
 
    orig_ts = pyslim.load("example_sim.trees")
-   rts = orig_ts.recapitate(recombination_rate = 1e-8, Ne=200)
+   rts = orig_ts.recapitate(recombination_rate = 1e-8, Ne=200, random_seed=5)
 
 We can check that this worked as expected, by verifying that after recapitation
 all trees have only one root:
@@ -209,8 +212,9 @@ Simplification
    :scale: 42%
    :align: right
 
-In this example, we imagine that we have many more individuals in the simulation
-than we actually want to analyze.
+Probably, your simulations have produced many more fictitious genomes
+than you will be lucky enough to have in real life,
+so at some point you may want to reduce your dataset to a realistic sample size.
 We can get rid of the extra information using an operation called *simplification*.
 This is depicted in the figure at the right:
 we have only retained information relevant to the genealogies of the remaining samples,
@@ -222,14 +226,19 @@ for details.)
 While simplification sounds very appealing - it makes things simpler after all -
 it is often not necessary in practice, because tree sequences are very compact,
 and many operations with them are quite fast.
+(It will, however, speed up many operations, so if you plan to do a large number of simulations,
+your workflow could benefit from early simplification.)
 So, you should probably not make simplification a standard step in your workflow,
 only using it if necessary.
 
 It is important that simplification - if it happens at all -
-comes *after* recapitation. This is because simplification will remove some of the
+either (a) comes after recapitation, or
+(b) is done with the `keep_input_roots=True` option (see :meth:`tskit.TreeSequence.simplify`).
+This is because simplification removes some of the
 ancestral genomes in the first generation,
-which are necessary for recapitation.
-If we had simplified before recapitating,
+which are necessary for recapitation,
+unless it is asked to "keep the input roots".
+If we simplify without this option before recapitating,
 some of the first-generation blue chromosomes in the figure on the right
 would not be present, so the coalescent simulation would start from a more recent point in time
 than it really should.
@@ -244,13 +253,16 @@ since they don't convey any information about the shape of the tree;
 and so recapitation could well produce a common ancestor more recently than 1,000 generations,
 which is inconsistent with the SLiM simulation.
 
-Simplification to history of 100 individuals alive today
+After recapitation,
+simplification to the history of 100 individuals alive today
 can be done with the :meth:`.SlimTreeSequence.simplify` method:
 
 .. code-block:: python
 
    import numpy as np
-   keep_indivs = np.random.choice(rts.individuals_alive_at(0), 100, replace=False)
+   np.random.seed(3)
+   alive_inds = rts.individuals_alive_at(0)
+   keep_indivs = np.random.choice(alive_inds, 100, replace=False)
    keep_nodes = []
    for i in keep_indivs:
       keep_nodes.extend(rts.individual(i).nodes)
@@ -259,15 +271,17 @@ can be done with the :meth:`.SlimTreeSequence.simplify` method:
    print(f"Before, there were {rts.num_samples} sample nodes (and {rts.num_individuals} individuals) "
           f"in the tree sequence, and now there are {sts.num_samples} sample nodes "
           f"(and {sts.num_individuals} individuals).")
-   # Before, there were 1930 sample nodes (and 1965 individuals) in the tree sequence,
-   # and now there are 200 sample nodes (and 129 individuals).
+   # Before, there were 1930 sample nodes (and 965 individuals) in the tree sequence,
+   # and now there are 200 sample nodes (and 115 individuals).
 
 **Note** that you must pass simplify a list of *node IDs*, not individual IDs.
 Here, we used the :meth:`.SlimTreeSequence.individuals_alive_at` method to obtain the list
 of individuals alive today.
-Also note that there are *still* more than 100 individuals remaining - 29 non-sample individuals
-have not been simplified away, from either the initial population or the final population,
+Also note that there are *still* more than 100 individuals remaining - 15 non-sample individuals
+have not been simplified away,
 because they have nodes that are required to describe the genealogies of the samples.
+(Since this is a non-Wright-Fisher simulation,
+parents and children can be both alive at the same time in the final generation.)
 
 
 *********************************************
@@ -331,7 +345,7 @@ all those alive at the end of the simulation
    alive = orig_ts.individuals_alive_at(0)
    
    print(f"There are {len(alive)} individuals alive from the final generation.")
-   # There are 2012 individuals alive from the final generation.
+   # There are 2020 individuals alive from the final generation.
 
 These are individual IDs, and we can use ``ts.individual( )`` to get information
 about each of these individuals from their ID.
@@ -350,8 +364,8 @@ we could do:
       print(f"Number of individuals in population {pop}: {num}")
 
    # Number of individuals in population 0: 0
-   # Number of individuals in population 1: 1014
-   # Number of individuals in population 2: 998
+   # Number of individuals in population 1: 984
+   # Number of individuals in population 2: 1036
 
 Our SLiM script started numbering populations at 1, while tskit starts counting at 0,
 so there is an empty "population 0" in a SLiM-produced tree sequence.
@@ -367,9 +381,11 @@ Recapitation takes a bit more thought, because we have to specify a migration ma
    rts = orig_ts.recapitate(population_configurations=pop_configs,
                             migration_matrix=[[0.0, 0.0, 0.0],
                                               [0.0, 0.0, 0.1],
-                                              [0.0, 0.1, 0.0]])
+                                              [0.0, 0.1, 0.0]],
+                            recombination_rate=1e-8,
+                            random_seed=4)
    ts = pyslim.SlimTreeSequence(
-            msprime.mutate(rts, rate=1e-8))
+            msprime.mutate(rts, rate=1e-8, random_seed=7))
 
 Again, there are *three* populations because SLiM starts counting at 1;
 the first population is unused (no migrants can go to it).
@@ -396,9 +412,9 @@ that are alive at the end of the simulation.
          f"sampled genomes, with a mean genetic diversity of {diversity[0]} and "
          f"{diversity[1]} within the two populations, and a mean divergence of "
          f"{divergence[0]} between them.")
-   # There are 117453 mutations across 28972 distinct genealogical trees describing relationships
-   # among 4024 sampled genomes, with a mean genetic diversity of 9.697e-05 and 9.661e-05 within
-   # the two populations, and a mean divergence of 9.738e-05 between them.
+   # There are 115500 mutations across 50613 distinct genealogical trees describing relationships
+   # among 4040 sampled genomes, with a mean genetic diversity of 9.064e-05 and 9.054e-05 within
+   # the two populations, and a mean divergence of 9.135839855153494e-05 between them.
 
 
 Other information about individuals is available,
@@ -421,27 +437,29 @@ For instance, we can create an age distribution by sex:
    for age, x in enumerate(age_table):
       print(f"{age}\t{x[0]}\t{x[1]}")
 
-   # number	females	males
-   # 0	        337.0	350.0
-   # 1	        228.0	209.0
-   # 2	        149.0	132.0
-   # 3	        109.0	96.0
-   # 4	        62.0	70.0
-   # 5	        37.0	47.0
-   # 6	        23.0	34.0
-   # 7	        23.0	24.0
-   # 8	        11.0	16.0
-   # 9	        9.0	10.0
-   # 10	        5.0	5.0
-   # 11	        3.0	4.0
-   # 12	        2.0	1.0
-   # 13	        1.0	3.0
-   # 14	        2.0	0.0
-   # 15	        2.0	3.0
-   # 16	        2.0	0.0
-   # 17	        0.0	0.0
-   # 18	        0.0	2.0
-   # 19	        1.0	0.0
+   # number females	males
+   # 0         327.0   343.0
+   # 1         213.0	226.0
+   # 2         165.0	144.0
+   # 3         99.0    112.0
+   # 4         79.0    68.0
+   # 5         48.0    37.0
+   # 6         31.0    38.0
+   # 7         16.0    13.0
+   # 8         10.0    8.0
+   # 9         7.0     10.0
+   # 10         4.0     3.0
+   # 11         3.0     4.0
+   # 12         4.0     1.0
+   # 13         2.0     1.0
+   # 14         1.0     0.0
+   # 15         0.0     1.0
+   # 16         0.0     0.0
+   # 17         1.0     0.0
+   # 18         0.0     0.0
+   # 19         0.0     0.0
+   # 20         0.0     0.0
+   # 21         1.0     0.0
 
 We have looked up how to interpret the `sex` attribute
 by using the values of :data:`.INDIVIDUAL_TYPE_FEMALE` (which is 0)
@@ -451,15 +469,15 @@ all individuals would have sex equal to :data:`.INDIVIDUAL_TYPE_HERMAPHRODITE`
 (which is -1).
 
 The "flags" object also tells us the reasons that each individual
-was retained in the tree sequence: whether they were there in the initial population
-(the "first generation"), whether they were Remembered, or whether they were alive at the
+was retained in the tree sequence: whether they were Remembered,
+or whether they were alive at the
 end of the simulation. (Note these are not mutually exclusive.)
-To count these up, we could do this:
+To count these up, we could do this (even though this simulation had
+no remembered individuals):
 
 .. code-block:: python
 
-   indiv_types = {"first_gen" : 0,
-                  "remembered" : 0,
+   indiv_types = {"remembered" : 0,
                   "alive" : 0}
    for ind in ts.individuals():
       if ind.flags & pyslim.INDIVIDUAL_FIRST_GEN:
@@ -472,7 +490,6 @@ To count these up, we could do this:
    for k in indiv_types:
       print(f"Number of individuals that are {k}: {indiv_types[k]}")
 
-   # Number of individuals that are first_gen: 2000
    # Number of individuals that are remembered: 0
    # Number of individuals that are alive: 2012
 
@@ -505,8 +522,8 @@ The resulting tree sequence does indeed have fewer individuals and fewer trees:
    print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} distinct "
          f"genealogical trees describing relationships among {sub_ts.num_samples} "
          f"sampled genomes, with a mean overall genetic diversity of {sub_ts.diversity()}.")
-   # There are 46163 mutations across 6376 distinct genealogical trees describing relationships
-   # among 40 sampled genomes, with a mean overall genetic diversity of 9.789e-05.
+   # There are 44576 mutations across 25154 distinct genealogical trees describing relationships
+   # among 40 sampled genomes, with a mean overall genetic diversity of 9.087-05.
 
 
 
@@ -579,10 +596,10 @@ Note that we have set the mutation rate to ``0.0``:
 this is because any mutations that are produced will be read in by SLiM...
 which *could* be a very useful thing, if you want to generate mutations with msprime
 that provide standing variation for selection within SLiM...
-**but**, currently msprime only produces mutations
+**but**, the last msprime release only produces mutations
 with an infinite-sites model, while SLiM requires mutation positions to be at integer positions.
-We `plan to fix this <https://github.com/tskit-dev/msprime/issues/553>`_,
-but in the meantime you'll have to generate any pre-existing mutations by hand.
+This will change in msprime v1.0, and is already implemented in the development version,
+so if you'd really like to do this, get in touch.
 *However*, if you intend the pre-existing mutations to be *neutral*,
 then there is no need to add them at this point;
 you can add them after the fact, as discussed above.
@@ -652,6 +669,7 @@ The information about the mutation is put in the mutation's metadata
    # {'id': 0,
    #  'site': 0,
    #  'node': 4425,
+   #  'time': 1.0,
    #  'derived_state': '1997240',
    #  'parent': -1,
    #  'metadata': [
@@ -677,8 +695,12 @@ and was given SLiM mutation ID 1997240 (`m.derived_state`).
 The metadata (`m.metadata`, a dict) tells us this is of type `m1`,
 has selection coefficient -0.07989, and occurred in population 1 in generation 998.
 This is not a nucleotide model, so the nucleotide entry is `-1`.
+Note that `m.time` and `m.metadata[0]['slim_time']` are in this case redundant:
+they contain the same information, but the first is in tskit time
+(i.e., number of steps before the tree sequence was written out)
+and the second is using SLiM's internal "generation" counter.
 
-Note that the mutation's metadata is a *list* of metadata entries.
+Also note that the mutation's metadata is a *list* of metadata entries.
 That's because of SLiM's mutation stacking feature.
 We know that some sites have more than one mutation,
 so to get an example let's pull out the last mutation from one of those sites.
@@ -693,7 +715,8 @@ so to get an example let's pull out the last mutation from one of those sites.
    print(m)
    # {'id': 193,
    #  'site': 192,
-   #  'node': 2767,
+   #  'node': 767,
+   #  'time': 0.0,
    #  'derived_state': '1998266,1293043',
    #  'parent': 192,
    #  'metadata': [MutationMetadata(mutation_type=1
@@ -712,7 +735,8 @@ so to get an example let's pull out the last mutation from one of those sites.
    print(ts.mutation(m.parent))
    # {'id': 192,
    #  'site': 192,
-   #  'node': 4940,
+   #  'node': 2940,
+   #  'time': 353,
    #  'derived_state': '1293043',
    #  'parent': -1,
    #  'metadata': [MutationMetadata(mutation_type=1,
@@ -725,7 +749,8 @@ so to get an example let's pull out the last mutation from one of those sites.
 This mutation (which is `ts.mutation(193)` in the tree sequence)
 was the result of SLiM adding a new mutation of type `m1` and selection coefficient -0.084
 on top of an existing mutation, also of type `m1` and with selection coefficient -0.013.
-This happened at generation 999, and the older mutation occurred at generation 646.
+This happened at generation 999 (i.e., at tskit time 0.0 time units ago),
+and the older mutation occurred at generation 646 (at tskit time 353 time units ago).
 The older mutation has SLiM mutation ID 1293043,
 and the newer mutation had SLiM mutation ID 1998266,
 so the resulting "derived state" is `'1998266,1293043'`.
@@ -748,11 +773,15 @@ that are not present in any of our 10 samples, 63 that are present in just one, 
 The surprisingly large number that are near 50% frequency are perhaps positively selected
 and on their way to fixation: we can check if that's true next.
 You may have noticed that the sum of the allele frequency spectrum is 5482,
-which is not obviously related to the number of mutations *or* the number of sites.
-That's because mutations that are not ancestral to any of the *samples* of the tree sequence
-(the 1000 individuals alive at the end of the simulation)
-don't count here: so mutations that were present in the simulation's first generation
-that haven't been inherited by the final generation contribute to this difference.
+which is not obviously related to the number of mutations (5961) *or* the number of sites (5941).
+That's because every derived allele seen in the samples counts once in the polarised allele frequency spectrum,
+and some sites have more than two alleles.
+Here's how we can check this:
+
+.. code-block:: python
+
+   sum([len(set(v.genotypes)) - 1 for v in ts.variants()])
+   # 5482
 
 At time of writing, we don't have a built-in ``allele_frequency`` method,
 so we'll use the following snippet:
@@ -832,7 +861,8 @@ Finally, let's pull out information on the allele with the largest selection coe
    print(m)
    # {'id': 256,
    #  'site': 255,
-   #  'node': 4941,
+   #  'node': 2941,
+   #  'time': 594.0,
    #  'derived_state': '809254',
    #  'parent': -1,
    #  'metadata': [MutationMetadata(mutation_type=2,
@@ -886,9 +916,3 @@ Also known as "gotchas".
 
    a. the currently alive individuals, 
    b. any individuals that have been remembered with ``treeSeqRememberIndividuals()``, and
-   c. the *first* generation of the SLiM simulation.
-
-   This last category is here because they are necessary for recapitation (described above);
-   but they are *not* marked as samples, so will most likely be removed if you `simplify` the tree sequence.
-
-

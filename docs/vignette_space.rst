@@ -48,17 +48,16 @@ Running this code, we get
 
 .. code-block:: none
 
-   The tree sequence has 27316 trees on a genome of length 100000000.0,
-   4348 individuals, 6696 'sample' genomes, and 0 mutations.
+   The tree sequence has 23908 trees on a genome of length 100000000.0,
+   1547 individuals, 3094 'sample' genomes, and 0 mutations.
 
 It makes sense we have no mutations: we haven't added any yet.
-The tree sequence is recording the relationship between 6,696 genomes (the "samples"),
-which requires 27,316 distinct trees along the genome.
-Individuals are diploid, so why is the number of individuals not equal to twice the number of samples? 
-Recall that for the *next* step, recapitation, it is necessary to keep the genomes from the first
-generation around in the tree sequence so we can trace back lineages from them.
-These extra individuals are from the first generation.
-Let's count up when the individuals in the tree sequence were born:
+The tree sequence is recording the relationship between 3,094 genomes (the "samples"),
+which requires 23,908 distinct trees along the genome.
+Individuals are diploid, which explains why the number of individuals
+is equal to twice the number of samples.
+Let's have a look at how old those individuals are,
+by tabulating when they were born:
 
 .. code-block:: python
 
@@ -69,48 +68,43 @@ This gets us
 
 .. code-block:: none
 
-   There are 849 individuals from time 0.0.
-   There are 450 individuals from time 1.0.
-   There are 211 individuals from time 2.0.
-   There are 120 individuals from time 3.0.
-   There are 41 individuals from time 4.0.
-   There are 32 individuals from time 5.0.
-   There are 11 individuals from time 6.0.
-   There are 8 individuals from time 7.0.
-   There are 2 individuals from time 8.0.
-   There are 1 individuals from time 9.0.
-   There are 1 individuals from time 11.0.
-   There are 820 individuals from time 1000.0.
-   There are 409 individuals from time 1001.0.
-   There are 203 individuals from time 1002.0.
-   There are 96 individuals from time 1003.0.
-   There are 52 individuals from time 1004.0.
-   There are 24 individuals from time 1005.0.
-   There are 9 individuals from time 1006.0.
-   There are 5 individuals from time 1007.0.
-   There are 1 individuals from time 1008.0.
-   There are 2 individuals from time 1009.0.
-   There are 1 individuals from time 1011.0.
-   There are 1000 individuals from time 1999.0.
+   There are 383 individuals from time 0.0.
+   There are 190 individuals from time 1.0.
+   There are 88 individuals from time 2.0.
+   There are 41 individuals from time 3.0.
+   There are 24 individuals from time 4.0.
+   There are 17 individuals from time 5.0.
+   There are 3 individuals from time 6.0.
+   There are 3 individuals from time 7.0.
+   There are 1 individuals from time 8.0.
+   There are 1 individuals from time 10.0.
+   There are 389 individuals from time 1000.0.
+   There are 200 individuals from time 1001.0.
+   There are 99 individuals from time 1002.0.
+   There are 48 individuals from time 1003.0.
+   There are 30 individuals from time 1004.0.
+   There are 19 individuals from time 1005.0.
+   There are 6 individuals from time 1006.0.
+   There are 2 individuals from time 1007.0.
+   There are 2 individuals from time 1008.0.
+   There are 1 individuals from time 1017.0.
 
 
 These "times" record the birth times of each individual.
 These are *tskit* times, which are in units of "time ago",
-so for instance, there are 450 individuals born one time unit before the end of the simulation
-and 211 born two time units before the end of the simulation.
+so for instance, there are 190 individuals born one time unit before the end of the simulation
+and 88 born two time units before the end of the simulation.
 (This confusing choice of units is because tskit was developed for msprime, a coalescent simulator.)
-This tells us that 1,000 of the individuals are those that we initialized the simulation with
-(we ran it for 2000 time steps and it began at SLiM time step 1, which is 1999 time steps ago),
-and there's some more individuals around 1000 time steps ago, when we asked SLiM to remember
-them for us, and some more in the past few time steps, i.e., the present.
+This also tells us that there's a bunch of individuals born around 1000 time steps ago,
+when we asked SLiM to Remember everyone alive at the time,
+and some more in the past few time steps, i.e., the present.
 This is a non-Wright-Fisher simulation,
-and so individuals may live for more than one time step (up to age 11, it seems).
-Let's check that all these individuals are alive at either (a) today, (b) 1000 time steps ago,
-or (c) the start of the simulation.
+and so individuals may live for more than one time step (even up to age 17, it seems).
+Let's check that all these individuals are alive at either (a) today or (b) 1000 time steps ago.
 
 .. code-block:: python
 
-   for t in [0, 1000, 1999]:
+   for t in [0, 1000]:
       alive = slim_ts.individuals_alive_at(t)
       print(f"There were {len(alive)} individuals alive {t} time steps in the past.")
 
@@ -119,11 +113,10 @@ This tells us that
 
 .. code-block:: none
 
-   There were 1726 individuals alive 0 time steps in the past.
-   There were 1622 individuals alive 1000 time steps in the past.
-   There were 1000 individuals alive 1999 time steps in the past.
+   There were 751 individuals alive 0 time steps in the past.
+   There were 796 individuals alive 1000 time steps in the past.
 
-And, 1726 + 1622 + 1000 is 4348, the total number of individuals.
+And, 751 + 796 is 1547, the total number of individuals.
 So, this all checks out.
 
 
@@ -138,15 +131,14 @@ But, first let's see if recapitation is necessary:
 on how much of the genome is the tree sequence not coalesced?
 In other words, recapitation adds diversity present in the initial generation;
 will it make a difference? 
-In fact, *most* segments of the genome have not yet coalesced;
-only 11 of the 27,327 trees have only one root:
+In fact, *no* segments of the genome have coalesced:
 
 .. code-block:: none
 
    >> sum([t.num_roots == 1 for t in slim_ts.trees()])
-   11
+   0
    >>> sum([t.num_roots > 0 for t in slim_ts.trees()])
-   27316
+   23908
 
 Next, we will:
 
@@ -154,8 +146,9 @@ Next, we will:
 2. Mutate, adding neutral variation.
 3. Save the resulting tree sequence to disk for future use.
 
-We *won't* simplify at this point, although it would not hurt,
-and if we did it would have to come *after* these steps.
+We *won't* simplify, since we may as well keep around all the information.
+But, if we did (e.g., if we were running a large number of simulations),
+we would need to pass `keep_input_roots=True` to allow recapitation. 
 
 .. note::
 
@@ -182,7 +175,7 @@ resulting in
 
 .. code-block:: none
 
-   The tree sequence now has 33009 trees, and 63202 mutations.
+   The tree sequence now has 29379 trees, and 55993 mutations.
 
 .. note::
 
@@ -240,11 +233,11 @@ We'll get genomes to work with by pulling out
 
 .. code-block:: none
 
-   We have 37 individuals in the topleft group.
-   We have 37 individuals in the topright group.
-   We have 26 individuals in the bottomleft group.
-   We have 26 individuals in the bottomright group.
-   We have 16 individuals in the center group.
+   We have 12 individuals in the topleft group.
+   We have 14 individuals in the topright group.
+   We have 15 individuals in the bottomleft group.
+   We have 15 individuals in the bottomright group.
+   We have 5 individuals in the center group.
    We have 5 individuals in the ancient group.
 
 To keep names associated with each subset of individuals,
@@ -280,17 +273,17 @@ by indexing the rows of the individual location array:
 .. code-block:: none
 
    >>> ts.individual_locations
-   array([[13.80897405,  6.82864046,  0.        ],
-          [15.99468473, 15.53409472,  0.        ],
-          [16.55974164, 12.15628142,  0.        ],
+   array([[ 6.72073019, 12.46786203,  0.        ],
+          [22.05001957,  4.56404005,  0.        ],
+          [24.5604073 ,  0.98884149,  0.        ],
           ...,
-          [23.54238595, 15.86662063,  0.        ],
-          [20.87051031, 24.82176819,  0.        ],
-          [23.50646183, 24.9382513 ,  0.        ]])
+          [ 4.83666331,  9.70190874,  0.        ],
+          [15.22838762,  4.74636416,  0.        ],
+          [ 4.94981476, 14.35774083,  0.        ]])
    >>> ts.individual_locations.shape
-   (4348, 3)
+   (1547, 3)
    >>> ts.individual_locations[groups["topleft"], :].shape
-   (37, 3)
+   (12, 3)
 
 
 Using this, we can easily plot the locations of all the individuals from today
@@ -350,21 +343,21 @@ For instance, here's what we have for the five "ancient" individuals:
    >>> for i in groups['ancient']:
    ...   print(ts.individual(i))
    ... 
-   {'id': 3321, 'flags': 131072, 'location': array([9.14133435, 6.8947811 , 0.        ]),
-      'metadata': IndividualMetadata(pedigree_id=814744, age=1, population=1, sex=-1, flags=0),
-      'nodes': array([3190, 3191], dtype=int32), 'population': 1, 'time': 1001.0}
-   {'id': 3468, 'flags': 131072, 'location': array([14.37826013, 20.23742822,  0.        ]),
-      'metadata': IndividualMetadata(pedigree_id=815025, age=1, population=1, sex=-1, flags=0),
-      'nodes': array([3484, 3485], dtype=int32), 'population': 1, 'time': 1001.0}
-   {'id': 3790, 'flags': 131072, 'location': array([0.15777608, 1.17249009, 0.        ]),
-      'metadata': IndividualMetadata(pedigree_id=815404, age=0, population=1, sex=-1, flags=0),
-      'nodes': array([4128, 4129], dtype=int32), 'population': 1, 'time': 1000.0}
-   {'id': 3676, 'flags': 131072, 'location': array([18.59548841, 18.92988639,  0.        ]),
-      'metadata': IndividualMetadata(pedigree_id=815290, age=0, population=1, sex=-1, flags=0),
-      'nodes': array([3900, 3901], dtype=int32), 'population': 1, 'time': 1000.0}
-   {'id': 4238, 'flags': 131072, 'location': array([2.90141632, 3.9466396 , 0.        ]),
-      'metadata': IndividualMetadata(pedigree_id=815852, age=0, population=1, sex=-1, flags=0),
-      'nodes': array([5024, 5025], dtype=int32), 'population': 1, 'time': 1000.0}
+   {'id': 1346, 'flags': 131072, 'location': array([20.90314355,  3.20240965,  0.        ]),
+    'nodes': array([1190, 1191], dtype=int32), 'population': 1, 'time': 1000.0,
+    'metadata': IndividualMetadata(pedigree_id=814660, age=0, population=1, sex=-1, flags=0)}
+   {'id': 1493, 'flags': 131072, 'location': array([12.26740846,  1.07346219,  0.        ]),
+    'nodes': array([1484, 1485], dtype=int32), 'population': 1, 'time': 1000.0,
+    'metadata': IndividualMetadata(pedigree_id=814951, age=0, population=1, sex=-1, flags=0)}
+   {'id': 791, 'flags': 131072, 'location': array([12.46965163, 24.09913306,  0.        ]),
+    'nodes': array([80, 81], dtype=int32), 'population': 1, 'time': 1004.0,
+     'metadata': IndividualMetadata(pedigree_id=811245, age=4, population=1, sex=-1, flags=0)}
+   {'id': 1239, 'flags': 131072, 'location': array([ 2.86034925, 23.946206  ,  0.        ]),
+    'nodes': array([976, 977], dtype=int32), 'population': 1, 'time': 1000.0,
+    'metadata': IndividualMetadata(pedigree_id=814407, age=0, population=1, sex=-1, flags=0)}
+   {'id': 782, 'flags': 131072, 'location': array([4.39645586, 9.4739672 , 0.        ]),
+    'nodes': array([62, 63], dtype=int32), 'population': 1, 'time': 1004.0,
+    'metadata': IndividualMetadata(pedigree_id=811055, age=4, population=1, sex=-1, flags=0)}
 
 Notice that among other things, each `individual` carries around a list of their `node` IDs,
 i.e., their genomes.
@@ -376,12 +369,10 @@ we'll have to do some extra work to make sure we keep track of order.
 
 .. code-block:: python
 
-
    sampled_nodes = [[] for _ in groups]
    for j, k in enumerate(group_order):
       for ind in groups[k]:
          sampled_nodes[j].extend(ts.individual(ind).nodes)
-
 
 Let's do a sanity check: the number of nodes in each element of this list
 should be twice the number of individuals in the corresponding list.
@@ -389,12 +380,12 @@ should be twice the number of individuals in the corresponding list.
 .. code-block:: none
 
    >>> [len(groups[k]) for k in groups]
-   [37, 37, 26, 26, 16, 5]
+   [12, 14, 15, 15, 5, 5]
 
    >>> [len(u) for u in sampled_nodes]
-   [74, 74, 52, 52, 32, 10]
+   [24, 28, 30, 30, 10, 10]
    
-So, in the 'topleft' corner there are 37 diploids. That checks out.   
+So, in the 'topleft' corner there are 12 diploids. That checks out.   
 
 Now, we can compute the matrix of pairwise mean sequence divergences
 between and within these sets.
@@ -412,12 +403,12 @@ This is done using the :meth:`ts.divergence <tskit.TreeSequence.divergence>` met
 
 .. code-block:: none
 
-   topleft:	3.83e-05	4.06e-05	4.01e-05	4.12e-05	4.05e-05	5.15e-05
-   topright:	4.06e-05	3.91e-05	4.06e-05	4.07e-05	4.02e-05	5.16e-05
-   bottomleft:	4.01e-05	4.06e-05	3.89e-05	4.08e-05	4.04e-05	5.19e-05
-   bottomright:	4.12e-05	4.07e-05	4.08e-05	3.95e-05	4.07e-05	5.22e-05
-   center:	4.05e-05	4.02e-05	4.04e-05	4.07e-05	4.04e-05	5.15e-05
-   ancient:	5.15e-05	5.16e-05	5.19e-05	5.22e-05	5.15e-05	4.02e-05
+   topleft:	3.66e-05	3.78e-05	3.87e-05	3.79e-05	3.80e-05	4.71e-05
+   topright:	3.78e-05	3.68e-05	3.87e-05	3.79e-05	3.79e-05	4.72e-05
+   bottomleft:	3.87e-05	3.87e-05	3.69e-05	3.81e-05	3.84e-05	4.75e-05
+   bottomright:	3.79e-05	3.79e-05	3.81e-05	3.67e-05	3.77e-05	4.71e-05
+   center:	3.80e-05	3.79e-05	3.84e-05	3.77e-05	3.80e-05	4.69e-05
+   ancient:	4.71e-05	4.72e-05	4.75e-05	4.71e-05	4.69e-05	3.67e-05
 
 
 That's nice, but to look at isolation by distance,
@@ -516,7 +507,6 @@ whose genomes we will write out to a VCF file.
            data = [vcf_label, str(ind.id), str(ind.metadata.pedigree_id), str(ind.time),
                    str(ind.metadata.age), str(ind.location[0]), str(ind.location[1])]
            indfile.writelines("\t".join(data) + "\n")
-
 
    with open("spatial_sim_genotypes.vcf", "w") as vcffile:
      ts.write_vcf(vcffile, individuals=indivlist, individual_names=indivnames)

@@ -4,3 +4,4 @@ __pycache__
 pyslim.egg-info/
 build/
 dist/
+*.pyc
