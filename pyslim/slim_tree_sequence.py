@@ -914,7 +914,7 @@ def _set_nodes_individuals(
             zip(ind_id, age, ind_population, ind_sex, slim_ind_flags)]
     assert(len(individual_metadata) == num_individuals)
     individual_metadata, individual_metadata_offset = tskit.pack_bytes(
-            [ims.validate_and_encode_row(r) for r in individual_metadata])
+            [ims.encode_row(r) for r in individual_metadata])
     tables.individuals.set_columns(
             flags=ind_flags, location=loc_vec, location_offset=loc_off,
             metadata=individual_metadata,
@@ -929,7 +929,7 @@ def _set_nodes_individuals(
                             }
     nms = tables.nodes.metadata_schema
     node_metadata, node_metadata_offset = tskit.pack_bytes(
-            [nms.validate_and_encode_row(r) for r in node_metadata])
+            [nms.encode_row(r) for r in node_metadata])
     tables.nodes.set_columns(flags=tables.nodes.flags, time=tables.nodes.time,
                              population=tables.nodes.population, individual=node_ind,
                              metadata=node_metadata,
@@ -1023,7 +1023,7 @@ def _set_populations(
                 migration_records)]
     ms = tables.populations.metadata_schema
     tables.populations.packset_metadata(
-            [ms.validate_and_encode_row(r) for r in population_metadata])
+            [ms.encode_row(r) for r in population_metadata])
 
 
 def _set_sites_mutations(
@@ -1077,4 +1077,4 @@ def _set_sites_mutations(
                          zip(mutation_type, selection_coeff, population, slim_time)]
     ms = tables.mutations.metadata_schema
     tables.mutations.packset_metadata(
-            [ms.validate_and_encode_row(r) for r in mutation_metadata])
+            [ms.encode_row(r) for r in mutation_metadata])

@@ -17,8 +17,7 @@ SLiM can read and write *tree sequences*, which store genealogical data of entir
 These can be used to efficiently store both the state of the population at various points
 during a simulation *as well as* its genealogical history. Furthermore, SLiM can "load" a saved tree sequence
 file to recreate the exact state of the population at the time it was saved.
-To do this, SLiM has added several additional types of information to the basic tree sequence file
-(in "metadata"); this package makes it easy to read and write this information.
+To do this, SLiM has added several additional types of information to the basic tree sequence file.
 
 ********
 Overview

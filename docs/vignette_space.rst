@@ -148,7 +148,7 @@ Next, we will:
 
 We *won't* simplify, since we may as well keep around all the information.
 But, if we did (e.g., if we were running a large number of simulations),
-we would need to pass `keep_input_roots=True` to allow recapitation. 
+we would need to pass ``keep_input_roots=True`` to allow recapitation. 
 
 .. note::
 
@@ -183,9 +183,9 @@ resulting in
    tree sequence, so we need to convert it back, by wrapping the call to `mutate`
    in :func:`.SlimTreeSequence`.
 
-We will have no further use for `slim_ts` or for `recap_ts`;
+We will have no further use for ``slim_ts`` or for ``recap_ts``;
 we've just given them separate names for tidiness.
-And, since the original SLiM mutation had no mutations, we didn't need to specify `keep=True`
+And, since the original SLiM mutation had no mutations, we didn't need to specify ``keep=True``
 in :meth:`mutate <msprime.mutate>`, but if we *had* put down selected mutations with SLiM
 we'd probably want to keep them around.
 
@@ -242,10 +242,10 @@ We'll get genomes to work with by pulling out
 
 To keep names associated with each subset of individuals,
 we've kept the individuals in a dict, so that for instance
-`groups["topleft"]` is an array of all the individual IDs that are in the top left corner.
-The IDs of the ancient individuals we will work with are kept in the array `ancient`.
+``groups["topleft"]`` is an array of all the individual IDs that are in the top left corner.
+The IDs of the ancient individuals we will work with are kept in the array ``ancient``.
 
-Let's do a quick sanity check, that everyone in `ancient` was actually born around 1000 time steps ago:
+Let's do a quick sanity check, that everyone in ``ancient`` was actually born around 1000 time steps ago:
 
 .. code-block:: python
 
@@ -261,12 +261,12 @@ Plotting locations
 
 We should check this: plot where these individuals lie
 relative to everyone else.
-The individuals locations are available in individual metadata,
+The individuals locations are available as a property of individuals,
 but to make things easier, it's also present in a `num_individuals x 3`
-numpy array as `ts.individual_locations`.
+numpy array as ``ts.individual_locations``.
 (There are three columns because SLiM allows for
 `(x, y, z)` coordinates, but we'll just use the first two.)
-Since `groups["topleft"]` is an array of individual IDs,
+Since ``groups["topleft"]`` is an array of individual IDs,
 we can pull out the locations of the "topleft" individuals
 by indexing the rows of the individual location array:
 
@@ -345,21 +345,21 @@ For instance, here's what we have for the five "ancient" individuals:
    ... 
    {'id': 1346, 'flags': 131072, 'location': array([20.90314355,  3.20240965,  0.        ]),
     'nodes': array([1190, 1191], dtype=int32), 'population': 1, 'time': 1000.0,
-    'metadata': IndividualMetadata(pedigree_id=814660, age=0, population=1, sex=-1, flags=0)}
+    'metadata': {pedigree_id": 814660, age": 0, population": 1, sex": -1, flags": 0}}
    {'id': 1493, 'flags': 131072, 'location': array([12.26740846,  1.07346219,  0.        ]),
     'nodes': array([1484, 1485], dtype=int32), 'population': 1, 'time': 1000.0,
-    'metadata': IndividualMetadata(pedigree_id=814951, age=0, population=1, sex=-1, flags=0)}
+    'metadata': {"pedigree_id": 814951, "age": 0, "population": 1, "sex": -1, "flags": 0)}
    {'id': 791, 'flags': 131072, 'location': array([12.46965163, 24.09913306,  0.        ]),
     'nodes': array([80, 81], dtype=int32), 'population': 1, 'time': 1004.0,
-     'metadata': IndividualMetadata(pedigree_id=811245, age=4, population=1, sex=-1, flags=0)}
+     'metadata': {"pedigree_id": 811245, "age": 4, "population": 1, "sex": -1, "flags": 0)}
    {'id': 1239, 'flags': 131072, 'location': array([ 2.86034925, 23.946206  ,  0.        ]),
     'nodes': array([976, 977], dtype=int32), 'population': 1, 'time': 1000.0,
-    'metadata': IndividualMetadata(pedigree_id=814407, age=0, population=1, sex=-1, flags=0)}
+    'metadata': {"pedigree_id": 814407, "age": 0, "population": 1, "sex": -1, "flags": 0)}
    {'id': 782, 'flags': 131072, 'location': array([4.39645586, 9.4739672 , 0.        ]),
     'nodes': array([62, 63], dtype=int32), 'population': 1, 'time': 1004.0,
-    'metadata': IndividualMetadata(pedigree_id=811055, age=4, population=1, sex=-1, flags=0)}
+    'metadata': {"pedigree_id": 811055, "age": 4, "population": 1, "sex": -1, "flags": 0)}
 
-Notice that among other things, each `individual` carries around a list of their `node` IDs,
+Notice that among other things, each individual carries around a list of their node IDs,
 i.e., their genomes.
 We need to put these all in a list of lists,
 so that, for instance, the first element of the list will have the node IDs of all the genomes
@@ -473,7 +473,7 @@ Now let's plot genetic distance against geographic distance.
    :alt: Geographic and genetic distances in the simulation.
 
 
-Since we multiplied `ind_div` by 1,000,
+Since we multiplied ``ind_div`` by 1,000,
 the units of genetic distance are in mean number of nucleotide differences per kilobase.
 There is *not* strong IBD in this noisy and relatively small simulation,
 but notice that the "ancient" samples are more deeply diverged from modern samples (in yellow)
@@ -504,8 +504,8 @@ whose genomes we will write out to a VCF file.
            ind = ts.individual(i)
            vcf_label = f"tsk_{ind.id}"
            indivnames.append(vcf_label)
-           data = [vcf_label, str(ind.id), str(ind.metadata.pedigree_id), str(ind.time),
-                   str(ind.metadata.age), str(ind.location[0]), str(ind.location[1])]
+           data = [vcf_label, str(ind.id), str(ind.metadata["pedigree_id"]), str(ind.time),
+                   str(ind.metadata["age"]), str(ind.location[0]), str(ind.location[1])]
            indfile.writelines("\t".join(data) + "\n")
 
    with open("spatial_sim_genotypes.vcf", "w") as vcffile:

@@ -84,10 +84,10 @@ To "continue" the simulation neutrally, we'll
 a. simulate the desired period of time in msprime
 b. randomly match the initial ancestors in the msprime simulation
    with the final individuals of the SLim simulation, and
-c. merge the two together, using the `union( )` method.
+c. merge the two together, using the :meth:`tskit.TreeSequence.union` method.
 
 
-*(a)* Simulating for a given period of time in msprime just requires the `end_time` argument
+*(a)* Simulating for a given period of time in msprime just requires the ``end_time`` argument
 (remembering that this is *time ago*).
 We'll continue the simulation for another 1000 generations.
 
@@ -191,20 +191,20 @@ Let's do a sanity check:
 That matches up - the time of what should be the same node in the "continued" tree sequence
 is 1000 generations earlier.
 
-So, what happened with `union` back there?
-Well, the basic usage is `tables.union(other, node_map)`,
-where `node_map` is an array of length equal to the number of nodes in `other`,
-whose entries are either `tskit.NULL` or the ID of a node in `tables`.
+So, what happened with ``union`` back there?
+Well, the basic usage is ``tables.union(other, node_map)``,
+where ``node_map`` is an array of length equal to the number of nodes in ``other``,
+whose entries are either ``tskit.NULL`` or the ID of a node in ``tables``.
 The entries that *aren't* NULL indicate that
-`union` should glue together `tables` and `other` by saying that that pair of nodes are the same.
-(So, e.g., if `node_map[3]` is equal to `25`, then it says that node 25 in `tables`
-is actually the same, really, as node 3 in `other`.)
-We then asked `union` to please not create new populations,
+``union`` should glue together ``tables`` and ``other`` by saying that that pair of nodes are the same.
+(So, e.g., if ``node_map[3]`` is equal to ``25``, then it says that node 25 in ``tables``
+is actually the same, really, as node 3 in ``other``.)
+We then asked ``union`` to please not create new populations,
 since otherwise it would have assigned all the new nodes to a new population.
 We also asked it to not "check for overlap equality":
 sometimes, when unioning together two tree sequences,
 we really expect everything having to do with the set of nodes we're saying are identical
-to be identical in the two tree sequences, so `union` by default throws an error if it's not.
+to be identical in the two tree sequences, so ``union`` by default throws an error if it's not.
 We don't expect that in this case, because, for instance,
 there could be a mutation above one of the terminal nodes in the SLiM tree sequence;
 this would clearly not be present in the new tree sequence.

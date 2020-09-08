@@ -5,7 +5,7 @@ Development
 ===========
 
 
-To install a particular version of `pyslim` from source, e.g., to obtain a recent update::
+To install a particular version of ``pyslim`` from source, e.g., to obtain a recent update::
 
 
    $ git clone https://github.com/tskit-dev/pyslim.git
@@ -18,9 +18,9 @@ Then, to run the tests to make sure everything is working, do::
 
    $ python -m nose tests -vs
 
-*Note:* if you use `python3` you may need to replace `python` with `python3` above.
+*Note:* if you use ``python3`` you may need to replace ``python`` with ``python3`` above.
 
-If you would like to add some features to ``pyslim``, please read the
+If you would like to add some features to ```pyslim```, please read the
 following. If you think there is anything missing,
 please open an `issue <http://github.com/tskit-dev/pyslim/issues>`_ or
 `pull request <http://github.com/tskit-dev/pyslim/pulls>`_ on GitHub!

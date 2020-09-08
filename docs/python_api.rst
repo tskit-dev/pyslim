@@ -33,45 +33,6 @@ Constants
    Nucleotide states in nucleotide models are encoded as integers (0, 1, 2, 3);
    this gives the mapping.
 
-
-********
-Metadata
-********
-
-SLiM-specific metadata is made visible to the user by ``.metadata`` properties.
-For instance::
-
-   >>> ts.node(3).metadata
-   NodeMetadata(slim_id=3, is_null=0, genome_type=0)
-
-shows that the fourth node in the tree sequence was given pedigree ID ``3`` by SLiM,
-is *not* a null genome, and has ``genome_type`` zero, which corresponds to an autosome 
-(see below).
-
-
-+++++++++
-Mutations
-+++++++++
-
-.. autoclass:: pyslim.MutationMetadata
-   :members:
-
-.. autofunction:: pyslim.decode_mutation
-
-.. autofunction:: pyslim.encode_mutation
-
-
-+++++
-Nodes
-+++++
-
-.. autoclass:: pyslim.NodeMetadata
-   :members:
-
-.. autofunction:: pyslim.decode_node
-
-.. autofunction:: pyslim.encode_node
-
 These constants are used to encode the "genome type" of a Node.
 
 .. data:: GENOME_TYPE_AUTOSOME == 0
@@ -81,19 +42,7 @@ These constants are used to encode the "genome type" of a Node.
 .. data:: GENOME_TYPE_Y == 2
 
 
-+++++++++++
-Individuals
-+++++++++++
-
-.. autoclass:: pyslim.IndividualMetadata
-   :members:
-
-.. autofunction:: pyslim.decode_individual
-
-.. autofunction:: pyslim.encode_individual
-
 These constants are used to encode other information about Individuals.
-
 
 .. data:: INDIVIDUAL_TYPE_HERMAPHRODITE == -1
 
@@ -113,26 +62,20 @@ And, these are used in the `Individual.flags`:
 
    This flag is used by SLiM to record information in the :class:`tskit.Individual` metadata.
 
-.. data:: INDIVIDUAL_FIRST_GEN == 2**18
 
-   This flag is used by SLiM to record information in the :class:`tskit.Individual` metadata.
+********
+Metadata
+********
 
+SLiM-specific metadata is made visible to the user by ``.metadata`` properties.
+For instance::
 
-+++++++++++
-Populations
-+++++++++++
+   >>> ts.node(3).metadata
+   {"slim_id" : 3, "is_null" : 0, "genome_type" : 0}
 
-The :class:`Population` metadata contains quite a bit of information about a SLiM population.
-
-.. autoclass:: pyslim.PopulationMigrationMetadata
-   :members:
-
-.. autoclass:: pyslim.PopulationMetadata
-   :members:
-
-.. autofunction:: pyslim.decode_population
-
-.. autofunction:: pyslim.encode_population
+shows that the fourth node in the tree sequence was given pedigree ID ``3`` by SLiM,
+is *not* a null genome, and has ``genome_type`` zero, which corresponds to an autosome 
+(see below).
 
 
 ++++++++++

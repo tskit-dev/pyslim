@@ -233,7 +233,7 @@ only using it if necessary.
 
 It is important that simplification - if it happens at all -
 either (a) comes after recapitation, or
-(b) is done with the `keep_input_roots=True` option (see :meth:`tskit.TreeSequence.simplify`).
+(b) is done with the ``keep_input_roots=True`` option (see :meth:`tskit.TreeSequence.simplify`).
 This is because simplification removes some of the
 ancestral genomes in the first generation,
 which are necessary for recapitation,
@@ -425,29 +425,30 @@ For instance, we can create an age distribution by sex:
 
 .. code-block:: python
 
-   max_age = max([ind.metadata.age for ind in ts.individuals()])
+   import numpy as np
+   max_age = max([ind.metadata["age"] for ind in ts.individuals()])
    age_table = np.zeros((max_age + 1, 2))
    age_labels = {pyslim.INDIVIDUAL_TYPE_FEMALE: 'females',
                  pyslim.INDIVIDUAL_TYPE_MALE: 'males'}
    for i in ts.individuals_alive_at(0):
       ind = ts.individual(i)
-      age_table[ind.metadata.age, ind.metadata.sex] += 1
+      age_table[ind.metadata["age"], ind.metadata["sex"]] += 1
 
    print(f"number\t{age_labels[0]}\t{age_labels[1]}")
    for age, x in enumerate(age_table):
       print(f"{age}\t{x[0]}\t{x[1]}")
 
-   # number females	males
-   # 0         327.0   343.0
-   # 1         213.0	226.0
-   # 2         165.0	144.0
+   # number  females   males
+   # 0        327.0    343.0
+   # 1        213.0    226.0
+   # 2        165.0    144.0
    # 3         99.0    112.0
    # 4         79.0    68.0
    # 5         48.0    37.0
    # 6         31.0    38.0
    # 7         16.0    13.0
-   # 8         10.0    8.0
-   # 9         7.0     10.0
+   # 8         10.0     8.0
+   # 9          7.0    10.0
    # 10         4.0     3.0
    # 11         3.0     4.0
    # 12         4.0     1.0
@@ -480,8 +481,6 @@ no remembered individuals):
    indiv_types = {"remembered" : 0,
                   "alive" : 0}
    for ind in ts.individuals():
-      if ind.flags & pyslim.INDIVIDUAL_FIRST_GEN:
-         indiv_types['first_gen'] += 1
       if ind.flags & pyslim.INDIVIDUAL_REMEMBERED:
          indiv_types['remembered'] += 1
       if ind.flags & pyslim.INDIVIDUAL_ALIVE:
@@ -542,12 +541,13 @@ in the previous example:
 
    # {'id': 0, 'flags': 65536,
    #  'location': array([0., 0., 0.]),
-   #  'metadata': IndividualMetadata(
-   #                pedigree_id=985545,
-   #                age=16,
-   #                population=1,
-   #                sex=0,
-   #                flags=0),
+   #  'metadata': {
+   #               'pedigree_id': 1003551,
+   #               'age': 1,
+   #               'subpopulation': 1,
+   #               'sex': 0,
+   #               'flags': 0
+   #              },
    #  'nodes': array([4000, 4001], dtype=int32),
    #  'population': 1,
    #  'time': 16.0}
@@ -557,7 +557,9 @@ Briefly,
 the ``id`` is the ID internal to the tree sequence;
 ``location`` is the (x,y,z) coordinates of the individual,
 ``pedigree_id`` is SLiM's internal ID for the individual,
-``age`` and ``population`` are their age and population at death, or at the time the simulation stopped if they were still alive,
+``age`` and ``population`` are their age and population at death
+(called a "subpopulation" in SLiM"),
+or at the time the simulation stopped if they were still alive,
 ``sex`` is their sex
 (as an integer, one of :data:`.INDIVIDUAL_TYPE_FEMALE`,
 :data:`.INDIVIDUAL_TYPE_MALE`, or :data:`.INDIVIDUAL_TYPE_HERMAPHRODITE`),
@@ -600,6 +602,7 @@ that provide standing variation for selection within SLiM...
 with an infinite-sites model, while SLiM requires mutation positions to be at integer positions.
 This will change in msprime v1.0, and is already implemented in the development version,
 so if you'd really like to do this, get in touch.
+When this is released we plan to write a vignette of how to do it.
 *However*, if you intend the pre-existing mutations to be *neutral*,
 then there is no need to add them at this point;
 you can add them after the fact, as discussed above.
@@ -672,12 +675,16 @@ The information about the mutation is put in the mutation's metadata
    #  'time': 1.0,
    #  'derived_state': '1997240',
    #  'parent': -1,
-   #  'metadata': [
-   #      MutationMetadata(mutation_type=1,
-   #                       selection_coeff=-0.07989247143268585,
-   #                       population=1,
-   #                       slim_time=998,
-   #                       nucleotide=-1)]
+   #  'metadata': {
+   #     'mutation_list': [
+   #           { 'mutation_type': 2,
+   #             'selection_coeff': 1.4618088006973267,
+   #             'subpopulation': 1,
+   #             'slim_time': 992,
+   #             'nucleotide': -1
+   #           }
+   #     ]
+   #  } 
    # }
 
    print(ts.site(m.site))
@@ -692,10 +699,10 @@ and we can pull up information about that with the `ts.site( )` method.
 This mutation occurred at position 126 along the genome (from `site.position`)
 which previously had no mutations (since `site.ancestral_state` is the empty string, `''`)
 and was given SLiM mutation ID 1997240 (`m.derived_state`).
-The metadata (`m.metadata`, a dict) tells us this is of type `m1`,
-has selection coefficient -0.07989, and occurred in population 1 in generation 998.
+The metadata (`m.metadata`, a dict) tells us that 
+the mutation has selection coefficient -0.07989, and occurred in population 1 in generation 998.
 This is not a nucleotide model, so the nucleotide entry is `-1`.
-Note that `m.time` and `m.metadata[0]['slim_time']` are in this case redundant:
+Note that `m.time` and `m.metadata['mutation_list'][0]['slim_time']` are in this case redundant:
 they contain the same information, but the first is in tskit time
 (i.e., number of steps before the tree sequence was written out)
 and the second is using SLiM's internal "generation" counter.
@@ -704,6 +711,9 @@ Also note that the mutation's metadata is a *list* of metadata entries.
 That's because of SLiM's mutation stacking feature.
 We know that some sites have more than one mutation,
 so to get an example let's pull out the last mutation from one of those sites.
+In this case,
+`m.metadata['mutation_list']` is a list of length one,
+so the mutation was not stacked on top of previous ones.
 
 .. code-block:: python
 
@@ -719,17 +729,24 @@ so to get an example let's pull out the last mutation from one of those sites.
    #  'time': 0.0,
    #  'derived_state': '1998266,1293043',
    #  'parent': 192,
-   #  'metadata': [MutationMetadata(mutation_type=1
-   #                                selection_coeff=-0.08409399539232254,
-   #                                population=1,
-   #                                slim_time=999,
-   #                                nucleotide=-1),
-   #               MutationMetadata(mutation_type=1,
-   #                                selection_coeff=-0.013351504690945148,
-   #                                               population=1,
-   #                                               slim_time=646,
-   #                                               nucleotide=-1)
-   #               ]
+   #  'metadata': {
+   #      "mutation_list": [
+   #          {
+   #           "mutation_type": 1,
+   #           "selection_coeff": -0.08409399539232254,
+   #           "population": 1,
+   #           "slim_time": 999,
+   #           "nucleotide": -1
+   #          },
+   #          {
+   #           "mutation_type": 1,
+   #           "selection_coeff": -0.013351504690945148,
+   #           "population": 1,
+   #           "slim_time": 646,
+   #           "nucleotide": -1
+   #          }
+   #      ]
+   #   }
    # }
 
    print(ts.mutation(m.parent))
@@ -739,11 +756,18 @@ so to get an example let's pull out the last mutation from one of those sites.
    #  'time': 353,
    #  'derived_state': '1293043',
    #  'parent': -1,
-   #  'metadata': [MutationMetadata(mutation_type=1,
-   #                                selection_coeff=-0.013351504690945148,
-   #                                population=1,
-   #                                slim_time=646,
-   #                                nucleotide=-1)]}
+   #  'metadata': {
+   #      "mutation_list": [
+   #          {
+   #           "mutation_type": 1,
+   #           "selection_coeff": -0.013351504690945148,
+   #           "population": 1,
+   #           "slim_time": 646,
+   #           "nucleotide": -1
+   #          }
+   #      ]
+   #  } 
+   # }
 
 
 This mutation (which is `ts.mutation(193)` in the tree sequence)
@@ -811,8 +835,8 @@ First, we need to know which site has which of these three mutation types (m1, m
    for j, s in enumerate(ts.sites()):
       mt = []
       for m in s.mutations:
-         for md in m.metadata:
-            mt.append(md.mutation_type)
+         for md in m.metadata["mutation_list"]:
+            mt.append(md["mutation_type"])
       if len(set(mt)) > 1:
          mut_type[j] = 3
       else:
@@ -855,7 +879,7 @@ Finally, let's pull out information on the allele with the largest selection coe
 
 .. code-block:: python
 
-   sel_coeffs = np.array([m.metadata[0].selection_coeff for m in ts.mutations()])
+   sel_coeffs = np.array([m.metadata["mutation_list"][0]["selection_coeff"] for m in ts.mutations()])
    which_max = np.argmax(sel_coeffs)
    m = ts.mutation(which_max)
    print(m)
@@ -865,11 +889,17 @@ Finally, let's pull out information on the allele with the largest selection coe
    #  'time': 594.0,
    #  'derived_state': '809254',
    #  'parent': -1,
-   #  'metadata': [MutationMetadata(mutation_type=2,
-   #                                selection_coeff=5.109511852264404,
-   #                                population=1,
-   #                                slim_time=405,
-   #                                nucleotide=-1)]
+   #  'metadata': {
+   #     'mutation_list': [
+   #        {
+   #         'mutation_type': 2,
+   #         'selection_coeff': 5.109511852264404,
+   #         'population': 1,
+   #         'slim_time': 405,
+   #         'nucleotide': -1
+   #        }
+   #     ]
+   #  }
    # }
 
    print(ts.site(m.site))
