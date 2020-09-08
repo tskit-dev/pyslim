@@ -296,3 +296,58 @@ class TestDecoding(tests.PyslimTestCase):
             self.verify_decoding(tables.individuals, pyslim.decode_individual)
             self.verify_decoding(tables.nodes, pyslim.decode_node)
             self.verify_mutation_decoding(tables.mutations)
+
+
+class TestMetadataAttributeError(tests.PyslimTestCase):
+
+    def test_population_error(self):
+        for ts in self.get_slim_examples():
+            for x in ts.populations():
+                if x.metadata is not None:
+                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                        _ = x.metadata.slim_id
+                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                        _ = x.metadata.selfing_fraction
+                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                        _ = x.metadata.sex_ratio
+                break
+            break
+
+    def test_individual_error(self):
+        for ts in self.get_slim_examples():
+            for x in ts.individuals():
+                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    _ = x.metadata.pedigree_id
+                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    _ = x.metadata.age
+                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    _ = x.metadata.subpopulation
+                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    _ = x.metadata.sex
+                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    _ = x.metadata.flags
+                break
+            break
+
+    def test_node_error(self):
+        for ts in self.get_slim_examples():
+            for x in ts.nodes():
+                if x.metadata is not None:
+                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                        _ = x.metadata.slim_id
+                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                        _ = x.metadata.is_null
+                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                        _ = x.metadata.genome_type
+                break
+            break
+
+    def test_mutation_error(self):
+        for ts in self.get_slim_examples():
+            for x in ts.mutations():
+                with self.assertRaisesRegex(KeyError, 'legacy'):
+                    _ = x.metadata[0]
+                with self.assertRaisesRegex(KeyError, 'legacy'):
+                    _ = x.metadata[999]
+                break
+            break

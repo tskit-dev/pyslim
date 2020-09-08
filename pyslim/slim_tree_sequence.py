@@ -85,6 +85,37 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     _set_sites_mutations(tables)
 
 
+class MetadataDictWrapper(dict):
+    '''
+    A simple wrapper around metadata dicts that will throw an informative error
+    message if ``md.X`` is used instead of ``md["X"]``, and (for mutation metadata)
+    if ``md[k]`` is used instead of ``md["mutation_list"][k]``.
+    '''
+
+    def __getattr__(self, name):
+        if name in self.keys():
+            raise AttributeError(
+                    f"'dict' object has no attribute '{name}'. "
+                    "It looks like you're trying to use the legacy "
+                    "metadata interface: see "
+                    "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#sec-legacy-metadata>`_ "
+                    "for how to switch over your script")
+        else:
+            raise AttributeError(f"'dict' object has no attribute '{name}'")
+
+    def __getitem__(self, key):
+        try:
+            return super().__getitem__(key)
+        except KeyError as e:
+            if isinstance(key, int):
+                msg = e.args[0]
+                e.args = (f"{msg}: It looks like you're trying to use the legacy "
+                           "metadata interface: see "
+                           "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#sec-legacy-metadata>`_ "
+                           "for how to switch over your script",)
+            raise e
+
+
 class SlimTreeSequence(tskit.TreeSequence):
     '''
     This is just like a :class:`tskit.TreeSequence`, with a few more properties
@@ -254,6 +285,9 @@ class SlimTreeSequence(tskit.TreeSequence):
                 pop.metadata = PopulationMetadata.fromdict(pop.metadata)
             except:
                 pass
+        else:
+            if pop.metadata is not None:
+                pop.metadata = MetadataDictWrapper(pop.metadata)
         return pop
 
     def individual(self, id_):
@@ -277,6 +311,8 @@ class SlimTreeSequence(tskit.TreeSequence):
                 ind.metadata = IndividualMetadata.fromdict(ind.metadata)
             except:
                 pass
+        else:
+            ind.metadata = MetadataDictWrapper(ind.metadata)
         return ind
 
     def node(self, id_):
@@ -296,6 +332,9 @@ class SlimTreeSequence(tskit.TreeSequence):
                 node.metadata = NodeMetadata.fromdict(node.metadata)
             except:
                 pass
+        else:
+            if node.metadata is not None:
+                node.metadata = MetadataDictWrapper(node.metadata)
         return node
 
     def mutation(self, id_):
@@ -315,6 +354,8 @@ class SlimTreeSequence(tskit.TreeSequence):
                 mut.metadata = [MutationMetadata.fromdict(x) for x in mut.metadata['mutation_list']]
             except:
                 pass
+        else:
+            mut.metadata = MetadataDictWrapper(mut.metadata)
         return mut
 
     def recapitate(self,
