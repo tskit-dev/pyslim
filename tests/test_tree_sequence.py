@@ -85,13 +85,7 @@ class TestIndividualMetadata(tests.PyslimTestCase):
 
     def test_individual_derived_info(self):
         for ts in self.get_slim_examples():
-            for j, ind in enumerate(ts.individuals()):
-                a = ts.tables.individuals.metadata_offset[j]
-                b = ts.tables.individuals.metadata_offset[j+1]
-                raw_md = ts.tables.individuals.metadata[a:b]
-                md = pyslim.decode_individual(raw_md)
-                self.assertEqual(ind.metadata, md)
-                self.assertEqual(ts.individual(j).metadata, md)
+            for ind in ts.individuals():
                 for n in ind.nodes:
                     self.assertEqual(ts.node(n).population, ind.population)
                     self.assertEqual(ts.node(n).time, ind.time)
@@ -105,7 +99,7 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                 if is_wf:
                     self.assertEqual(ts.individual_ages[j], 0)
                 else:
-                    self.assertEqual(ts.individual_ages[j], ind.metadata.age)
+                    self.assertEqual(ts.individual_ages[j], ind.metadata["age"])
                 self.assertEqual(ts.individual_populations[j], ind.population)
                 self.assertArrayEqual(ts.individual_locations[j], ind.location)
 
@@ -121,36 +115,10 @@ class TestIndividualMetadata(tests.PyslimTestCase):
                     self.assertEqual(ts.node(u).time, root_time)
 
 
-class TestNodeMetadata(tests.PyslimTestCase):
-    '''
-    Tests for extra stuff related to Nodes.
-    '''
-
-    def test_node_derived_info(self):
-        for ts in self.get_slim_examples():
-            for j, node in enumerate(ts.nodes()):
-                a = ts.tables.nodes.metadata_offset[j]
-                b = ts.tables.nodes.metadata_offset[j+1]
-                raw_md = ts.tables.nodes.metadata[a:b]
-                md = pyslim.decode_node(raw_md)
-                self.assertEqual(node.metadata, md)
-                self.assertEqual(ts.node(j).metadata, md)
-
-
 class TestMutationMetadata(tests.PyslimTestCase):
     '''
     Tests for extra stuff related to Mutations.
     '''
-
-    def test_mutation_derived_info(self):
-        for ts in self.get_slim_examples():
-            for j, mut in enumerate(ts.mutations()):
-                a = ts.tables.mutations.metadata_offset[j]
-                b = ts.tables.mutations.metadata_offset[j+1]
-                raw_md = ts.tables.mutations.metadata[a:b]
-                md = pyslim.decode_mutation(raw_md)
-                self.assertEqual(mut.metadata, md)
-                self.assertEqual(ts.mutation(j).metadata, md)
 
     def test_slim_time(self):
         # check that slim_times make sense
@@ -160,24 +128,8 @@ class TestMutationMetadata(tests.PyslimTestCase):
             is_wf = (ts.slim_provenance.model_type == "WF")
             for mut in ts.mutations():
                 node_slim_time = ts.slim_generation - ts.node(mut.node).time
-                mut_slim_time = max([u.slim_time for u in mut.metadata])
+                mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])
                 self.assertGreaterEqual(node_slim_time, mut_slim_time)
-
-
-class TestPopulationMetadata(tests.PyslimTestCase):
-    '''
-    Tests for extra stuff related to Populations.
-    '''
-
-    def test_population_derived_info(self):
-        for ts in self.get_slim_examples():
-            for j, pop in enumerate(ts.populations()):
-                a = ts.tables.populations.metadata_offset[j]
-                b = ts.tables.populations.metadata_offset[j+1]
-                raw_md = ts.tables.populations.metadata[a:b]
-                md = pyslim.decode_population(raw_md)
-                self.assertEqual(pop.metadata, md)
-                self.assertEqual(ts.population(j).metadata, md)
 
 
 class TestIndividualAges(tests.PyslimTestCase):
@@ -206,8 +158,8 @@ class TestIndividualAges(tests.PyslimTestCase):
             sts = ts.simplify()
             orig_inds = ts.individuals_alive_at(0)
             simp_inds = sts.individuals_alive_at(0)
-            odict = {ts.individual(i).metadata.pedigree_id: i for i in orig_inds}
-            sdict = {sts.individual(i).metadata.pedigree_id: i for i in simp_inds}
+            odict = {ts.individual(i).metadata["pedigree_id"]: i for i in orig_inds}
+            sdict = {sts.individual(i).metadata["pedigree_id"]: i for i in simp_inds}
             for slim_id in odict:
                 i = odict[slim_id]
                 ind = ts.individual(i)
@@ -246,7 +198,7 @@ class TestIndividualAges(tests.PyslimTestCase):
                                 remembered_stage=remembered_stage)
                     for ind in ts.individuals():
                         if 'everyone' in ex or ind.time == 0:
-                            slim_id = ind.metadata.pedigree_id
+                            slim_id = ind.metadata["pedigree_id"]
                             self.assertIn(slim_id, info)
                             slim_alive = (slim_time, stage) in info[slim_id]['age']
                             pyslim_alive = ind.id in alive
@@ -368,9 +320,9 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             info = ex['info']
             slim_map = {}
             for ind in ts.individuals():
-                slim_map[ind.metadata.pedigree_id] = ind.id
+                slim_map[ind.metadata["pedigree_id"]] = ind.id
             for hasp, ind in zip(has_parents, ts.individuals()):
-                slim_parents = info[ind.metadata.pedigree_id]['parents']
+                slim_parents = info[ind.metadata["pedigree_id"]]['parents']
                 slim_hasp = len(slim_parents) > 0
                 for p in slim_parents:
                     if p not in slim_map:
@@ -388,7 +340,6 @@ class TestSimplify(tests.PyslimTestCase):
             sts = ts.simplify()
             self.assertEqual(ts.sequence_length, sts.sequence_length)
             self.assertEqual(type(ts), type(sts))
-            print(sts.samples())
             self.assertEqual(sts.samples()[0], 0)    
 
 
@@ -401,7 +352,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
         for ts in self.get_slim_examples():
             if ts.num_mutations > 0:
                 mut_md = ts.mutation(0).metadata
-                has_nucleotides = (mut_md[0].nucleotide >= 0)
+                has_nucleotides = (mut_md["mutation_list"][0]["nucleotide"] >= 0)
                 if not has_nucleotides:
                     self.assertEqual(ts.reference_sequence, None)
                 else:
@@ -429,7 +380,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
             u = ts.samples()[0]
             if ts.num_mutations > 0:
                 mut_md = ts.mutation(0).metadata
-                has_nucleotides = (mut_md[0].nucleotide >= 0)
+                has_nucleotides = (mut_md["mutation_list"][0]["nucleotide"] >= 0)
                 if not has_nucleotides:
                     with self.assertRaises(ValueError):
                         ts.nucleotide_at(u, 3)
@@ -460,7 +411,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
         for ts in self.get_slim_examples():
             if ts.num_mutations > 0:
                 mut_md = ts.mutation(0).metadata
-                has_nucleotides = (mut_md[0].nucleotide >= 0)
+                has_nucleotides = (mut_md["mutation_list"][0]["nucleotide"] >= 0)
                 if has_nucleotides:
                     for _ in range(100):
                         node = random.randint(0, ts.num_nodes - 1)
@@ -478,5 +429,5 @@ class TestReferenceSequence(tests.PyslimTestCase):
                             for k in np.where(node == ts.tables.mutations.node)[0]:
                                 mut = ts.mutation(k)
                                 if ts.site(mut.site).position == pos:
-                                    b = mut.metadata[0].nucleotide
+                                    b = mut.metadata["mutation_list"][0]["nucleotide"]
                             self.assertEqual(a, b)

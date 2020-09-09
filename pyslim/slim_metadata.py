@@ -2,6 +2,7 @@ import attr
 import struct
 import tskit
 import json
+import warnings
 
 from ._version import *
 
@@ -398,6 +399,7 @@ default_slim_metadata = {
     },
 }
 
+
 ###########
 # Top-level, a.k.a., tree sequence metadata
 ###########
@@ -449,6 +451,16 @@ def _set_metadata_schemas(tables):
     tables.individuals.metadata_schema = slim_metadata_schemas['individual']
     tables.populations.metadata_schema = slim_metadata_schemas['population']
 
+
+
+################################
+# Old-style metadata:
+
+def _deprecation_warning():
+    warnings.warn("This method will dissappear at some point, "
+                  "along with all other old-style metadata tools: "
+                  "see `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
+                  "for more details.", DeprecationWarning)
 
 ###########
 # Mutations
@@ -509,10 +521,16 @@ def decode_mutation(buff):
     a given "mutation" as recorded in tskit may actually represent a
     combination of several SLiM mutations.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`MutationTable`, as stored by SLiM.
     :rtype list:
     '''
+    _deprecation_warning()
     if type(buff) == type([]) and (len(buff) == 0
             or type(buff[0]) == MutationMetadata):
         mut_structs = buff
@@ -588,10 +606,16 @@ def encode_mutation(metadata_object):
     functions, this takes a *list* rather than a single value, thanks to
     stacking of SLiM mutations.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param MutationMetadata metadata_object: The list of
         :class:`MutationMetadata` objects to be encoded.
     :rtype bytes:
     '''
+    _deprecation_warning()
     mr_values = []
     for mr in metadata_object:
         mr_values.extend([mr.mutation_type, mr.selection_coeff,
@@ -605,8 +629,14 @@ def extract_mutation_metadata(tables):
     Returns an iterator over lists of :class:`MutationMetadata` objects containing
     information about the mutations in the tables.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
+    _deprecation_warning()
     metadata = tskit.unpack_bytes(tables.mutations.metadata,
                                     tables.mutations.metadata_offset)
     for mut in tables.mutations:
@@ -618,20 +648,24 @@ def annotate_mutation_metadata(tables, metadata):
     Revise the mutation table in place so that the metadata column is given by
     applying `encode_mutation()` to the sources given.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of (lists of MutationMetadata) or None objects
     '''
+    _deprecation_warning()
     if len(metadata) != tables.mutations.num_rows:
         raise ValueError("annotate mutations: metadata not the same length as the table.")
     orig_mutations = tables.mutations.copy()
     tables.mutations.clear()
     for mut, md in zip(orig_mutations, metadata):
-        if md is None:
-            metadata = default_slim_metadata['mutation']
-        else:
-            metadata = {'mutation_list': [mm.asdict() for mm in md]}
+        if md is not None:
+            md = {'mutation_list': [mm.asdict() for mm in md]}
         tables.mutations.add_row(site=mut.site, node=mut.node, derived_state=mut.derived_state,
-                                 parent=mut.parent, time=mut.time, metadata=metadata)
+                                 parent=mut.parent, time=mut.time, metadata=md)
 
 
 #######
@@ -681,10 +715,16 @@ def decode_node(buff):
     Extracts the information stored in binary by SLiM in the ``metadata``
     column of a :class:`NodeTable`.  If the buffer is empty, returns None.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`NodeTable`, as stored by SLiM.
     :rtype NodeMetadata:
     '''
+    _deprecation_warning()
     if type(buff) == NodeMetadata:
         md = buff
     else:
@@ -711,9 +751,15 @@ def encode_node(metadata_object):
     in as metadata for a node. If ``metadata_object`` is ``None``, returns an
     empty bytes object.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param NodeMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
+    _deprecation_warning()
     if metadata_object is None:
         md = b''
     else:
@@ -727,8 +773,14 @@ def extract_node_metadata(tables):
     Returns an iterator over lists of :class: `NodeMetadata` objects containing
     information about the nodes in the tables.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
+    _deprecation_warning()
     for n in tables.nodes:
         yield NodeMetadata.fromdict(n.metadata)
 
@@ -738,20 +790,22 @@ def annotate_node_metadata(tables, metadata):
     Modify the NodeTable so that the metadata
     column is given by applying `encode_node()` to the sources given.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of NodeMetadata or None objects
     '''
+    _deprecation_warning()
     if len(metadata) != tables.nodes.num_rows:
         raise ValueError("annotate nodes: metadata not the same length as the table.")
     orig_nodes = tables.nodes.copy()
     tables.nodes.clear()
     for node, md in zip(orig_nodes, metadata):
-        if md is None:
-            metadata = None
-        else:
-            metadata = md.asdict()
         tables.nodes.add_row(flags=node.flags, time=node.time, population=node.population,
-                             individual=node.individual, metadata=metadata)
+                             individual=node.individual, metadata=md.asdict())
 
 
 #######
@@ -805,10 +859,16 @@ def decode_individual(buff):
     Extracts the information stored in binary by SLiM in the ``metadata``
     column of a :class:`IndividualTable`. If the buffer is empty, returns None.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`IndividualTable`, as stored by SLiM.
     :rtype IndividualMetadata:
     '''
+    _deprecation_warning()
     if type(buff) == IndividualMetadata:
         md = buff
     else:
@@ -836,9 +896,15 @@ def encode_individual(metadata_object):
     in as metadata for an individual.  If ``buff`` is ``None``, returns an
     empty bytes object.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param IndividualMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
+    _deprecation_warning()
     if metadata_object is None:
         md = b''
     else:
@@ -853,8 +919,14 @@ def extract_individual_metadata(tables):
     Returns an iterator over lists of :class:`IndividualMetadata` objects
     containing information about the individuals in the tables.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
+    _deprecation_warning()
     for ind in tables.individuals:
         yield IndividualMetadata.fromdict(ind.metadata)
 
@@ -864,19 +936,23 @@ def annotate_individual_metadata(tables, metadata):
     Modify the IndividualTable so that the metadata
     column is given by applying `encode_individual()` to the sources given.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of IndividualMetadata or None objects
     '''
+    _deprecation_warning()
     if len(metadata) != tables.individuals.num_rows:
         raise ValueError("annotate individuals: metadata not the same length as the table.")
     orig_individuals = tables.individuals.copy()
     tables.individuals.clear()
     for ind, md in zip(orig_individuals, metadata):
         if md is None:
-            metadata = default_slim_metadata['individual']
-        else:
-            metadata = md.asdict()
-        tables.individuals.add_row(flags=ind.flags, location=ind.location, metadata=metadata)
+            md = default_slim_metadata['individual']
+        tables.individuals.add_row(flags=ind.flags, location=ind.location, metadata=md.asdict())
 
 #######
 # Populations
@@ -980,10 +1056,16 @@ def decode_population(buff):
     Extracts the information stored in binary by SLiM in the ``metadata``
     column of a :class:`PopulationTable`. If the buffer is empty, returns None.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param bytes buff: The ``metadata`` entry of a row of a
         :class:`PopulationTable`, as stored by SLiM.
     :rtype PopulationMetadata:
     '''
+    _deprecation_warning()
     if type(buff) == PopulationMetadata:
         md = buff
     else:
@@ -1042,9 +1124,15 @@ def encode_population(metadata_object):
     in as metadata for a population.  If ``buff`` is ``None``, returns an empty
     bytes object.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param PopulationMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
+    _deprecation_warning()
     if metadata_object is None:
         md = b''
     else:
@@ -1069,8 +1157,14 @@ def extract_population_metadata(tables):
     Returns an iterator over lists of :class:`PopulationMetadata` objects
     containing information about the populations in the tables.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
+    _deprecation_warning()
     for pop in tables.populations:
         yield PopulationMetadata.fromdict(pop.metadata)
 
@@ -1081,16 +1175,20 @@ def annotate_population_metadata(tables, metadata):
     column is given by applying `encode_population()` to the sources given.
     This entirely removes existing information in the Population table.
 
+    .. warning::
+
+        This method is deprecated, since metadata handling has been taken over
+        by tskit. It will dissappear at some point in the future.
+
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of objects, each PopulationMetadata or None
     '''
+    _deprecation_warning()
     if len(metadata) != tables.populations.num_rows:
         raise ValueError("annotate populations: metadata not the same length as the table.")
     tables.populations.clear()
     for md in metadata:
-        if md is None:
-            metadata = None
-        else:
-            metadata = md.asdict()
-        tables.populations.add_row(metadata=metadata)
+        if md is not None:
+            md = md.asdict()
+        tables.populations.add_row(metadata=md)
 

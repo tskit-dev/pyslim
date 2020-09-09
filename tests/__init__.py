@@ -63,10 +63,10 @@ for f in restart_files:
     restart_files[f]['basename'] = os.path.join("tests", "examples", f)
 
 
-def run_slim_script(slimfile, **kwargs):
+def run_slim_script(slimfile, seed=23, **kwargs):
     outdir = os.path.dirname(slimfile)
     script = os.path.basename(slimfile)
-    args = ''
+    args = f"-s {seed}"
     for k in kwargs:
         x = kwargs[k]
         if x is not None:
@@ -75,8 +75,9 @@ def run_slim_script(slimfile, **kwargs):
             if isinstance(x, bool):
                 x = 'T' if x else 'F'
             args += f" -d \"{k}={x}\""
-    print("running " + "cd " + outdir + " && slim -s 23 " + args + " " + script)
-    out = os.system("cd " + outdir + " && slim -s 23 " + args + " " + script + ">/dev/null")
+    command = "cd \"" + outdir + "\" && slim " + args + " \"" + script + "\" >/dev/null"
+    print("running: ", command)
+    out = os.system(command)
     return out
 
 
@@ -210,16 +211,21 @@ class PyslimTestCase(unittest.TestCase):
         return out_ts
 
     def get_msprime_examples(self):
+        # NOTE: we use DTWF below to avoid rounding of floating-point times
+        # that occur with a continuous-time simulator
         demographic_events = [
             msprime.MassMigration(
             time=5, source=1, destination=0, proportion=1.0)
         ]
+        seed = 6
         for n in [2, 10, 20]:
             for mutrate in [0.0]:
                 for recrate in [0.0, 0.01]:
                     yield msprime.simulate(n, mutation_rate=mutrate,
                                            recombination_rate=recrate,
-                                           length=200)
+                                           length=200, random_seed=seed,
+                                           model="dtwf")
+                    seed += 1
                     population_configurations =[
                         msprime.PopulationConfiguration(
                         sample_size=n, initial_size=100),
@@ -231,7 +237,9 @@ class PyslimTestCase(unittest.TestCase):
                         demographic_events=demographic_events,
                         recombination_rate=recrate,
                         mutation_rate=mutrate,
-                        length=250)
+                        length=250, random_seed=seed,
+                        model="dtwf")
+                    seed += 1
 
     def get_slim_info(self, fname):
         # returns a dictionary whose keys are SLiM individual IDs, and whose values
@@ -295,11 +303,57 @@ class PyslimTestCase(unittest.TestCase):
         md2 = t2._ll_tables.metadata
         self.assertEqual(md1, md2)
 
-    def assertTableCollectionsEqual(self, t1, t2, skip_provenance=False, check_metadata_schema=True):
+    def verify_trees_equal(self, ts1, ts2):
+        # check that trees are equal by checking MRCAs between randomly
+        # chosen nodes with matching slim_ids
+        random.seed(23)
+        self.assertEqual(ts1.sequence_length, ts2.sequence_length)
+        if isinstance(ts1, tskit.TableCollection):
+            ts1 = ts1.tree_sequence()
+        if isinstance(ts2, tskit.TableCollection):
+            ts2 = ts2.tree_sequence()
+        map1 = {}
+        for j, n in enumerate(ts1.nodes()):
+            if n.metadata is not None:
+                map1[n.metadata['slim_id']] = j
+        map2 = {}
+        for j, n in enumerate(ts2.nodes()):
+            if n.metadata is not None:
+                map2[n.metadata['slim_id']] = j
+        self.assertEqual(set(map1.keys()), set(map2.keys()))
+        sids = list(map1.keys())
+        for sid in sids:
+            n1 = ts1.node(map1[sid])
+            n2 = ts2.node(map2[sid])
+            self.assertEqual(n1.time, n2.time)
+            self.assertEqual(n1.metadata, n2.metadata)
+            i1 = ts1.individual(n1.individual)
+            i2 = ts2.individual(n2.individual)
+            self.assertEqual(i1.metadata, i2.metadata)
+        for _ in range(10):
+            pos = random.uniform(0, ts1.sequence_length)
+            t1 = ts1.at(pos)
+            t2 = ts2.at(pos)
+            for _ in range(10):
+                a, b = random.choices(sids, k=2)
+                self.assertEqual(t1.tmrca(map1[a], map1[b]),
+                                 t2.tmrca(map2[a], map2[b]))
+
+    def assertTableCollectionsEqual(self, t1, t2,
+            skip_provenance=False, check_metadata_schema=True,
+            reordered_individuals=False):
         if isinstance(t1, tskit.TreeSequence):
             t1 = t1.tables
         if isinstance(t2, tskit.TreeSequence):
             t2 = t2.tables
+        t1_samples = [(n.metadata['slim_id'], j) for j, n in enumerate(t1.nodes) if (n.flags & tskit.NODE_IS_SAMPLE)]
+        t1_samples.sort()
+        t2_samples = [(n.metadata['slim_id'], j) for j, n in enumerate(t2.nodes) if (n.flags & tskit.NODE_IS_SAMPLE)]
+        t2_samples.sort()
+        print('1', t1_samples)
+        print('2', t2_samples)
+        t1.simplify([j for (_, j) in t1_samples])
+        t2.simplify([j for (_, j) in t2_samples])
         if skip_provenance is True:
             t1.provenances.clear()
             t2.provenances.clear()
@@ -341,6 +395,23 @@ class PyslimTestCase(unittest.TestCase):
             t1.metadata = b''
             t2.metadata = b''
             self.assertEqual(m1, m2)
+        if reordered_individuals:
+            ind1 = {i.metadata['pedigree_id']: j for j, i in enumerate(t1.individuals)}
+            ind2 = {i.metadata['pedigree_id']: j for j, i in enumerate(t2.individuals)}
+            for pid in ind1:
+                if not pid in ind2:
+                    print("not in t2:", ind1[pid])
+                self.assertTrue(pid in ind2)
+                if t1.individuals[ind1[pid]] != t2.individuals[ind2[pid]]:
+                    print("t1:", t1.individuals[ind1[pid]])
+                    print("t2:", t2.individuals[ind2[pid]])
+                self.assertEqual(t1.individuals[ind1[pid]], t2.individuals[ind2[pid]])
+            for pid in ind2:
+                if not pid in ind1:
+                    print("not in t1:", ind2[pid])
+                self.assertTrue(pid in ind1)
+            t1.individuals.clear()
+            t2.individuals.clear()
         # go through one-by-one so we know which fails
         self.assertTablesEqual(t1.populations, t2.populations, "populations")
         self.assertTablesEqual(t1.individuals, t2.individuals, "individuals")
