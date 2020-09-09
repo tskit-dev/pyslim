@@ -98,7 +98,7 @@ class MetadataDictWrapper(dict):
                     f"'dict' object has no attribute '{name}'. "
                     "It looks like you're trying to use the legacy "
                     "metadata interface: see "
-                    "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#sec-legacy-metadata>`_ "
+                    "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_ "
                     "for how to switch over your script")
         else:
             raise AttributeError(f"'dict' object has no attribute '{name}'")
@@ -111,7 +111,7 @@ class MetadataDictWrapper(dict):
                 msg = e.args[0]
                 e.args = (f"{msg}: It looks like you're trying to use the legacy "
                            "metadata interface: see "
-                           "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#sec-legacy-metadata>`_ "
+                           "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_ "
                            "for how to switch over your script",)
             raise e
 
@@ -143,7 +143,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         length that gives the entire reference sequence for nucleotide models.
     :ivar legacy_metadata: Whether this tree sequence returns metadata in objects
         (as in older versions of pyslim) rather than dicts: see
-        `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#sec-legacy-metadata>`_.
+        `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_.
         This option is deprecated and will disappear at some point.
     :vartype slim_generation: int
     :vartype reference_sequence: string

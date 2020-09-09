@@ -4,15 +4,16 @@ Test cases for the deprecated, legacy metadata representation of pyslim.
 from __future__ import print_function
 from __future__ import division
 
-import pyslim
-import msprime
-import tskit
-import tests
 import unittest
 import os
 import tempfile
 import numpy as np
+import msprime
+import tskit
 
+import pyslim
+
+import tests
 
 class LegacyPyslimTestCase(tests.PyslimTestCase):
 

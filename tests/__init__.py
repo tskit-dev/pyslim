@@ -63,10 +63,10 @@ for f in restart_files:
     restart_files[f]['basename'] = os.path.join("tests", "examples", f)
 
 
-def run_slim_script(slimfile, **kwargs):
+def run_slim_script(slimfile, seed=23, **kwargs):
     outdir = os.path.dirname(slimfile)
     script = os.path.basename(slimfile)
-    args = ''
+    args = f"-s {seed}"
     for k in kwargs:
         x = kwargs[k]
         if x is not None:
@@ -75,8 +75,9 @@ def run_slim_script(slimfile, **kwargs):
             if isinstance(x, bool):
                 x = 'T' if x else 'F'
             args += f" -d \"{k}={x}\""
-    print("running " + "cd " + outdir + " && slim -s 23 " + args + " " + script)
-    out = os.system("cd " + outdir + " && slim -s 23 " + args + " " + script + ">/dev/null")
+    command = "cd \"" + outdir + "\" && slim " + args + " \"" + script + "\" >/dev/null"
+    print("running: ", command)
+    out = os.system(command)
     return out
 
 

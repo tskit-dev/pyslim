@@ -459,7 +459,7 @@ def _set_metadata_schemas(tables):
 def _deprecation_warning():
     warnings.warn("This method will dissappear at some point, "
                   "along with all other old-style metadata tools: "
-                  "see `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#sec-legacy-metadata>`_"
+                  "see `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
                   "for more details.", DeprecationWarning)
 
 ###########
