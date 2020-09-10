@@ -20,6 +20,17 @@ jobs:
             pip install --user -r requirements/CI/requirements.txt
             pip install twine --user
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+
+      - run:
+          name: Build and install SLiM
+          command: |
+            sudo apt-get install cmake
+            wget http://benhaller.com/slim/SLiM.zip
+            unzip SLiM.zip
+            mkdir SLiM/build
+            cd SLiM/build && cmake .. && make
+            cp slim /home/circleci/.local/bin/
+
       - save_cache:
           key: pyslim-{{ .Branch }}-v1
           paths:
