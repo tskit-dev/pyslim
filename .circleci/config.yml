@@ -16,7 +16,7 @@ jobs:
           name: Install dependencies and set path
           command: |
             sudo apt-get install doxygen
-            pip install --user -r requirements/CI
+            pip install --user -r requirements/CI/requirements.txt
             pip install twine --user
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
       - save_cache:
