@@ -15,6 +15,7 @@ jobs:
       - run:
           name: Install dependencies and set path
           command: |
+            sudo apt-get install libgsl-dev
             sudo apt-get install doxygen
             pip install --user -r requirements/CI/requirements.txt
             pip install twine --user
