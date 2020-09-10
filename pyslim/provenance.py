@@ -40,7 +40,7 @@ def slim_provenance_version(provenance):
     try:
         software_name = record["software"]["name"]
     except:
-        software_name = "unknown"
+        pass
 
     if software_name == "SLiM":
         try:

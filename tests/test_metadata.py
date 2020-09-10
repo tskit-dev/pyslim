@@ -38,9 +38,8 @@ class TestMetadataSchemas(tests.PyslimTestCase):
 
     def test_default_metadata(self):
         for k in pyslim.slim_metadata_schemas:
-            self.assertTrue(k in pyslim.default_slim_metadata)
             schema = pyslim.slim_metadata_schemas[k]
-            entry = pyslim.default_slim_metadata[k]
+            entry = pyslim.default_slim_metadata(k)
             encoded = schema.validate_and_encode_row(entry)
             decoded = schema.decode_row(encoded)
             if entry is None:
@@ -78,7 +77,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
         schema = t.metadata_schema.schema
         self.assertTrue('SLiM' in schema['properties'])
         self.assertTrue('SLiM' in t.metadata)
-        for k in pyslim.default_slim_metadata['tree_sequence']['SLiM']:
+        for k in pyslim.default_slim_metadata('tree_sequence')['SLiM']:
             self.assertTrue(k in schema['properties']['SLiM']['properties'])
             self.assertTrue(k in t.metadata['SLiM'])
 
@@ -310,6 +309,8 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                         _ = x.metadata.selfing_fraction
                     with self.assertRaisesRegex(AttributeError, 'legacy'):
                         _ = x.metadata.sex_ratio
+                with self.assertRaisesRegex(AttributeError, "has no attribute 'ping'$"):
+                    _ = x.metadata.ping
                 break
             break
 
@@ -326,6 +327,8 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                     _ = x.metadata.sex
                 with self.assertRaisesRegex(AttributeError, 'legacy'):
                     _ = x.metadata.flags
+                with self.assertRaisesRegex(AttributeError, "has no attribute 'pong'$"):
+                    _ = x.metadata.pong
                 break
             break
 
@@ -339,6 +342,8 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                         _ = x.metadata.is_null
                     with self.assertRaisesRegex(AttributeError, 'legacy'):
                         _ = x.metadata.genome_type
+                with self.assertRaisesRegex(AttributeError, "has no attribute 'pang'$"):
+                    _ = x.metadata.pang
                 break
             break
 
@@ -349,5 +354,7 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                     _ = x.metadata[0]
                 with self.assertRaisesRegex(KeyError, 'legacy'):
                     _ = x.metadata[999]
+                with self.assertRaises(KeyError):
+                    _ = x.metadata['ping']
                 break
             break

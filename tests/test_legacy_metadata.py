@@ -46,6 +46,8 @@ class LegacyPyslimTestCase(tests.PyslimTestCase):
 class TestLegacyTypes(LegacyPyslimTestCase):
 
     def test_test_warnings(self):
+        # check that our checking for warnings works
+        # (it didn't with DeprecationWarnings)
         with self.assertWarns(FutureWarning):
             warnings.warn('hi', FutureWarning)
 
@@ -79,21 +81,21 @@ class TestEncodeDecode(LegacyPyslimTestCase):
     def test_legacy_errors(self):
         defaults = pyslim.default_slim_metadata
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.decode_mutation(defaults['mutation'])
+            pyslim.decode_mutation(defaults('mutation'))
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.decode_population(defaults['population'])
+            pyslim.decode_population(defaults('population'))
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.decode_individual(defaults['individual'])
+            pyslim.decode_individual(defaults('individual'))
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.decode_node(defaults['node'])
+            pyslim.decode_node(defaults('node'))
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.encode_mutation(defaults['mutation'])
+            pyslim.encode_mutation(defaults('mutation'))
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.encode_population(defaults['population'])
+            pyslim.encode_population(defaults('population'))
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.encode_individual(defaults['individual'])
+            pyslim.encode_individual(defaults('individual'))
         with self.assertRaisesRegex(ValueError, "legacy"):
-            pyslim.encode_node(defaults['node'])
+            pyslim.encode_node(defaults('node'))
 
     def test_decode_errors(self):
         with self.assertWarns(FutureWarning):
