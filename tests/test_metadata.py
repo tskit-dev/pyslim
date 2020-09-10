@@ -271,7 +271,7 @@ class TestDecoding(tests.PyslimTestCase):
         nt.metadata_schema = ms
         for a, b in zip(t, nt):
             md = a.metadata
-            with self.assertWarns(DeprecationWarning):
+            with self.assertWarns(FutureWarning):
                 omd = decoder(b.metadata)
             if md is None:
                 self.assertTrue(omd is None)
@@ -284,7 +284,7 @@ class TestDecoding(tests.PyslimTestCase):
         nt.metadata_schema = ms
         for a, b in zip(t, nt):
             md = a.metadata
-            with self.assertWarns(DeprecationWarning):
+            with self.assertWarns(FutureWarning):
                 omd = pyslim.decode_mutation(b.metadata)
             self.assertEqual(md,
                     {"mutation_list": [u.asdict() for u in omd]})

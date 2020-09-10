@@ -456,11 +456,20 @@ def _set_metadata_schemas(tables):
 ################################
 # Old-style metadata:
 
-def _deprecation_warning():
-    warnings.warn("This method will dissappear at some point, "
+def _deprecation_warning(name):
+    warnings.warn(f"This method ({name}) will dissappear at some point, "
                   "along with all other old-style metadata tools: "
                   "see `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
-                  "for more details.", DeprecationWarning)
+                  "for more details.", FutureWarning)
+
+
+def _legacy_error(name):
+    raise ValueError(
+            f"{name} recieved a dict instead of bytes:"
+            "it looks like you're trying to use pyslim legacy metadata tools: "
+            "see `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
+            "for how to update your script.")
+
 
 ###########
 # Mutations
@@ -530,9 +539,11 @@ def decode_mutation(buff):
         :class:`MutationTable`, as stored by SLiM.
     :rtype list:
     '''
-    _deprecation_warning()
-    if type(buff) == type([]) and (len(buff) == 0
-            or type(buff[0]) == MutationMetadata):
+    if isinstance(buff, dict):
+        _legacy_error("decode_mutation")
+    _deprecation_warning("decode_mutation")
+    if isinstance(buff, list) and (len(buff) == 0
+            or isinstance(buff[0], MutationMetadata)):
         mut_structs = buff
     else:
         # note that in the case that buff is of length zero
@@ -615,7 +626,9 @@ def encode_mutation(metadata_object):
         :class:`MutationMetadata` objects to be encoded.
     :rtype bytes:
     '''
-    _deprecation_warning()
+    if isinstance(metadata_object, dict):
+        _legacy_error("encode_mutation")
+    _deprecation_warning("encode_mutation")
     mr_values = []
     for mr in metadata_object:
         mr_values.extend([mr.mutation_type, mr.selection_coeff,
@@ -636,7 +649,7 @@ def extract_mutation_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    _deprecation_warning()
+    _deprecation_warning("extract_mutation_metadata")
     metadata = tskit.unpack_bytes(tables.mutations.metadata,
                                     tables.mutations.metadata_offset)
     for mut in tables.mutations:
@@ -656,7 +669,7 @@ def annotate_mutation_metadata(tables, metadata):
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of (lists of MutationMetadata) or None objects
     '''
-    _deprecation_warning()
+    _deprecation_warning("annotate_mutation_metadata")
     if len(metadata) != tables.mutations.num_rows:
         raise ValueError("annotate mutations: metadata not the same length as the table.")
     orig_mutations = tables.mutations.copy()
@@ -724,7 +737,9 @@ def decode_node(buff):
         :class:`NodeTable`, as stored by SLiM.
     :rtype NodeMetadata:
     '''
-    _deprecation_warning()
+    if isinstance(buff, dict):
+        _legacy_error("decode_node")
+    _deprecation_warning("decode_node")
     if type(buff) == NodeMetadata:
         md = buff
     else:
@@ -759,7 +774,9 @@ def encode_node(metadata_object):
     :param NodeMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
-    _deprecation_warning()
+    if isinstance(metadata_object, dict):
+        _legacy_error("encode_node")
+    _deprecation_warning("encode_node")
     if metadata_object is None:
         md = b''
     else:
@@ -780,7 +797,7 @@ def extract_node_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    _deprecation_warning()
+    _deprecation_warning("extract_node_metadata")
     for n in tables.nodes:
         yield NodeMetadata.fromdict(n.metadata)
 
@@ -798,7 +815,7 @@ def annotate_node_metadata(tables, metadata):
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of NodeMetadata or None objects
     '''
-    _deprecation_warning()
+    _deprecation_warning("annotate_node_metadata")
     if len(metadata) != tables.nodes.num_rows:
         raise ValueError("annotate nodes: metadata not the same length as the table.")
     orig_nodes = tables.nodes.copy()
@@ -868,7 +885,9 @@ def decode_individual(buff):
         :class:`IndividualTable`, as stored by SLiM.
     :rtype IndividualMetadata:
     '''
-    _deprecation_warning()
+    if isinstance(buff, dict):
+        _legacy_error("decode_individual")
+    _deprecation_warning("decode_individual")
     if type(buff) == IndividualMetadata:
         md = buff
     else:
@@ -904,7 +923,9 @@ def encode_individual(metadata_object):
     :param IndividualMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
-    _deprecation_warning()
+    if isinstance(metadata_object, dict):
+        _legacy_error("encode_individual")
+    _deprecation_warning("encode_individual")
     if metadata_object is None:
         md = b''
     else:
@@ -926,7 +947,7 @@ def extract_individual_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    _deprecation_warning()
+    _deprecation_warning("extract_individual_metadata")
     for ind in tables.individuals:
         yield IndividualMetadata.fromdict(ind.metadata)
 
@@ -944,7 +965,7 @@ def annotate_individual_metadata(tables, metadata):
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of IndividualMetadata or None objects
     '''
-    _deprecation_warning()
+    _deprecation_warning("annotate_individual_metadata")
     if len(metadata) != tables.individuals.num_rows:
         raise ValueError("annotate individuals: metadata not the same length as the table.")
     orig_individuals = tables.individuals.copy()
@@ -1045,10 +1066,13 @@ class PopulationMetadata(object):
 
     @classmethod
     def fromdict(cls, md):
-        md['migration_records'] = [
-                PopulationMigrationMetadata.fromdict(u) for u in md['migration_records']
-                ]
-        return cls(**md)
+        if md is None:
+            return None
+        else:
+            md['migration_records'] = [
+                    PopulationMigrationMetadata.fromdict(u) for u in md['migration_records']
+                    ]
+            return cls(**md)
 
 
 def decode_population(buff):
@@ -1065,7 +1089,9 @@ def decode_population(buff):
         :class:`PopulationTable`, as stored by SLiM.
     :rtype PopulationMetadata:
     '''
-    _deprecation_warning()
+    if isinstance(buff, dict):
+        _legacy_error("decode_population")
+    _deprecation_warning("decode_population")
     if type(buff) == PopulationMetadata:
         md = buff
     else:
@@ -1132,7 +1158,9 @@ def encode_population(metadata_object):
     :param PopulationMetadata metadata_object: The object to be encoded.
     :rtype bytes:
     '''
-    _deprecation_warning()
+    if isinstance(metadata_object, dict):
+        _legacy_error("encode_population")
+    _deprecation_warning("encode_population")
     if metadata_object is None:
         md = b''
     else:
@@ -1164,7 +1192,7 @@ def extract_population_metadata(tables):
 
     :param TableCollection tables: The tables, as produced by SLiM.
     '''
-    _deprecation_warning()
+    _deprecation_warning("extract_population_metadata")
     for pop in tables.populations:
         yield PopulationMetadata.fromdict(pop.metadata)
 
@@ -1183,7 +1211,7 @@ def annotate_population_metadata(tables, metadata):
     :param TableCollection tables: a table collection to be modified
     :param iterable metadata: a list of objects, each PopulationMetadata or None
     '''
-    _deprecation_warning()
+    _deprecation_warning("annotate_population_metadata")
     if len(metadata) != tables.populations.num_rows:
         raise ValueError("annotate populations: metadata not the same length as the table.")
     tables.populations.clear()

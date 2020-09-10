@@ -62,39 +62,38 @@ class TestAnnotate(tests.PyslimTestCase):
         '''
         Verify the default values have been entered into metadata.
         '''
-        mut_md = pyslim.extract_mutation_metadata(ts.tables)
-        for md in mut_md:
-            self.assertEqual(md.mutation_type, 1)
-            self.assertEqual(md.selection_coeff, 0.0)
-            self.assertEqual(md.population, tskit.NULL)
-            self.assertEqual(md.slim_time, 0)
-        node_md = pyslim.extract_node_metadata(ts.tables)
-        for md, node in zip(node_md, ts.nodes()):
-            if not node.is_sample():
+        for m in ts.mutations():
+            md = m.metadata
+            self.assertEqual(md["mutation_type"], 1)
+            self.assertEqual(md["selection_coeff"], 0.0)
+            self.assertEqual(md["population"], tskit.NULL)
+            self.assertEqual(md["slim_time"], 0)
+        for n in ts.nodes():
+            md = n.metadata
+            if not n.is_sample():
                 self.assertEqual(md, None)
             else:
-                self.assertEqual(md.is_null, False)
-                self.assertEqual(md.genome_type, pyslim.GENOME_TYPE_AUTOSOME)
+                self.assertEqual(md["is_null"], False)
+                self.assertEqual(md["genome_type"], pyslim.GENOME_TYPE_AUTOSOME)
         for ind in ts.individuals():
+            md = ind.metadata
             self.assertArrayEqual(ind.location, [0, 0, 0])
             self.assertEqual(ind.flags, pyslim.INDIVIDUAL_ALIVE)
-        ind_md = pyslim.extract_individual_metadata(ts.tables)
-        for md in ind_md:
-            self.assertEqual(md.sex, pyslim.INDIVIDUAL_TYPE_HERMAPHRODITE)
-            self.assertEqual(md.flags, 0)
-        pop_md = pyslim.extract_population_metadata(ts.tables)
-        for md in pop_md:
-            self.assertEqual(md.selfing_fraction, 0.0)
-            self.assertEqual(md.female_cloning_fraction, 0.0)
-            self.assertEqual(md.male_cloning_fraction, 0.0)
-            self.assertEqual(md.sex_ratio, 0.5)
-            self.assertEqual(md.bounds_x0, 0.0)
-            self.assertEqual(md.bounds_x1, 0.0)
-            self.assertEqual(md.bounds_y0, 0.0)
-            self.assertEqual(md.bounds_y1, 0.0)
-            self.assertEqual(md.bounds_z0, 0.0)
-            self.assertEqual(md.bounds_z1, 0.0)
-            self.assertEqual(len(md.migration_records), 0)
+            self.assertEqual(md["sex"], pyslim.INDIVIDUAL_TYPE_HERMAPHRODITE)
+            self.assertEqual(md["flags"], 0)
+        for pop in ts.populations():
+            md = pop.metadata
+            self.assertEqual(md["selfing_fraction"], 0.0)
+            self.assertEqual(md["female_cloning_fraction"], 0.0)
+            self.assertEqual(md["male_cloning_fraction"], 0.0)
+            self.assertEqual(md["sex_ratio"], 0.5)
+            self.assertEqual(md["bounds_x0"], 0.0)
+            self.assertEqual(md["bounds_x1"], 0.0)
+            self.assertEqual(md["bounds_y0"], 0.0)
+            self.assertEqual(md["bounds_y1"], 0.0)
+            self.assertEqual(md["bounds_z0"], 0.0)
+            self.assertEqual(md["bounds_z1"], 0.0)
+            self.assertEqual(len(md["migration_records"]), 0)
 
     def verify_provenance(self, ts):
         for u in ts.provenances():
@@ -116,6 +115,8 @@ class TestAnnotate(tests.PyslimTestCase):
             slim_gen = 4
             slim_ts = pyslim.annotate_defaults(ts, model_type="WF",
                                                slim_generation=slim_gen)
+            self.assertEqual(slim_ts.metadata['SLiM']['model_type'], 'WF')
+            self.assertEqual(slim_ts.metadata['SLiM']['generation'], slim_gen)
             self.verify_annotated_tables(ts, slim_ts)
             self.verify_annotated_trees(ts, slim_ts)
             self.verify_haplotype_equality(ts, slim_ts)

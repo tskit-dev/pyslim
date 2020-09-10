@@ -33,7 +33,7 @@ def load(path, legacy_metadata=False):
         provide old-style metadata: as objects instead of dictionaries. This
         option is deprecated and will dissappear at some point in the future.
     '''
-    ts = SlimTreeSequence.load(path)
+    ts = SlimTreeSequence.load(path, legacy_metadata=legacy_metadata)
     return ts
 
 
@@ -79,7 +79,10 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
-    set_tree_sequence_metadata(tables, **default_slim_metadata['tree_sequence']['SLiM'])
+    top_metadata = default_slim_metadata['tree_sequence']['SLiM']
+    top_metadata['model_type'] = model_type
+    top_metadata['generation'] = slim_generation
+    set_tree_sequence_metadata(tables, **top_metadata)
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     _set_sites_mutations(tables)
@@ -531,7 +534,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         :rtype ProvenanceMetadata:
         '''
         warnings.warn("This is deprecated: get information from "
-                      "ts.metadata['SLiM'] instead.", DeprecationWarning)
+                      "ts.metadata['SLiM'] instead.", FutureWarning)
         return get_provenance(self, only_last=True)
 
     @property

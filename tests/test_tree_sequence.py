@@ -93,7 +93,7 @@ class TestIndividualMetadata(tests.PyslimTestCase):
     def test_individual_embellishments(self):
         # Test the individual additional information.
         for ts in self.get_slim_examples():
-            is_wf = (ts.slim_provenance.model_type == "WF")
+            is_wf = (ts.metadata["SLiM"]["model_type"] == "WF")
             for j, ind in enumerate(ts.individuals()):
                 self.assertEqual(ts.individual_times[j], ind.time)
                 if is_wf:
@@ -125,7 +125,7 @@ class TestMutationMetadata(tests.PyslimTestCase):
         for ts in self.get_slim_examples(init_mutated=False):
             # Mutation's slim_times are one less than the corresponding node's slim times
             # in WF models, but not in WF models, for some reason.
-            is_wf = (ts.slim_provenance.model_type == "WF")
+            is_wf = (ts.metadata["SLiM"]["model_type"] == "WF")
             for mut in ts.mutations():
                 node_slim_time = ts.slim_generation - ts.node(mut.node).time
                 mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])

@@ -174,7 +174,18 @@ Restating this:
 Here are more detailed notes on how to migrate a script from the legacy
 metadata handling.
 
-First, switch metadata objects to dicts:
+**1.** Use top-level metadata instead of ``slim_provenance``:
+previously, information about the model type and the time counter (generation)
+in SLiM was provided in the Provenances table, made available through
+the ``ts.slim_provenance`` object.  This is still available but deprecated,
+and should be obtained from the *top-level* metadata object, ``ts.metadata["SLiM"]``.
+So, in your scripts ``ts.slim_provenance.model_type`` should be replaced with
+``ts.metadata["SLiM"]["model_type"]``,
+and (although it's not deprecated), probably ``ts.slim_generation`` should
+probably be replaced with
+``ts.metadata["SLiM"]["generation"]``.
+
+**2.** Switch metadata objects to dicts:
 if ``md`` is the ``metadata`` property of a population, individual, or node,
 this means replacing ``md.X`` with ``md["X"]``.
 The ``migration_records`` property of population metadata is similarly
@@ -192,7 +203,7 @@ that was previously in the MutationMetadata objects.
 So, for instance, instead of ``mut.metadata[0].selection_coeff``
 we would write ``mut.metadata["mutation_list"][0]["selection_coeff"]``.
 
-Second, the ``decode_X`` and ``encode_X`` methods are now deprecated,
+**3.** The ``decode_X`` and ``encode_X`` methods are now deprecated,
 as this is handled by tskit itself.
 For instance, ``encode_node`` would take a NodeMetadata object
 and produce the raw bytes necessary to encode it in a Node table,
@@ -207,7 +218,7 @@ Encoding is necessary to modify tables,
 and ``pyslim.encode_node(md)`` can be replaced by ``nms.validate_and_encode_row(md)``
 (where furthermore ``md`` should now be a dict rather than a NodeMetadata object).
 
-Third, the ``annotate_X_metadata`` methods are deprecated,
+**4.** The ``annotate_X_metadata`` methods are deprecated,
 as again tskit has tools to do this.
 These methods would set the metadata column of a table -
 for instance, if ``metadata`` is a list of NodeMetadata objects, then
@@ -224,7 +235,7 @@ Now, this would be done as follows (where now ``metadata`` is a list of metadata
 If speed is an issue, then ``encode_row`` can be substituted for ``validate_and_encode_row``,
 but at the risk of missing errors in metadata.
 
-Fourth, the ``extract_X_metadata`` methods are not necessary,
+**5.** the ``extract_X_metadata`` methods are not necessary,
 since the metadata in the tables of a TableCollection are automatically decoded.
 For instance, ``[ind.metadata["sex"] for ind in tables.individuals]`` will obtain
 a list of sexes of the individuals in the IndividualTable.
