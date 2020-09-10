@@ -25,8 +25,8 @@ jobs:
           name: Build and install SLiM
           command: |
             sudo apt-get install cmake
-            wget http://benhaller.com/slim/SLiM.zip
-            unzip SLiM.zip
+            git clone https://github.com/MesserLab/SLiM.git
+            cd SLiM
             mkdir SLiM/build
             cd SLiM/build && cmake .. && make
             cp slim /home/circleci/.local/bin/
