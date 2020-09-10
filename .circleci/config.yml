@@ -27,8 +27,8 @@ jobs:
             sudo apt-get install cmake
             git clone https://github.com/MesserLab/SLiM.git
             cd SLiM
-            mkdir SLiM/build
-            cd SLiM/build && cmake .. && make
+            mkdir build
+            cd build && cmake .. && make
             cp slim /home/circleci/.local/bin/
 
       - save_cache:
