@@ -101,7 +101,7 @@ class TestRecapitate(tests.PyslimTestCase):
 
     def test_recapitate_errors(self):
         ts = next(self.get_slim_examples())
-        with assertRaises(ValueError):
+        with self.assertRaises(ValueError):
             _ = ts.recapitate(
                         recombination_rate=0.0,
                         keep_first_generation=True)
