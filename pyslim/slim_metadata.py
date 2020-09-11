@@ -353,51 +353,71 @@ slim_metadata_schemas = {k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k])
         for k in _raw_slim_metadata_schemas}
 
 
-default_slim_metadata = {
-    "tree_sequence" : {
-         "SLiM" : {
-             "model_type" : "nonWF",
-             "generation" : 1,
-             "file_version" : slim_file_version,
-             "spatial_dimensionality" : "",
-             "spatial_periodicity" : "",
-             "separate_sexes" : False,
-             "nucleotide_based" : False,
-             "stage" : "late"
+def default_slim_metadata(name):
+    """
+    Returns default metadata of type ``name``, where ``name`` is one of
+    "tree_sequence", "edge", "site", "mutation", "node", "individual", or
+    "population".
+
+    :param str name: The type of metadata requested.
+    :rtype dict:
+    """
+    if name == "tree_sequence":
+        out = {
+             "SLiM" : {
+                 "model_type" : "nonWF",
+                 "generation" : 1,
+                 "file_version" : slim_file_version,
+                 "spatial_dimensionality" : "",
+                 "spatial_periodicity" : "",
+                 "separate_sexes" : False,
+                 "nucleotide_based" : False,
+                 "stage" : "late"
+             }
          }
-    },
-    "edge" : None,
-    "site" : None,
-    "mutation" : {
-        "mutation_list": []
-    },
-    "node" : {
-        "slim_id": tskit.NULL,
-        "is_null": True,
-        "genome_type": 0,
-    },
-    "individual" : {
-        "pedigree_id": tskit.NULL,
-        "age": -1,
-        "subpopulation": tskit.NULL,
-        "sex": -1,
-        "flags": 0,
-    },
-    "population" : {
-        "slim_id": tskit.NULL,
-        "selfing_fraction": 0.0,
-        "female_cloning_fraction": 0.0,
-        "male_cloning_fraction": 0.0,
-        "sex_ratio": 0.5,
-        "bounds_x0": 0.0,
-        "bounds_x1": 0.0,
-        "bounds_y0": 0.0,
-        "bounds_y1": 0.0,
-        "bounds_z0": 0.0,
-        "bounds_z1": 0.0,
-        "migration_records": []
-    },
-}
+    elif name == "edge":
+        out = None
+    elif name == "site":
+        out = None
+    elif name == "mutation":
+        out = {
+            "mutation_list": []
+        }
+    elif name == "node":
+        out = {
+            "slim_id": tskit.NULL,
+            "is_null": True,
+            "genome_type": 0,
+        }
+    elif name == "individual":
+        out = {
+            "pedigree_id": tskit.NULL,
+            "age": -1,
+            "subpopulation": tskit.NULL,
+            "sex": -1,
+            "flags": 0,
+        }
+    elif name == "population":
+        out = {
+            "slim_id": tskit.NULL,
+            "selfing_fraction": 0.0,
+            "female_cloning_fraction": 0.0,
+            "male_cloning_fraction": 0.0,
+            "sex_ratio": 0.5,
+            "bounds_x0": 0.0,
+            "bounds_x1": 0.0,
+            "bounds_y0": 0.0,
+            "bounds_y1": 0.0,
+            "bounds_z0": 0.0,
+            "bounds_z1": 0.0,
+            "migration_records": []
+        }
+    else:
+        raise ValueError(
+            "Unknown metadata request: name should be one of "
+            "'tree_sequence', 'edge', 'site', 'mutation', 'node', 'individual', "
+            "or 'population'.")
+    return out
 
 
 ###########
@@ -974,7 +994,7 @@ def annotate_individual_metadata(tables, metadata):
     tables.individuals.clear()
     for ind, md in zip(orig_individuals, metadata):
         if md is None:
-            md = default_slim_metadata['individual']
+            md = default_slim_metadata('individual')
         tables.individuals.add_row(flags=ind.flags, location=ind.location, metadata=md.asdict())
 
 #######

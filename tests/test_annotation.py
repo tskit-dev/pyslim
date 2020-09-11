@@ -127,6 +127,7 @@ class TestAnnotate(tests.PyslimTestCase):
                                                slim_generation=slim_gen)
             self.assertEqual(slim_ts.metadata['SLiM']['model_type'], 'WF')
             self.assertEqual(slim_ts.metadata['SLiM']['generation'], slim_gen)
+            self.assertEqual(slim_ts.metadata['SLiM']['file_version'], pyslim.slim_file_version)
             self.verify_annotated_tables(ts, slim_ts)
             self.verify_annotated_trees(ts, slim_ts)
             self.verify_haplotype_equality(ts, slim_ts)

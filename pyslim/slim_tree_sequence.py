@@ -59,7 +59,7 @@ def annotate_defaults(ts, model_type, slim_generation, reference_sequence=None):
         ``time=0`` in the tree sequence.
     '''
     tables = ts.dump_tables()
-    annotate_defaults_tables(tables, model_type, slim_generation)
+    annotate_defaults_tables(tables, model_type=model_type, slim_generation=slim_generation)
     return SlimTreeSequence.load_tables(tables,
                 reference_sequence=reference_sequence)
 
@@ -79,7 +79,7 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
-    top_metadata = default_slim_metadata['tree_sequence']['SLiM']
+    top_metadata = default_slim_metadata('tree_sequence')['SLiM']
     top_metadata['model_type'] = model_type
     top_metadata['generation'] = slim_generation
     set_tree_sequence_metadata(tables, **top_metadata)
@@ -533,7 +533,7 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :rtype ProvenanceMetadata:
         '''
-        warnings.warn("This is deprecated: get information from "
+        warnings.warn("The 'slim_provenance' attribute is deprecated: get information from "
                       "ts.metadata['SLiM'] instead.", FutureWarning)
         return get_provenance(self, only_last=True)
 
@@ -769,7 +769,7 @@ class SlimTreeSequence(tskit.TreeSequence):
 def _set_metadata_from_provenance(tables):
     # note this uses defaults on keys not present in provenance,
     # which prior to 0.5 was everything but generation and model_type
-    values = default_slim_metadata['tree_sequence']['SLiM']
+    values = default_slim_metadata('tree_sequence')['SLiM']
     prov = None
     file_version = 'unknown'
     # use only the last SLiM provenance

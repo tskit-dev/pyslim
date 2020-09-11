@@ -26,12 +26,16 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
         pyslim.annotate_defaults_tables(tables, model_type='nonWF', slim_generation=1)
         return tables
 
-    def test_inconsistent_individuals(self):
+    def test_inconsistent_nodes(self):
         clean_tables = self.clean_example()
         tables = clean_tables.copy()
         tables.nodes.clear()
         for j, n in enumerate(clean_tables.nodes):
-            tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE, population=j, individual=0)
+            tables.nodes.add_row(
+                    time=n.time, flags=n.flags,
+                    population=j,
+                    individual=n.individual,
+                    metadata=n.metadata)
         with self.assertRaises(ValueError):
             pyslim.annotate_defaults_tables(tables, model_type='nonWF', slim_generation=1)
         ts = tables.tree_sequence()
@@ -232,7 +236,7 @@ class TestIndividualAges(tests.PyslimTestCase):
                 # if written out during 'early' in a WF model,
                 # tskit time 0 will be the SLiM time step *before* slim_generation
                 slim_time = ts.slim_generation - time
-                if remembered_stage == 'early' and ts.slim_provenance.model_type == "WF":
+                if remembered_stage == 'early' and ts.metadata["SLiM"]["model_type"] == "WF":
                     slim_time -= 1
                 if remembered_stage == 'early' and time == 0:
                     # if we remember in early we don't know who's still there
@@ -262,7 +266,7 @@ class TestIndividualAges(tests.PyslimTestCase):
                             self.assertEqual(slim_alive, pyslim_alive)
                             if slim_alive:
                                 slim_age = info[slim_id]['age'][(slim_time, stage)]
-                                if ts.slim_provenance.model_type == "WF":
+                                if ts.metadata["SLiM"]["model_type"] == "WF":
                                     # SLiM records -1 but we return 0 in late and 1 in early
                                     slim_age = 0 + (stage == 'early')
                                 print('age:', ages[ind.id], slim_age)
