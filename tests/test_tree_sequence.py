@@ -100,7 +100,7 @@ class TestRecapitate(tests.PyslimTestCase):
             self.assertEqual(p1.metadata, p2.metadata)
 
     def test_recapitate_errors(self):
-        ts = first(self.get_slim_examples())
+        ts = next(self.get_slim_examples())
         with assertRaises(ValueError):
             _ = ts.recapitate(
                         recombination_rate=0.0,
@@ -188,7 +188,7 @@ class TestIndividualAges(tests.PyslimTestCase):
 
     def test_errors(self):
         ts = next(self.get_slim_examples(everyone=True))
-        for stage in ['abcd', 10, None, []]:
+        for stage in ['abcd', 10, []]:
             with self.assertRaises(ValueError):
                 ts.individuals_alive_at(0, stage=stage)
             with self.assertRaises(ValueError):
@@ -202,9 +202,6 @@ class TestIndividualAges(tests.PyslimTestCase):
             if "remembered_early" in ex:
                 with self.assertWarns(UserWarning):
                     ts.individuals_alive_at(0, remembered_stage="late")
-                # late is default
-                with self.assertWarns(UserWarning):
-                    ts.individuals_alive_at(0)
             else:
                 with self.assertWarns(UserWarning):
                     ts.individuals_alive_at(0, remembered_stage="early")
@@ -295,7 +292,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                             right_answer[i.id] = False
                         else:
                             ptime = ts.individual_times[p]
-                            if ts.slim_provenance.model_type == "WF":
+                            if ts.metadata["SLiM"]["model_type"] == "WF":
                                 if i.time + 1 != ptime:
                                     right_answer[i.id] = False
                             else:
@@ -324,7 +321,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         self.assertArrayEqual(right_answer, has_parents)
 
     def get_first_gen(self, ts):
-        root_time = ts.slim_generation
+        root_time = ts.metadata["SLiM"]["generation"]
         if ts.metadata['SLiM']['model_type'] != 'WF' or ts.metadata['SLiM']['stage'] != 'late':
             root_time -= 1
         first_gen = set(ts.tables.nodes.individual[ts.tables.nodes.time == root_time])

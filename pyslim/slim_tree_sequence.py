@@ -949,7 +949,6 @@ def _set_nodes_individuals(
         ploidy[u] += 1
         if tables.nodes.population[j] != ind_population[u]:
             raise ValueError("Inconsistent populations: nodes and individuals do not agree.")
-    print('ploidy', ploidy)
 
     if any([p != 2 for p in ploidy]):
         raise ValueError("Not all individuals have two assigned nodes.")
