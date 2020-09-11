@@ -427,6 +427,8 @@ def set_tree_sequence_metadata(tables,
         metadata_dict = tables.metadata
     assert(schema_dict['codec'] == 'json')
     assert(schema_dict['type'] == 'object')
+    if "properties" not in schema_dict:
+        schema_dict["properties"] = {}
     schema_dict['properties']['SLiM'] = slim_metadata_schemas['tree_sequence'].schema['properties']['SLiM']
     tables.metadata_schema = tskit.MetadataSchema(schema_dict)
     metadata_dict['SLiM'] = {

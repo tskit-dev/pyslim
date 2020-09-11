@@ -14,6 +14,50 @@ import os
 import numpy as np
 
 
+class TestSlimTreeSequence(tests.PyslimTestCase):
+
+    def clean_example(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.populations.add_row()
+        tables.populations.add_row()
+        tables.individuals.add_row()
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE, population=1, individual=0)
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE, population=1, individual=0)
+        pyslim.annotate_defaults_tables(tables, model_type='nonWF', slim_generation=1)
+        return tables
+
+    def test_inconsistent_individuals(self):
+        clean_tables = self.clean_example()
+        tables = clean_tables.copy()
+        tables.nodes.clear()
+        for j, n in enumerate(clean_tables.nodes):
+            tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE, population=j, individual=0)
+        with self.assertRaises(ValueError):
+            pyslim.annotate_defaults_tables(tables, model_type='nonWF', slim_generation=1)
+        ts = tables.tree_sequence()
+        with self.assertRaises(ValueError):
+            _ = pyslim.SlimTreeSequence(ts)
+
+    def test_inconsistent_times(self):
+        clean_tables = self.clean_example()
+        tables = clean_tables.copy()
+        tables.nodes.clear()
+        for j, n in enumerate(clean_tables.nodes):
+            tables.nodes.add_row(time=j, flags=tskit.NODE_IS_SAMPLE, population=1, individual=0)
+        ts = tables.tree_sequence()
+        with self.assertRaises(ValueError):
+            _ = pyslim.SlimTreeSequence(ts)
+
+    def test_bad_metadata(self):
+        clean_tables = self.clean_example()
+        tables = clean_tables.copy()
+        tables.metadata_schema = tskit.MetadataSchema({"type": "object", "codec": "json"})
+        tables.metadata = {}
+        ts = tables.tree_sequence()
+        with self.assertRaises(ValueError):
+            _ = pyslim.SlimTreeSequence(ts)
+
+
 class TestMutate(tests.PyslimTestCase):
     # Tests for making a tree sequence a SlimTreeSequence
     # again after msprime.mutate.
@@ -25,7 +69,7 @@ class TestMutate(tests.PyslimTestCase):
             self.assertEqual(ts.metadata, pts.metadata)
 
 
-class TestRecapitation(tests.PyslimTestCase):
+class TestRecapitate(tests.PyslimTestCase):
     '''
     Tests for recapitation.
     '''
@@ -54,6 +98,13 @@ class TestRecapitation(tests.PyslimTestCase):
             p1 = ts.population(k)
             p2 = recap.population(k)
             self.assertEqual(p1.metadata, p2.metadata)
+
+    def test_recapitate_errors(self):
+        ts = first(self.get_slim_examples())
+        with assertRaises(ValueError):
+            _ = ts.recapitate(
+                        recombination_rate=0.0,
+                        keep_first_generation=True)
 
     def test_recapitation(self):
         for ts in self.get_slim_examples():
@@ -141,17 +192,22 @@ class TestIndividualAges(tests.PyslimTestCase):
             with self.assertRaises(ValueError):
                 ts.individuals_alive_at(0, stage=stage)
             with self.assertRaises(ValueError):
+                ts.individuals_alive_at(0, remembered_stage=stage)
+            with self.assertRaises(ValueError):
                 ts.individual_ages_at(0, stage=stage)
 
     def test_mismatched_remembered_stage(self):
         for ts, ex in self.get_slim_examples(pedigree=True, WF=True, return_info=True):
             info = ex['info']
             if "remembered_early" in ex:
-                bad_rs = "late"
+                with self.assertWarns(UserWarning):
+                    ts.individuals_alive_at(0, remembered_stage="late")
+                # late is default
+                with self.assertWarns(UserWarning):
+                    ts.individuals_alive_at(0)
             else:
-                bad_rs = "early"
-            with self.assertWarns(UserWarning):
-                ts.individuals_alive_at(0, remembered_stage=bad_rs)
+                with self.assertWarns(UserWarning):
+                    ts.individuals_alive_at(0, remembered_stage="early")
 
     def test_after_simplify(self):
         for ts in self.get_slim_examples(remembered_early=False):
@@ -337,7 +393,11 @@ class TestSimplify(tests.PyslimTestCase):
 
     def test_simplify(self):
         for ts in self.get_slim_examples():
-            sts = ts.simplify()
+            sts = ts.simplify(map_nodes=False)
+            self.assertEqual(ts.sequence_length, sts.sequence_length)
+            self.assertEqual(type(ts), type(sts))
+            self.assertEqual(sts.samples()[0], 0)    
+            sts, _ = ts.simplify(map_nodes=True)
             self.assertEqual(ts.sequence_length, sts.sequence_length)
             self.assertEqual(type(ts), type(sts))
             self.assertEqual(sts.samples()[0], 0)    
@@ -431,3 +491,10 @@ class TestReferenceSequence(tests.PyslimTestCase):
                                 if ts.site(mut.site).position == pos:
                                     b = mut.metadata["mutation_list"][0]["nucleotide"]
                             self.assertEqual(a, b)
+
+class TestDeprecations(tests.PyslimTestCase):
+
+    def test_first_gen(self):
+        ts = next(self.get_slim_examples())
+        with self.assertWarns(FutureWarning):
+            _ = ts.first_generation_individuals()

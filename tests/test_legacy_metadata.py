@@ -46,6 +46,8 @@ class LegacyPyslimTestCase(tests.PyslimTestCase):
 class TestLegacyTypes(LegacyPyslimTestCase):
 
     def test_test_warnings(self):
+        # check that our checking for warnings works
+        # (it didn't with DeprecationWarnings)
         with self.assertWarns(FutureWarning):
             warnings.warn('hi', FutureWarning)
 

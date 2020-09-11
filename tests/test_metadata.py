@@ -310,6 +310,8 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                         _ = x.metadata.selfing_fraction
                     with self.assertRaisesRegex(AttributeError, 'legacy'):
                         _ = x.metadata.sex_ratio
+                with self.assertRaisesRegex(AttributeError, "has no attribute 'ping'$"):
+                    _ = x.metadata.ping
                 break
             break
 
@@ -326,6 +328,8 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                     _ = x.metadata.sex
                 with self.assertRaisesRegex(AttributeError, 'legacy'):
                     _ = x.metadata.flags
+                with self.assertRaisesRegex(AttributeError, "has no attribute 'pong'$"):
+                    _ = x.metadata.pong
                 break
             break
 
@@ -339,6 +343,8 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                         _ = x.metadata.is_null
                     with self.assertRaisesRegex(AttributeError, 'legacy'):
                         _ = x.metadata.genome_type
+                with self.assertRaisesRegex(AttributeError, "has no attribute 'pang'$"):
+                    _ = x.metadata.pang
                 break
             break
 
@@ -349,5 +355,7 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
                     _ = x.metadata[0]
                 with self.assertRaisesRegex(KeyError, 'legacy'):
                     _ = x.metadata[999]
+                with self.assertRaises(KeyError):
+                    _ = x.metadata['ping']
                 break
             break

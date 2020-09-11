@@ -53,11 +53,6 @@ class TestAnnotate(tests.PyslimTestCase):
             self.assertEqual(t1.get_parent_dict(), t2.get_parent_dict())
             self.assertAlmostEqual(t1.total_branch_length, t2.total_branch_length)
 
-    def verify_consistency(self, ts):
-        '''
-        Check that individuals exist, and populations agree between nodes and individuals.
-        '''
-
     def verify_defaults(self, ts):
         '''
         Verify the default values have been entered into metadata.
@@ -109,6 +104,21 @@ class TestAnnotate(tests.PyslimTestCase):
         out_tables = out_ts.tables
         out_tables.sort()
         self.assertTableCollectionsEqual(in_tables, out_tables, skip_provenance=-1)
+
+    def test_annotate_errors(self):
+        for ts in self.get_msprime_examples():
+            with self.assertRaises(ValueError):
+                _ = pyslim.annotate_defaults(ts, model_type="WF",
+                                             slim_generation=0)
+            with self.assertRaises(ValueError):
+                _ = pyslim.annotate_defaults(ts, model_type="WF",
+                                             slim_generation=4.4)
+            with self.assertRaises(ValueError):
+                _ = pyslim.annotate_defaults(ts, model_type="foo",
+                                             slim_generation=4)
+            with self.assertRaises(ValueError):
+                _ = pyslim.annotate_defaults(ts, model_type=[],
+                                             slim_generation=4)
 
     def test_basic_annotation(self):
         for ts in self.get_msprime_examples():

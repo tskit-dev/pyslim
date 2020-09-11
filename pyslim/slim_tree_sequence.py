@@ -705,6 +705,10 @@ class SlimTreeSequence(tskit.TreeSequence):
             only tree sequences from older versions of SLiM will have
             these individuals.
         """
+        warnings.warn(
+                "This method is deprecated: SLiM no longer marks individuals as "
+                "'first generation' any longer - you must explicitly Remember them "
+                "to retain them in the tree sequence.", FutureWarning)
         return np.where(self.tables.individuals.flags & INDIVIDUAL_FIRST_GEN > 0)[0]
 
     def has_individual_parents(self):
@@ -945,6 +949,7 @@ def _set_nodes_individuals(
         ploidy[u] += 1
         if tables.nodes.population[j] != ind_population[u]:
             raise ValueError("Inconsistent populations: nodes and individuals do not agree.")
+    print('ploidy', ploidy)
 
     if any([p != 2 for p in ploidy]):
         raise ValueError("Not all individuals have two assigned nodes.")
