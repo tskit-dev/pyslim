@@ -40,7 +40,8 @@ but let's pull some more statistics out of the tree sequence:
    ts = pyslim.load("rapid_adaptation.trees")
 
    # allele frequencies
-   p = ts.sample_count_stat([ts.samples()], lambda x: x/20000, 1, windows='sites', strict=False)
+   p = ts.sample_count_stat([ts.samples()], lambda x: x/20000, 1, windows='sites',
+            span_normalise=False, polarised=True, strict=False)
    print(f"There are {ts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
          f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
 
@@ -48,7 +49,7 @@ This tells us that:
 
 .. code-block:: none
 
-   There are 60142 segregating sites, of which 95 are at frequency above 25%, and 695 are above 5%.
+   There are 66664 segregating sites, of which 4 are at frequency above 25%, and 98 are above 5%.
 
 The selection was, indeed, strong.
 
@@ -64,7 +65,8 @@ This just means recapitating and mutating the result:
    rts = ts.recapitate(Ne=1000, recombination_rate=1e-8, random_seed=6)
    rts = pyslim.SlimTreeSequence(msprime.mutate(rts, rate=1e-8, random_seed=7))
 
-   p = rts.sample_count_stat([rts.samples()], lambda x: x/20000, 1, windows='sites', strict=False)
+   p = rts.sample_count_stat([rts.samples()], lambda x: x/20000, 1, windows='sites',
+            span_normalise=False, polarised=True, strict=False)
    print(f"There are {rts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
          f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
 
@@ -72,7 +74,7 @@ Now, there are more segregating sites - neutral ones.
 
 .. code-block:: none
 
-   There are 81031 segregating sites, of which 243 are at frequency above 25%, and 1311 are above 5%.
+   There are 86202 segregating sites, of which 5557 are at frequency above 25%, and 11160 are above 5%.
 
 
 *************************
@@ -108,7 +110,7 @@ and merge them.
 
    new_nodes = np.where(new_ts.tables.nodes.time == new_time)[0]
    print(f"There are {len(new_nodes)} nodes from the start of the new simulation.")
-   # There are 4425 nodes from the start of the new simulation.
+   # There are 4346 nodes from the start of the new simulation.
 
 
    slim_indivs = rts.individuals_alive_at(0)
@@ -155,8 +157,10 @@ and merge them.
    # get back the tree sequence
    full_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
 
-   p = full_ts.sample_count_stat([full_ts.samples()], lambda x: x/20000, 1,
-                                 windows='sites', strict=False)
+   p = full_ts.sample_count_stat(
+                     [full_ts.samples()], lambda x: x/20000, 1,
+                     windows='sites', span_normalise=False, polarised=True,
+                     strict=False)
    print(f"There are {full_ts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
          f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
 
@@ -165,8 +169,8 @@ Now, things have drifted:
 
 .. code-block:: none
 
-   There are 328814 segregating sites, of which 4312 are at frequency above 25%,
-   and 20912 are above 5%.
+   There are 334441 segregating sites, of which 5688 are at frequency above 25%,
+   and 13163 are above 5%.
 
 Let's do a sanity check:
 
@@ -177,7 +181,7 @@ Let's do a sanity check:
    r = rts.node(t.root)
    # Root of the first tree in the recapitated SLiM simulation:
    print(r)
-   # {'id': 79305, 'time': 5920.012447565916, 'population': 1, 'individual': -1,
+   # {'id': 66642, 'time': 3665.1756884301217, 'population': 1, 'individual': -1,
    #  'flags': 0, 'metadata': None}
 
    ft = full_ts.first()
@@ -185,7 +189,7 @@ Let's do a sanity check:
    fr = full_ts.node(ft.root)
    # Root of the first tree after continuing for 1000 generations:
    print(fr)
-   # {'id': 79305, 'time': 6920.012447565916, 'population': 1, 'individual': -1,
+   # {'id': 66642, 'time': 4665.175688430121, 'population': 1, 'individual': -1,
    #  'flags': 0, 'metadata': None}
 
 That matches up - the time of what should be the same node in the "continued" tree sequence

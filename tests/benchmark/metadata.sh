@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 SETUP="
 import tskit, pyslim
 ts = tskit.load('benchmark/metadata.trees')

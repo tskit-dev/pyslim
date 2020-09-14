@@ -2,7 +2,7 @@
 
 # NOTE: all layers must be visible in pedigrees.ink.svg for this to work.
 
-all: pedigree01.png pedigree2.png pedigree3.png pedigree_recapitate.png pedigree_simplify.png pedigree_mutate.png
+all: pedigree01.png pedigree2.png pedigree3.png pedigree_recapitate.png pedigree_simplify.png pedigree_mutate.png annotated_p_vs_s.png
 
 pedigree01.png : pedigree0.png pedigree1.png
 	convert +append $^ $@

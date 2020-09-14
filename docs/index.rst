@@ -15,6 +15,7 @@ Welcome to pyslim's documentation!
    tutorial
    vignette_space
    vignette_continuing
+   vignette_coalescent_diversity
    metadata
    python_api
    development

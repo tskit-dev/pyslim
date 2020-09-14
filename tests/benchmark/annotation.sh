@@ -42,8 +42,8 @@ def tskit_fn(ts):
     ind_md = [dmd['individual']] * tables.individuals.num_rows
     tables.individuals.packset_metadata(ind_md)
     return 0
-    
 "
+
 echo "setup:"
 python3 -m timeit -s "$SETUP_SETUP" "setup()"
 

@@ -1,0 +1,23 @@
+initialize()
+{
+    // must define L
+    initializeSLiMModelType("WF");
+    initializeTreeSeq();
+    initializeMutationRate(1e-10);
+    initializeMutationType("m1", 0.5, "e", 0.01);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, L-1);
+    initializeRecombinationRate(1e-8);
+}
+
+1 early() { 
+    sim.readFromPopulationFile("vignette_annotated.init.trees");
+    sim.treeSeqRememberIndividuals(p0.individuals);
+}
+
+100 late() {
+    catn("Done.");
+    sim.treeSeqOutput("vignette_annotated.trees");
+    sim.simulationFinished();
+}
+
