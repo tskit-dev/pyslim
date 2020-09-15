@@ -64,7 +64,7 @@ def annotate_defaults(ts, model_type, slim_generation, reference_sequence=None):
                 reference_sequence=reference_sequence)
 
 
-def annotate_defaults_tables(tables, model_type, slim_generation):
+def annotate_defaults_tables(tables, model_type, slim_generation, annotate_mutations=True):
     '''
     Does the work of :func:`annotate_defaults()`, but modifies the tables in place: so,
     takes tables as produced by ``msprime``, and makes them look like the
@@ -85,7 +85,8 @@ def annotate_defaults_tables(tables, model_type, slim_generation):
     set_tree_sequence_metadata(tables, **top_metadata)
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
-    _set_sites_mutations(tables)
+    if annotate_mutations:
+        _set_sites_mutations(tables)
 
 
 class MetadataDictWrapper(dict):
@@ -547,30 +548,6 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         return get_provenance(self, only_last=False)
 
-    def _mark_first_generation(self):
-        '''
-        Mark all 'first generation' individuals' nodes as samples, and return
-        the corresponding tree sequence.
-
-        DEPRECATED
-        '''
-        tables = self.dump_tables()
-        first_gen_nodes = ((tables.nodes.individual > 0)
-                           & ((tables.individuals.flags[tables.nodes.individual]
-                               & INDIVIDUAL_FIRST_GEN) > 0))
-        if sum(first_gen_nodes) == 0:
-            warnings.warn("Tree sequence does not have the initial generation; " +
-                          " did you simplify it after output from SLiM?")
-        flags = tables.nodes.flags
-        flags[first_gen_nodes] = (flags[first_gen_nodes] | tskit.NODE_IS_SAMPLE)
-        tables.nodes.set_columns(flags=flags, population=tables.nodes.population,
-                individual=tables.nodes.individual, time=tables.nodes.time,
-                metadata=tables.nodes.metadata,
-                metadata_offset=tables.nodes.metadata_offset)
-        ts = load_tables(tables)
-        ts.reference_sequence = self.reference_sequence
-        return ts
-
     def individuals_alive_at(self, time, stage='late', remembered_stage=None):
         """
         Returns an array giving the IDs of all individuals that are known to be
@@ -853,11 +830,7 @@ def _upgrade_old_tables(tables):
     tables.provenances.add_row(json.dumps(new_record))
 
 
-def _set_nodes_individuals(
-        tables, node_ind=None, location=(0, 0, 0), age=0, ind_id=None,
-        ind_population=None, ind_sex=INDIVIDUAL_TYPE_HERMAPHRODITE,
-        ind_flags=INDIVIDUAL_ALIVE, slim_ind_flags=0, node_id=None,
-        node_is_null=False, node_type=GENOME_TYPE_AUTOSOME):
+def _set_nodes_individuals(tables, age):
     '''
     Adds to a TableCollection the information relevant to individuals required
     for SLiM to load in a tree sequence, that is found in Node and Individual
@@ -879,204 +852,79 @@ def _set_nodes_individuals(
     If you have other situations, like non-alive "remembered" individuals, you
     will need to edit the tables by hand, afterwards.
     '''
-    samples = list(filter(lambda j: tables.nodes.flags[j] & tskit.NODE_IS_SAMPLE,
-                          range(tables.nodes.num_rows)))
+    samples = np.where(tables.nodes.flags & tskit.NODE_IS_SAMPLE)[0]
     if (len(samples) % 2) != 0:
         raise ValueError("There must be an even number of sampled nodes,"\
                          + "since organisms are diploid.")
 
-    if node_ind is None:
-        node_ind = [tskit.NULL for _ in range(tables.nodes.num_rows)]
-        for j, k in enumerate(samples):
-            node_ind[j] = int(k/2)
+    num_individuals = int(len(samples) / 2)
+    node_ind = np.repeat(tskit.NULL, tables.nodes.num_rows).astype("int32")
+    node_ind[samples] = np.arange(len(samples)) // 2
+    ind_id = np.arange(num_individuals)
+    slim_node_id = np.repeat(tskit.NULL, tables.nodes.num_rows)
+    slim_node_id[samples] = np.arange(len(samples))
 
-    num_individuals = max(node_ind) + 1
-    num_nodes = tables.nodes.num_rows
+    ind_population = np.repeat(tskit.NULL, num_individuals)
+    ind_population[node_ind[samples]] = tables.nodes.population[samples]
 
-    if type(location) is tuple:
-        location = [location for _ in range(num_individuals)]
-    assert(len(location) == num_individuals)
+    if not np.all(unique_labels_by_group(node_ind,
+                                          tables.nodes.population)):
+        raise ValueError("Individual has nodes from more than one population.")
+    if not np.all(unique_labels_by_group(node_ind,
+                                          tables.nodes.time)):
+        raise ValueError("Individual has nodes from more than one time.")
 
-    if type(age) is int or type(age) is float:
-        age = [age for _ in range(num_individuals)]
-    assert(len(age) == num_individuals)
+    loc_vec = np.zeros(num_individuals * 3).astype("float64")
+    loc_off = 3 * np.arange(num_individuals + 1).astype("uint32")
+    ind_flags = np.repeat(INDIVIDUAL_ALIVE, num_individuals).astype("uint32")
 
-    if ind_id is None:
-        ind_id = list(range(num_individuals))
-    assert(len(ind_id) == num_individuals)
-
-    if type(ind_sex) is int:
-        ind_sex = [ind_sex for _ in range(num_individuals)]
-    assert(len(ind_sex) == num_individuals)
-
-    if type(slim_ind_flags) is int:
-        slim_ind_flags = [slim_ind_flags for _ in range(num_individuals)]
-    assert(len(slim_ind_flags) == num_individuals)
-
-    if type(ind_flags) is int:
-        ind_flags = [ind_flags for _ in range(num_individuals)]
-    assert(len(ind_flags) == num_individuals)
-
-    if node_id is None:
-        node_id = [-1 for _ in range(num_nodes)]
-        for j, k in enumerate(list(samples)
-                              + sorted(list(set(range(num_nodes))
-                                            - set(samples)))):
-            node_id[k] = j
-    assert(len(node_id) == num_nodes)
-
-    if type(node_is_null) is bool:
-        node_is_null = [node_is_null for _ in range(num_nodes)]
-    assert(len(node_is_null) == num_nodes)
-
-    if type(node_type) is int:
-        node_type = [node_type for _ in range(num_nodes)]
-    assert(len(node_type) == tables.nodes.num_rows)
-
-    if ind_population is None:
-        # set the individual populations based on what's in the nodes
-        ind_population = [tskit.NULL for _ in range(num_individuals)]
-        for j, u in enumerate(node_ind):
-            if u >= 0:
-                ind_population[u] = tables.nodes.population[j]
-    assert(len(ind_population) == num_individuals)
-
-    # check for consistency: every individual has two nodes, and populations agree
-    ploidy = [0 for _ in range(num_individuals)]
-    for j in samples:
-        u = node_ind[j]
-        assert(u >= 0)
-        ploidy[u] += 1
-        if tables.nodes.population[j] != ind_population[u]:
-            raise ValueError("Inconsistent populations: nodes and individuals do not agree.")
-
-    if any([p != 2 for p in ploidy]):
-        raise ValueError("Not all individuals have two assigned nodes.")
-
-    loc_vec, loc_off = tskit.pack_bytes(location)
+    default_ind = default_slim_metadata("individual")
+    sex = default_ind['sex']
+    slim_flag = default_ind['flags']
 
     ims = tables.individuals.metadata_schema
     individual_metadata = [
-            {'pedigree_id': iid, 'age': a, 'subpopulation': int(pop), 'sex': sex, 'flags': f}
-            for (iid, a, pop, sex, f) in
-            zip(ind_id, age, ind_population, ind_sex, slim_ind_flags)]
-    assert(len(individual_metadata) == num_individuals)
-    individual_metadata, individual_metadata_offset = tskit.pack_bytes(
-            [ims.encode_row(r) for r in individual_metadata])
+            ims.encode_row({'pedigree_id': iid, 'age': age, 'subpopulation': int(pop), 'sex': sex, 'flags': slim_flag})
+            for (iid, pop) in
+            zip(ind_id, ind_population)]
+    imb, imo = tskit.pack_bytes(individual_metadata)
     tables.individuals.set_columns(
             flags=ind_flags, location=loc_vec, location_offset=loc_off,
-            metadata=individual_metadata,
-            metadata_offset=individual_metadata_offset)
+            metadata=imb, metadata_offset=imo)
     assert(tables.individuals.num_rows == num_individuals)
     
-    node_metadata = [None for _ in range(num_nodes)]
-    for j in samples:
-        node_metadata[j] = {'slim_id': node_id[j],
-                            'is_null': node_is_null[j],
-                            'genome_type': node_type[j]
-                            }
+    default_node = default_slim_metadata("node")
+    node_is_null = default_node["is_null"]
+    node_type = default_node["genome_type"]
     nms = tables.nodes.metadata_schema
-    node_metadata, node_metadata_offset = tskit.pack_bytes(
-            [nms.encode_row(r) for r in node_metadata])
+    node_metadata = [b'' for _ in range(tables.nodes.num_rows)]
+    for j in samples:
+        node_metadata[j] = nms.encode_row({'slim_id': slim_node_id[j],
+                               'is_null': node_is_null,
+                               'genome_type': node_type
+                               })
+    nmb, nmo = tskit.pack_bytes(node_metadata)
     tables.nodes.set_columns(flags=tables.nodes.flags, time=tables.nodes.time,
                              population=tables.nodes.population, individual=node_ind,
-                             metadata=node_metadata,
-                             metadata_offset=node_metadata_offset)
+                             metadata=nmb, metadata_offset=nmo)
 
 
-def _set_populations(
-        tables, pop_id=None, selfing_fraction=0.0, female_cloning_fraction=0.0,
-        male_cloning_fraction=0.0, sex_ratio=0.5, bounds_x0=0.0, bounds_x1=0.0,
-        bounds_y0=0.0, bounds_y1=0.0, bounds_z0=0.0, bounds_z1=0.0,
-        migration_records=None):
+def _set_populations(tables):
     '''
     Adds to a TableCollection the information about populations required for SLiM
     to load a tree sequence. This will replace anything already in the Population
     table.
     '''
     num_pops = max(tables.nodes.population) + 1
-    for ind in tables.individuals:
-        md = ind.metadata
-        if not (isinstance(md, dict) and 'subpopulation' in md):
-            raise ValueError("Individuals do not have valid metadata: "
-                    "need to run set_nodes_individuals() first?")
-        if md['subpopulation'] >= num_pops:
-            raise ValueError("Bad population in individual metadata.")
-    if pop_id is None:
-        pop_id = list(range(num_pops))
-    assert(len(pop_id) == num_pops)
-
-    if type(selfing_fraction) is float:
-        selfing_fraction = [selfing_fraction for _ in range(num_pops)]
-    assert(len(selfing_fraction) == num_pops)
-
-    if type(female_cloning_fraction) is float:
-        female_cloning_fraction = [female_cloning_fraction for _ in range(num_pops)]
-    assert(len(female_cloning_fraction) == num_pops)
-
-    if type(male_cloning_fraction) is float:
-        male_cloning_fraction = [male_cloning_fraction for _ in range(num_pops)]
-    assert(len(male_cloning_fraction) == num_pops)
-
-    if type(sex_ratio) is float:
-        sex_ratio = [sex_ratio for _ in range(num_pops)]
-    assert(len(sex_ratio) == num_pops)
-
-    if type(bounds_x0) is float:
-        bounds_x0 = [bounds_x0 for _ in range(num_pops)]
-    assert(len(bounds_x0) == num_pops)
-
-    if type(bounds_x1) is float:
-        bounds_x1 = [bounds_x1 for _ in range(num_pops)]
-    assert(len(bounds_x1) == num_pops)
-
-    if type(bounds_y0) is float:
-        bounds_y0 = [bounds_y0 for _ in range(num_pops)]
-    assert(len(bounds_y0) == num_pops)
-
-    if type(bounds_y1) is float:
-        bounds_y1 = [bounds_y1 for _ in range(num_pops)]
-    assert(len(bounds_y1) == num_pops)
-
-    if type(bounds_z0) is float:
-        bounds_z0 = [bounds_z0 for _ in range(num_pops)]
-    assert(len(bounds_z0) == num_pops)
-
-    if type(bounds_z1) is float:
-        bounds_z1 = [bounds_z1 for _ in range(num_pops)]
-    assert(len(bounds_z1) == num_pops)
-
-    if migration_records is None:
-        migration_records = [[] for _ in range(num_pops)]
-    assert(len(migration_records) == num_pops)
-    for mrl in migration_records:
-        for mr in mrl:
-            assert(isinstance(mr, dict))
-
-    population_metadata = [
-            {
-                "slim_id" : pid,
-                "selfing_fraction" : sf,
-                "female_cloning_fraction" : fcf,
-                "male_cloning_fraction" : mcf,
-                "sex_ratio" : sr,
-                "bounds_x0" : x0, "bounds_x1" : x1,
-                "bounds_y0" : y0, "bounds_y1" : y1,
-                "bounds_z0" : z0, "bounds_z1" : z1,
-                "migration_records" : mr,
-            } for (pid, sf, fcf, mcf, sr, x0, x1, y0, y1, z0, z1, mr) in
-            zip(pop_id, selfing_fraction, female_cloning_fraction,
-                male_cloning_fraction, sex_ratio, bounds_x0,
-                bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1,
-                migration_records)]
-    ms = tables.populations.metadata_schema
-    tables.populations.packset_metadata(
-            [ms.encode_row(r) for r in population_metadata])
+    tables.populations.clear()
+    pop_id = np.arange(num_pops)
+    for j in range(num_pops):
+        md = default_slim_metadata("population")
+        md["slim_id"] = j
+        tables.populations.add_row(metadata=md)
 
 
-def _set_sites_mutations(
-        tables, mutation_id=None, mutation_type=1, selection_coeff=0.0,
-        population=tskit.NULL, slim_time=None):
+def _set_sites_mutations(tables):
     '''
     Adds to a TableCollection the information relevant to mutations required
     for SLiM to load in a tree sequence. This means adding to the metadata column
@@ -1089,40 +937,32 @@ def _set_sites_mutations(
     columns of the Mutation table.
     '''
     num_mutations = tables.mutations.num_rows
-
-    if mutation_id is None:
-        mutation_id = list(range(num_mutations))
-    assert(len(mutation_id) == num_mutations)
-
-    if type(mutation_type) is int:
-        mutation_type = [mutation_type for _ in range(num_mutations)]
-    assert(len(mutation_type) == num_mutations)
-
-    if type(selection_coeff) is float:
-        selection_coeff = [selection_coeff for _ in range(num_mutations)]
-    assert(len(selection_coeff) == num_mutations)
-
-    if type(population) is int:
-        population = [population for _ in range(num_mutations)]
-    assert(len(population) == num_mutations)
-
-    if slim_time is None:
-        ## This may *not* make sense because we have to round:
-        # slim_time = [(-1) * int(tables.nodes.time[u]) for u in tables.mutations.node]
-        slim_time = [0 for _ in range(num_mutations)]
-    assert(len(slim_time) == num_mutations)
-
+    default_mut = default_slim_metadata("mutation")
+    dsb, dso = tskit.pack_bytes([str(j) for j in range(num_mutations)])
+    slim_time = tables.metadata["SLiM"]["generation"] - tables.mutations.time
+    mms = tables.mutations.metadata_schema
     mutation_metadata = [
-            {"mutation_list": 
-                [{"mutation_type": mt,
-                  "selection_coeff": sc,
-                  "subpopulation": pop,
+            mms.encode_row(
+                {"mutation_list": 
+                 [{"mutation_type": default_mut["mutation_type"],
+                  "selection_coeff": default_mut["selection_coeff"],
+                  "subpopulation": default_mut["subpopulation"],
                   "slim_time": st,
-                  "nucleotide": -1
-                  }]
-            }
-            for (mt, sc, pop, st) in
-                         zip(mutation_type, selection_coeff, population, slim_time)]
-    ms = tables.mutations.metadata_schema
-    tables.mutations.packset_metadata(
-            [ms.encode_row(r) for r in mutation_metadata])
+                  "nucleotide": default_mut["nucleotide"]
+                   }]
+                })
+            for st in slim_time]
+    mdb, mdo = tskit.pack_bytes(mutation_metadata)
+    tables.mutations.set_columns(
+            site=tables.mutations.site,
+            node=tables.mutations.node,
+            time=tables.mutations.time,
+            derived_state=dsb,
+            derived_state_offset=dso,
+            parent=tables.mutations.parent,
+            metadata=mdb,
+            metadata_offset=mdo)
+    tables.sites.set_columns(
+            position=tables.sites.position,
+            ancestral_state=np.array([], dtype='int8'),
+            ancestral_state_offset=np.zeros(tables.sites.num_rows + 1, dtype='uint32'))

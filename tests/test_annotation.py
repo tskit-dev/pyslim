@@ -119,6 +119,32 @@ class TestAnnotate(tests.PyslimTestCase):
             with self.assertRaises(ValueError):
                 _ = pyslim.annotate_defaults(ts, model_type=[],
                                              slim_generation=4)
+        # odd number of samples
+        ts = msprime.simulate(3)
+        with self.assertRaisesRegex(ValueError, "diploid"):
+            _ = pyslim.annotate_defaults(ts, model_type="WF",
+                                         slim_generation=1)
+        # inconsistent populations for diploids
+        ts = msprime.simulate(
+            population_configurations=[
+                msprime.PopulationConfiguration(sample_size=3),
+                msprime.PopulationConfiguration(sample_size=1)],
+            migration_matrix=[[0.0, 1.0], [1.0, 0.0]]
+            )
+        with self.assertRaisesRegex(ValueError, "more than one population"):
+            _ = pyslim.annotate_defaults(ts, model_type="WF",
+                                         slim_generation=1)
+        # inconsistent times for diploids
+        samples = [
+            msprime.Sample(population=0, time=0),
+            msprime.Sample(population=0, time=0),
+            msprime.Sample(population=0, time=0),
+            msprime.Sample(population=0, time=1),
+        ]
+        ts = msprime.simulate(samples=samples)
+        with self.assertRaisesRegex(ValueError, "more than one time"):
+            _ = pyslim.annotate_defaults(ts, model_type="WF",
+                                         slim_generation=1)
 
     def test_basic_annotation(self):
         for ts in self.get_msprime_examples():
