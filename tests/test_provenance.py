@@ -196,7 +196,7 @@ class TestProvenance(tests.PyslimTestCase):
         ts = msprime.simulate(10)
         for record_text in old_provenance_examples:
             record = json.loads(record_text)
-            prov = msprime.Provenance(timestamp='2018-08-25T14:59:13', record=json.dumps(record))
+            prov = tskit.Provenance(timestamp='2018-08-25T14:59:13', record=json.dumps(record))
             is_slim, version = pyslim.slim_provenance_version(prov)
             self.assertTrue(is_slim)
             if 'file_version' in record:
@@ -240,7 +240,7 @@ class TestProvenance(tests.PyslimTestCase):
             for _ in range(20):
                 u = random.sample(samples, 1)[0]
                 self.assertEqual(t.parent(u), pt.parent(u))
-                if t.parent(u) != msprime.NULL_NODE:
+                if t.parent(u) != tskit.NULL:
                     self.assertEqual(t.branch_length(u), pt.branch_length(u))
 
     def test_convert_0_2_files(self):
@@ -264,7 +264,7 @@ class TestProvenance(tests.PyslimTestCase):
             for _ in range(20):
                 u = random.sample(samples, 1)[0]
                 self.assertEqual(t.parent(u), pt.parent(u))
-                if t.parent(u) != msprime.NULL_NODE:
+                if t.parent(u) != tskit.NULL:
                     self.assertEqual(t.branch_length(u), pt.branch_length(u))
 
     def test_convert_0_3_files(self):
@@ -288,7 +288,7 @@ class TestProvenance(tests.PyslimTestCase):
             for _ in range(20):
                 u = random.sample(samples, 1)[0]
                 self.assertEqual(t.parent(u), pt.parent(u))
-                if t.parent(u) != msprime.NULL_NODE:
+                if t.parent(u) != tskit.NULL:
                     self.assertEqual(t.branch_length(u), pt.branch_length(u))
 
     def test_convert_0_4_files(self):
@@ -314,7 +314,7 @@ class TestProvenance(tests.PyslimTestCase):
             for _ in range(20):
                 u = random.sample(samples, 1)[0]
                 self.assertEqual(t.parent(u), pt.parent(u))
-                if t.parent(u) != msprime.NULL_NODE:
+                if t.parent(u) != tskit.NULL:
                     self.assertEqual(t.branch_length(u), pt.branch_length(u))
 
 

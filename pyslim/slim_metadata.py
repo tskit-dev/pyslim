@@ -386,7 +386,7 @@ def default_slim_metadata(name):
     elif name == "node":
         out = {
             "slim_id": tskit.NULL,
-            "is_null": True,
+            "is_null": False,
             "genome_type": 0,
         }
     elif name == "individual":

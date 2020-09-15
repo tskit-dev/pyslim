@@ -124,7 +124,7 @@ class TestEncodeDecode(LegacyPyslimTestCase):
                                      nucleotide = 2) for k in range(4)]
         with self.assertWarns(FutureWarning):
             dm = pyslim.decode_mutation(m)
-        self.assertEqual(type(dm), type([]))
+        self.assertTrue(isinstance(dm, list))
         for a, b in zip(m, dm):
             self.assertEqual(a, b)
 
@@ -317,10 +317,10 @@ class TestDumpLoad(LegacyPyslimTestCase):
 
     def test_load_tables(self):
         for ts in self.get_slim_examples():
-            self.assertTrue(type(ts) is pyslim.SlimTreeSequence)
+            self.assertTrue(isinstance(ts, pyslim.SlimTreeSequence))
             tables = ts.tables
             new_ts = pyslim.load_tables(tables, legacy_metadata=True)
-            self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
+            self.assertTrue(isinstance(new_ts, pyslim.SlimTreeSequence))
             new_tables = new_ts.tables
             self.assertEqual(tables, new_tables)
 
@@ -329,7 +329,7 @@ class TestDumpLoad(LegacyPyslimTestCase):
             fn = ex['basename'] + ".trees"
             # load in msprime then switch
             msp_ts = tskit.load(fn)
-            self.assertTrue(type(msp_ts) is msprime.TreeSequence)
+            self.assertTrue(isinstance(msp_ts, tskit.TreeSequence))
             # transfer tables
             msp_tables = msp_ts.tables
             new_ts = pyslim.load_tables(msp_tables, legacy_metadata=True)
@@ -339,13 +339,13 @@ class TestDumpLoad(LegacyPyslimTestCase):
             self.assertTableCollectionsEqual(msp_tables, new_tables)
             # convert directly
             new_ts = pyslim.SlimTreeSequence(msp_ts)
-            self.assertTrue(type(new_ts) is pyslim.SlimTreeSequence)
+            self.assertTrue(isinstance(new_ts, pyslim.SlimTreeSequence))
             self.verify_times(msp_ts, new_ts)
             new_tables = new_ts.tables
             self.assertTableCollectionsEqual(msp_tables, new_tables)
             # load to pyslim from file
             slim_ts = pyslim.load(fn, legacy_metadata=True)
-            self.assertTrue(type(slim_ts) is pyslim.SlimTreeSequence)
+            self.assertTrue(isinstance(slim_ts, pyslim.SlimTreeSequence))
             slim_tables = slim_ts.tables
             self.assertTableCollectionsEqual(msp_tables, slim_tables)
             self.assertEqual(slim_ts.slim_generation, new_ts.slim_generation)
