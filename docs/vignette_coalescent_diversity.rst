@@ -28,6 +28,39 @@ This is a simple example, to show how to do this:
 the trait under selection is just fitness,
 and there is no relationship between allele frequency and effect size.
 
+The steps will be:
+
+1. Run a coalescent simulation with msprime.
+2. Add SLiM metadata to the nodes, individuals, and populations.
+3. Add SLiM mutations with msprime,
+   and edit the mutation metadata to assign selection coefficients.
+4. Run the SLiM portion of the simulation.
+5. Do some descriptive analysis of the results of selection.
+6. Add neutral mutations to the tree sequence.
+7. Do some descriptive analysis of genetic diversity along the genome.
+
+
+*******************************
+Mutation and recombination maps
+*******************************
+
+In this model, we'll also demonstrate how to modulate mutation and recombination rate
+along the genome. We'll do a simple example: a 9MB genome
+with three equally-sized domains.
+The first and last third of the genome will have high recombination
+(5e-8 per generation per bp),
+and the middle third will have low recombination
+(0.5e-8 per generation per bp).
+The mutation rate will be constant (1e-8 per generation per bp),
+but a lower proportion of mutations in the middle region are under selection:
+on the outside thirds, 3% of mutations are beneficial with a selection coefficient
+drawn from an Exponential distribution,
+and in the middle third, only 0.3% are (but with the same distribution of selection coefficients).
+This implies that the mutation rate *of beneficial mutations* on the ends
+is :math:`0.03 \times 10^{-8}` = 3e-10, and in the middle is 3e-11.
+We'll simulate these first, and only add the neutral mutations after everything else,
+at rates 1e-8 - 3e-10 on the ends, and 1e-8 - 3e-11 in the middle.
+
 
 ************************
 The colescent simulation
@@ -42,13 +75,16 @@ from a relatively large population, using msprime.
    import msprime, pyslim, tskit
    import numpy as np
 
+   breaks = [0, 3000000, 6000000, 9000000]
+   recomb_map = msprime.RecombinationMap(
+      positions = breaks,
+      rates = [5e-8, 0.5e-8, 5e-8] + [0.0])
    ots = msprime.simulate(
             2000,
             Ne=10000,
-            length=1e7,
             random_seed=5,
             discrete_genome=True, 
-            recombination_rate=1e-8)
+            recombination_map=recomb_map)
 
 *****************
 Annotate everyone
@@ -88,7 +124,7 @@ We'll want this to be as if we'd done in a burn-in script in SLiM:
 
    initialize() {
       ...
-      initializeMutationType(1, 0.5, "e", 0.03);
+      initializeMutationType(2, 0.5, "e", 0.03);
       initializeMutationRate(1e-10);
    }
 
@@ -106,14 +142,17 @@ Here's how to add SLiM mutations with msprime:
 
 .. code-block:: python
 
-   mut_model = msprime.SlimMutationModel(type=1)
-   ots = msprime.mutate(ots, rate=1e-10, model=mut_model, discrete=True, random_seed=5)
+   mut_map = msprime.RateMap(
+               position=breaks,
+               rate=[0.03e-8, 0.003e-8, 0.03e-8])
+   mut_model = msprime.SlimMutationModel(type=2)
+   ots = msprime.mutate(ots, rate=mut_map, model=mut_model, discrete=True, random_seed=9)
    print(f"The tree sequence now has {ots.num_mutations} mutations, at "
          f"{ots.num_sites} distinct sites.")
-   # The tree sequence now has 320 mutations, at 319 distinct sites.
+   # The tree sequence now has 668 mutations, at 667 distinct sites.
 
-Note the ``type=1`` argument to :meth:`msprime.SlimMutationModel`:
-this means the mutations will be of type "m1" in SLiM (and, so you must
+Note the ``type=2`` argument to :meth:`msprime.SlimMutationModel`:
+this means the mutations will be of type "m2" in SLiM (and, so you must
 initialize that mutation type in the recipe that loads this tree sequence in).
 
 Now, we'll assign selection coefficients.
@@ -152,7 +191,7 @@ SLiM mutation ID ``k``.
    assert tables.mutations.num_rows == ots.num_mutations
    print(f"The selection coefficients range from {min(mut_map.values())} "
          f"to {max(mut_map.values())}.")
-   # The selection coefficients range from 5.9166379253869124e-06 to 0.19540735762228165.
+   # The selection coefficients range from 8.639067134728749e-06 to 0.2547625650566081.
 
 
 
@@ -214,6 +253,10 @@ so that they will remain in the tree sequence.
 
 .. literalinclude:: reload_annotated.slim
 
+Note that the simulation only has selected mutations (of type ``m2``),
+but as we'll add in type ``m1`` mutations later,
+we've declared them in the recipe as a placeholder.
+
 We could run this on the command line as
 ``slim -d L=100000000 reload_annotated.slim``,
 but it's a bit more convenient to stay within python,
@@ -223,8 +266,8 @@ and obtain the sequence length programatically:
 
    import subprocess
    subprocess.check_output(
-         ["slim", "-d", f"L={int(ots.sequence_length)}",
-          "-s", "5", "docs/reload_annotated.slim"])
+         ["slim", "-d", f"L={int(ots.sequence_length - 1)}",
+          "-s", "5", "reload_annotated.slim"])
 
 This runs quickly, since it's only 100 generations.
 
@@ -243,7 +286,9 @@ First, let's look at what mutations are present:
    print(f"There are {ts.num_mutations} present at {ts.num_sites} distinct sites.")
    print(f"Of these, {np.sum(num_stacked > 1)} have more than one stacked mutation,")
    print(f"and {np.sum(old_mut)} were produced by msprime.")
-
+   # There are 697 present at 696 distinct sites.
+   # Of these, 1 have more than one stacked mutation,
+   # and 668 were produced by msprime.
 
 Most of the mutations were present as initial diversity,
 but a few were added during the course of the simulation.
@@ -299,27 +344,34 @@ This produces
 
 .. code-block:: python
 
-   # Site 184 has 1 stacked mutations, with total derived allele frequency [0.735 0.045] and sum of selection coefficients 0.04058143601287156.
-   # ''   : 2440
-   # '178': 1550
-   # '179': 10
-   {'id': 184, 'position': 5629844.0, 'ancestral_state': '',
-    'mutations': [
-      {'id': 184, 'site': 184, 'node': 15521, 'time': nan, 'derived_state': '178', 'parent': -1,
+   # Site 489 has 1 stacked mutations,
+   # with total derived allele frequency [0.9945 0.5325]
+   # and sum of selection coefficients 0.04661317712816526.
+   # The allele frequencies are:
+   #   '': 946
+   #   '8455': 0
+   #   '8455,8456': 3054
+   {'id': 489, 'position': 7042081.0, 'ancestral_state': '', 'mutations': [
+      {'id': 489, 'site': 489, 'node': 57371, 'time': 46014.624287471925,
+       'derived_state': '8455', 'parent': -1,
        'metadata': {'mutation_list': [
-          {'mutation_type': 1, 'selection_coeff': 0.03935328871011734,
-           'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1}
-         ]}},
-      {'id': 185, 'site': 184, 'node': 8100, 'time': nan, 'derived_state': '179', 'parent': -1,
+         {'mutation_type': 2, 'selection_coeff': 1.5805397197254933e-05,
+          'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1}
+       ]}},
+      {'id': 490, 'site': 489, 'node': 57371, 'time': 27968.53966967204,,
+       'derived_state': '8455,8456', 'parent': 489,
        'metadata': {'mutation_list': [
-          {'mutation_type': 1, 'selection_coeff': 0.0012281473027542233,
-           'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1}]}}
-     ], 'metadata': b''}
+         {'mutation_type': 2, 'selection_coeff': 1.5805397197254933e-05,
+          'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1},
+         {'mutation_type': 2, 'selection_coeff': 0.04658156633377075,
+          'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1}
+       ]}}
+    ], 'metadata': b''}
 
-It looks like there were two independent mutations at this site: neither of them resulted
-in a "stacked" mutation. One, present in 1550 copies, had a higher selection coefficient (0.039)
-than the other, present in only 10 copies (s=0.001).
-      
+There were two mutations at this site, both before the SLiM portion of the simulation
+started. One happened on the background of the other,
+and no genomes either today or in the initial generation carry the first allele in isolation.
+Their effects combine in SLiM, so treating this as a single allele is correct.
 
 Now, we'll plot the initial and final allele frequencies,
 with point size and color determined by the selection coefficient:
@@ -345,3 +397,164 @@ This produces
 
 Unsurprisingly, mutations that had a large change in allele frequency seem
 to be biased towards ones with higher selection coefficients.
+
+
+*********************
+Add neutral mutations
+*********************
+
+In real data, of course, we don't get to observe selection coefficients.
+We haven't added in neutral mutations until this point for efficiency -
+they are just bookkeeping, and do not affect the course of the simulation
+in any way. For this reason, we can add them in after the fact, in a way
+that is exactly equivalent to having kept track of them as we went along.
+
+Recall that out of an overall mutation rate of 1e-8,
+we wanted 97% of the mutations to be neutral on the ends of the chromosome,
+and 99.7% to be neutral in the middle.
+So, we'll now add mutations at these rates,
+using the same model of mutation as before.
+The code is nearly the same as before,
+with a few changes.
+We've changed the ``type`` of the mutations
+(so that neutral mutations will show up in SLiM as m1,
+while selected mutations above were m2),
+and we've asked these mutations to have SLiM mutation IDs
+beginning at the ID where the previous mutations left off.
+(This would be important were we to read this tree sequence
+back in to SLiM.)
+And, importantly, we've added ``keep=True`` so that existing mutations
+are not discarded, and ``allow_ancestral=True`` to allow new mutations
+to be placed above existing ones (see :meth:`msprime.mutate` for more).
+
+.. code-block:: python
+
+   neutral_mut_map = msprime.RateMap(
+               position=breaks,
+               rate=[0.97e-8, 0.997e-8, 0.97e-8])
+   next_id = max([max(map(int, m.derived_state.split(","))) for m in ts.mutations()])
+   neutral_mut_model = msprime.SlimMutationModel(
+            type=1,
+            next_id=next_id)
+   mts = msprime.mutate(ts, rate=neutral_mut_map, model=neutral_mut_model,
+            discrete=True, random_seed=35,
+            keep=True, allow_ancestral=True)
+   print(f"The tree sequence now has {mts.num_mutations} mutations, at "
+         f"{mts.num_sites} distinct sites.")
+   # The tree sequence now has 32933 mutations, at 32876 distinct sites.
+
+We've now got a lot more mutations!
+And, we've got a lot more sites with multiple mutations:
+
+.. code-block:: python
+
+   num_alleles = np.array([len(s.mutations) for s in mts.sites()])
+   for k in range(2, max(num_alleles)+1):
+      print(f"There are {sum(num_alleles == k)} sites with {k} distinct alleles.")
+   # There are 55 sites with 2 distinct alleles.
+   # There are 1 sites with 3 distinct alleles.
+
+OK, but how, exactly, is this working?
+Can a neutral mutation be added to a site that previously had a selected mutation?
+The short answer is: yes, and new alleles stack on top of
+existing alleles, but existing alleles replace new alleles.
+In more detail:
+by the somewhat magical properties of Poisson processes,
+adding neutral mutations using the same method,
+ignoring the locations of any existing mutations,
+is exactly equivalent to having put them down originally
+along with the selected mutations.
+(This is only true if we allow multiple mutations at a single site
+in a single generation, but we haven't said exactly what these mutations *mean*,
+so this is not wrong!)
+Now, when the mutation algorithm in msprime puts down a new mutation
+at a site with mutations already existing,
+it appends the newly generated SLiM mutation ID to the previous derived state,
+and adds the metadata for the new SLiM mutation to the list of metadata
+from the previous mutation.
+However, it doesn't modify any existing mutations,
+so their derived states (and metadata) are unchanged.
+The result is that, from the point of view of SLiM,
+neutral ("m1") mutations "stack" on top of any other mutations (neutral or selected),
+while selected ("m2") mutations stack with each other, but replace any neutral mutations.
+This "stacking policy" is not actually exactly implementable in SLiM,
+but given that our newly added mutations are meant to be entirely neutral,
+seems like a reasonable policy.
+If you wanted some other arrangement (e.g., to have m1 stack on top of m2),
+you could go through and modify derived states and metadata appropriately.
+
+Let's check if this has happened in this simulation:
+
+.. code-block:: python
+   
+   for site in mts.sites():
+      if len(site.mutations) > 1:
+         types = [set([md["mutation_type"] for md in mut.metadata["mutation_list"]])
+                  for mut in site.mutations]
+         if max(map(len, types)) > 1:
+            print(site)
+
+There is indeed one such site:
+
+.. code-block:: python
+
+   {'id': 27527, 'position': 7431118.0, 'ancestral_state': '',
+    'mutations': [
+      {'id': 27582, 'site': 27527, 'node': 57046, 'time': 58179.527527578655,
+       'derived_state': '509', 'parent': -1,
+       'metadata': {'mutation_list': [
+         {'mutation_type': 2, 'selection_coeff': 0.0339478924870491, 'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1}
+        ]}},
+      {'id': 27583, 'site': 27527, 'node': 45789, 'time': 5178.611291860889,
+       'derived_state': '509,28099', 'parent': 27582,
+       'metadata': {'mutation_list': [
+         {'mutation_type': 2, 'selection_coeff': 0.0339478924870491, 'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1},
+         {'mutation_type': 1, 'selection_coeff': 0.0, 'subpopulation': -1, 'slim_time': 0, 'nucleotide': -1}
+        ]}}
+    ], 'metadata': b''}
+
+Here, a neutral mutation has been put down on top of a selected mutation,
+but stacked, so that any samples inheriting either of these mutations carries
+the selected mutation.
+For more discussion of how this works, see :class:`msprime.SlimMutationModel`.
+
+
+**************************
+Diversity along the genome
+**************************
+
+Now that we've correctly added neutral mutations to the tree sequence,
+and lengthily digested what exactly happened,
+let's have a look at the result.
+To do this, we'll compute two standard measures of genetic diversity
+in windows along the genome:
+Tajima's :math:`\pi` (also called "mean density of pairwise differences"
+or "nucleotide diversity"), and Tajima's :math:`D` (with no known aliases).
+This is easy to do thanks to the `statistics methods in tskit <https://tskit.readthedocs.io/en/latest/stats.html>`_.
+
+.. code-block:: python
+
+   windows = np.linspace(0, mts.sequence_length, 21)
+   pi = mts.diversity(mts.samples(), windows=windows)
+   taj_d = mts.Tajimas_D(mts.samples(), windows=windows)
+
+
+   fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6,3))
+   mids = windows[1:] - np.diff(windows)/2
+   ax1.set_xlabel("chromosome position (bp)")
+   ax1.set_ylabel("pairwise diversity")
+   ax1.plot(mids, pi, label="pairwise diversity")
+   ax2.set_xlabel("chromosome position (bp)")
+   ax2.set_ylabel("Tajima's D")
+   ax2.plot(mids, taj_d, label="Tajima's D")
+   fig.savefig("annotate_genome.pdf", bbox_inches='tight')
+
+Here's what that looks like:
+
+.. image:: _static/annotate_genome.png
+
+The two statistics are very similar - perhaps unsurprisingly, because Tajima's D is calculated using
+pairwise diversity, and we have a very large sample size (here, the entire population).
+Tajima's D is negative across the entire genome, as the result of selection.
+However, we don't see a strong difference between the three regions,
+despite the stronger action of linked selection on the ends.

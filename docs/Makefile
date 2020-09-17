@@ -8,6 +8,7 @@ SOURCEDIR     = .
 BUILDDIR      = _build
 
 html :
+	$(MAKE) -C _static
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 .PHONY: html

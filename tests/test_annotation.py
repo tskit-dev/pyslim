@@ -320,6 +320,10 @@ class TestAnnotate(tests.PyslimTestCase):
             # check for equality, in everything but the last provenance
             self.verify_slim_restart_equality(in_ts, out_ts)
 
+    def test_dont_annotate_mutations(self):
+        # Test the option to not overwrite mutation annotations
+
+
 
 class TestReload(tests.PyslimTestCase):
     '''
