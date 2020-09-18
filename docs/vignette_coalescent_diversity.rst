@@ -433,7 +433,7 @@ while selected mutations above were m2),
 and we've asked these mutations to have SLiM mutation IDs
 beginning at the ID where the previous mutations left off.
 (This would be important were we to read this tree sequence
-back in to SLiM.)
+back in to SLiM; mutation IDs must be unique.)
 And, importantly, we've added ``keep=True`` so that existing mutations
 are not discarded, and ``allow_ancestral=True`` to allow new mutations
 to be placed above existing ones (see :meth:`msprime.mutate` for more).
@@ -465,19 +465,44 @@ And, we've got a lot more sites with multiple mutations:
    # There are 55 sites with 2 distinct alleles.
    # There are 1 sites with 3 distinct alleles.
 
-OK, but how, exactly, is this working?
+To get a nice a picture of what's happened,
+we'll pull out a tree that had a lot of mutations on it,
+and print a picture of it, with mutations labeled by their type:
+
+.. code-block:: python
+
+   for t in mts.trees():
+     mt = [max([u['mutation_type'] for u in m.metadata['mutation_list']]) for m in t.mutations()]
+     if t.num_mutations > 10 and len(set(mt)) > 1:
+       break
+
+   ml = {m.id: str(mtype) for mtype, m in zip(mt, t.mutations())}
+   t.draw_svg('coal_slim_tree.svg', mutation_labels=ml, node_labels={}, size=(400, 300))   
+
+
+.. image:: _static/coal_slim_tree.svg
+
+On this tree there was one non-neutral mutation (labeled "2"),
+which was present during the SLiM portion.
+The other mutations (labeled "1") were just added.
+(Note: this is a large tree, with 68,211 nodes!
+But as usual, the main structure is visible
+because most nodes coalesce very recently.)
+
+OK, but how exactly is this working?
 Can a neutral mutation be added to a site that previously had a selected mutation?
 The short answer is: yes, and new alleles stack on top of
 existing alleles, but existing alleles replace new alleles.
-In more detail:
-by the somewhat magical properties of Poisson processes,
-adding neutral mutations using the same method,
-ignoring the locations of any existing mutations,
-is exactly equivalent to having put them down originally
-along with the selected mutations.
-(This is only true if we allow multiple mutations at a single site
-in a single generation, but we haven't said exactly what these mutations *mean*,
-so this is not wrong!)
+This is equivalent to including them as the simulation went along,
+by the additivity property of Poisson mutations:
+it turns out that the following two ways of generating mutations along the genome
+are equivalent: either
+(a) placing a random Poisson number with mean :math:`\mu`,
+and randomly choosing each one to be non-neutral with probability 0.03, or
+(b) placing random, independent Poisson numbers of neutral and non-neutral mutations
+with means :math:`0.97\mu` and :math:`0.03\mu` respectively.
+Since the neutral ones don't affect the simulation otherwise,
+we can add them in afterwards.
 Now, when the mutation algorithm in msprime puts down a new mutation
 at a site with mutations already existing,
 it appends the newly generated SLiM mutation ID to the previous derived state,
@@ -494,7 +519,7 @@ seems like a reasonable policy.
 If you wanted some other arrangement (e.g., to have m1 stack on top of m2),
 you could go through and modify derived states and metadata appropriately.
 
-Let's check if this has happened in this simulation:
+Let's check there are any sites with stacked mutations of different types in the simulation:
 
 .. code-block:: python
    
@@ -539,8 +564,8 @@ and lengthily digested what exactly happened,
 let's have a look at the result.
 To do this, we'll compute two standard measures of genetic diversity
 in windows along the genome:
-Tajima's :math:`\pi` (also called "mean density of pairwise differences"
-or "nucleotide diversity"), and Tajima's :math:`D` (with no known aliases).
+nucleotide diverstiy (also called "Tajima's :math:`\pi`" or "mean density of pairwise differences"),
+and Tajima's :math:`D` (with no known aliases).
 This is easy to do thanks to the `statistics methods in tskit <https://tskit.readthedocs.io/en/latest/stats.html>`_.
 
 .. code-block:: python
