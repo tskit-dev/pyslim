@@ -47,7 +47,8 @@ def load_tables(tables, **kwargs):
     return ts
 
 
-def annotate_defaults(ts, model_type, slim_generation, reference_sequence=None):
+def annotate_defaults(ts, model_type, slim_generation,
+                      reference_sequence=None, annotate_mutations=True):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
@@ -57,9 +58,12 @@ def annotate_defaults(ts, model_type, slim_generation, reference_sequence=None):
     :param string model_type: SLiM model type: either "WF" or "nonWF".
     :param int slim_generation: What generation number in SLiM correponds to
         ``time=0`` in the tree sequence.
+    :param bool annotate_mutations: Whether to replace mutation metadata
+        with defaults. (If False, the mutation table is unchanged.)
     '''
     tables = ts.dump_tables()
-    annotate_defaults_tables(tables, model_type=model_type, slim_generation=slim_generation)
+    annotate_defaults_tables(tables, model_type=model_type,
+            slim_generation=slim_generation, annotate_mutations=annotate_mutations)
     return SlimTreeSequence.load_tables(tables,
                 reference_sequence=reference_sequence)
 
@@ -79,13 +83,20 @@ def annotate_defaults_tables(tables, model_type, slim_generation, annotate_mutat
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
+    print("--------")
+    print(tables.mutations[0])
+    print("--------")
     top_metadata = default_slim_metadata('tree_sequence')['SLiM']
     top_metadata['model_type'] = model_type
     top_metadata['generation'] = slim_generation
     set_tree_sequence_metadata(tables, **top_metadata)
+    print("--------")
+    print(tables.mutations[0])
+    print("--------")
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     if annotate_mutations:
+        print('hi there')
         _set_sites_mutations(tables)
 
 

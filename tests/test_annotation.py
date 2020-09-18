@@ -322,7 +322,17 @@ class TestAnnotate(tests.PyslimTestCase):
 
     def test_dont_annotate_mutations(self):
         # Test the option to not overwrite mutation annotations
-
+        ts = next(self.get_msprime_examples())
+        ts = msprime.mutate(ts, rate=5, random_seed=3)
+        self.assertGreater(ts.num_mutations, 0)
+        tables = ts.tables
+        pre_mutations = tables.mutations.copy()
+        pyslim.annotate_defaults_tables(tables, model_type="WF",
+                slim_generation=1, annotate_mutations=False)
+        # this is necessary because b'' actually is decoded to
+        # an empty mutation_list by the schema
+        pre_mutations.metadata_schema = tables.mutations.metadata_schema
+        self.assertEqual(tables.mutations, pre_mutations)
 
 
 class TestReload(tests.PyslimTestCase):
