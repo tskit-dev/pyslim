@@ -467,11 +467,7 @@ def set_tree_sequence_metadata(tables,
 def _set_metadata_schemas(tables):
     tables.edges.metadata_schema = slim_metadata_schemas['edge']
     tables.sites.metadata_schema = slim_metadata_schemas['site']
-    print("*********")
-    print(tables.mutations[0])
     tables.mutations.metadata_schema = slim_metadata_schemas['mutation']
-    print(tables.mutations[0])
-    print("*********")
     tables.nodes.metadata_schema = slim_metadata_schemas['node']
     tables.individuals.metadata_schema = slim_metadata_schemas['individual']
     tables.populations.metadata_schema = slim_metadata_schemas['population']

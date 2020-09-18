@@ -83,20 +83,13 @@ def annotate_defaults_tables(tables, model_type, slim_generation, annotate_mutat
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
-    print("--------")
-    print(tables.mutations[0])
-    print("--------")
     top_metadata = default_slim_metadata('tree_sequence')['SLiM']
     top_metadata['model_type'] = model_type
     top_metadata['generation'] = slim_generation
     set_tree_sequence_metadata(tables, **top_metadata)
-    print("--------")
-    print(tables.mutations[0])
-    print("--------")
     _set_nodes_individuals(tables, age=default_ages)
     _set_populations(tables)
     if annotate_mutations:
-        print('hi there')
         _set_sites_mutations(tables)
 
 
