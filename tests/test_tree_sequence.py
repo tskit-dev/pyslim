@@ -176,15 +176,15 @@ class TestMutationMetadata(tests.PyslimTestCase):
     '''
 
     def test_slim_time(self):
-        # check that slim_times make sense
+        # check that slim_times make sense, i.e., that
+        # slim_generation == (time + slim_time + (model_type == "WF" and stage="early"))
         for ts in self.get_slim_examples(init_mutated=False):
-            # Mutation's slim_times are one less than the corresponding node's slim times
-            # in WF models, but not in WF models, for some reason.
-            is_wf = (ts.metadata["SLiM"]["model_type"] == "WF")
+            offset = (ts.metadata["SLiM"]["model_type"] == "WF") and (ts.metadata["SLiM"]["stage"] == "early")
             for mut in ts.mutations():
-                node_slim_time = ts.slim_generation - ts.node(mut.node).time
                 mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])
-                self.assertGreaterEqual(node_slim_time, mut_slim_time)
+                self.assertEqual(
+                        ts.slim_generation,
+                        mut_slim_time + mut.time + offset)
 
 
 class TestIndividualAges(tests.PyslimTestCase):
