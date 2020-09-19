@@ -313,8 +313,8 @@ among both the first generation and the final generation:
 
    times = list(set(ts.individual_times))
    times.sort()
-   print("The times at which individuals in the tree sequence were born:", times)
-   # The times at which individuals in the tree sequence were born: [0.0, 100.0]
+   print("The times ago at which individuals in the tree sequence were born:", times)
+   # The times ago at which individuals in the tree sequence were born: [0.0, 100.0]
    inds_by_time = [ts.individuals_alive_at(t) for t in times]
    nodes_by_time = []
    for inds in inds_by_time:
@@ -394,7 +394,7 @@ with point size and color determined by the selection coefficient:
    import matplotlib.pyplot as plt
 
    fig, ax1 = plt.subplots(figsize=(5, 4))
-   dp = ax1.scatter(p[:, 0], p[:,1], c=s, s=s*800, label='frequencies')
+   dp = ax1.scatter(p[:, 1], p[:,0], c=s, s=s*800, label='frequencies')
    ax1.set_xlabel("initial allele frequency")
    ax1.set_ylabel("final allele frequency")
    fig.colorbar(dp, ax=ax1, label='selection coefficient')
@@ -407,7 +407,9 @@ This produces
 
 
 Unsurprisingly, mutations that had a large change in allele frequency seem
-to be biased towards ones with higher selection coefficients.
+to be biased towards ones with higher selection coefficients,
+and those that were initially present at moderate frequency but were lost
+are biased towards smaller selection coefficients.
 
 
 *********************
