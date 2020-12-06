@@ -63,6 +63,16 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
             _ = pyslim.SlimTreeSequence(ts)
 
 
+class TestSlimTime(tests.PyslimTestCase):
+    # Tests for slim_time()
+
+    def test_slim_time(self):
+        for ts in self.get_slim_examples(init_mutated=False):
+            for mut in ts.mutations():
+                mut_time = max([x['slim_time'] for x in mut.metadata['mutation_list']])
+                assert mut_time == ts.slim_time(mut.time)
+
+
 class TestMutate(tests.PyslimTestCase):
     # Tests for making a tree sequence a SlimTreeSequence
     # again after msprime.mutate.

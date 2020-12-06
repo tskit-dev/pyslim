@@ -38,8 +38,8 @@ to SLiM time as follows:
 
    def slim_time(ts, time):
       slim_time = ts.slim_generation - time
-      time_adjust =  (self.metadata['SLiM']['model_type'] == "WF"
-                      and self.metadata['SLiM']['stage'] == "early")
+      time_adjust =  (ts.metadata['SLiM']['model_type'] == "WF"
+                      and ts.metadata['SLiM']['stage'] == "early")
       return slim_time - time_adjust
 
 Some of the other methods in pyslim -- those that depend on :meth:`.SlimTreeSequence.individuals_alive_at`

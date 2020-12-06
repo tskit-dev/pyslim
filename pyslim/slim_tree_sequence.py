@@ -141,15 +141,12 @@ class SlimTreeSequence(tskit.TreeSequence):
     - :meth:`.SlimTreeSequence.load_tables` :meth:`.SlimTreeSequence.load`,
     - :func:`.load`, or :func:`.load_tables`.
 
-    :ivar slim_generation: The generation that the SLiM simulation was at upon writing;
-        will be read from metadata if not provided.
     :ivar reference_sequence: None, or an string of length equal to the sequence
         length that gives the entire reference sequence for nucleotide models.
     :ivar legacy_metadata: Whether this tree sequence returns metadata in objects
         (as in older versions of pyslim) rather than dicts: see
         `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_.
         This option is deprecated and will disappear at some point.
-    :vartype slim_generation: int
     :vartype reference_sequence: string
     '''
 
@@ -167,10 +164,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                 md['SLiM']['file_version'] = slim_file_version
                 tables.metadata = md
             ts = tables.tree_sequence()
-        slim_generation = ts.metadata['SLiM']['generation']
-        self.model_type = ts.metadata['SLiM']['model_type']
         super().__init__(ts._ll_tree_sequence)
-        self.slim_generation = slim_generation
         self.reference_sequence = reference_sequence
         # pre-extract individual metadata
         self.individual_locations = ts.tables.individuals.location
@@ -193,6 +187,14 @@ class SlimTreeSequence(tskit.TreeSequence):
         # would get the pop of their last node in the list
         self.individual_populations[which_indiv] = ts.tables.nodes.population[has_indiv]
         self.individual_times[which_indiv] = ts.tables.nodes.time[has_indiv]
+
+    @property
+    def slim_generation(self):
+        return self.metadata['SLiM']['generation']
+
+    @property
+    def model_type(self):
+        return self.metadata['SLiM']['model_type']
 
     @classmethod
     def load(cls, path, legacy_metadata=False):
@@ -669,6 +671,36 @@ class SlimTreeSequence(tskit.TreeSequence):
                                           remembered_stage=remembered_stage)
         ages[alive] = self.individual_times[alive] - time
         return ages
+
+    def slim_time(self, time):
+        """
+        Converts the given "tskit times" (i.e., in units of time before the end
+        of the simulation) to SLiM times (those recorded by SLiM, usually in units
+        of generations since the start of the simulation). Although the latter are
+        always integers, these will not be if the provided times are not integers.
+
+        When the tree sequence is written out, SLiM records the value of its
+        current generation, which can be found in the metadata:
+        ts.metadata['SLiM']['generation']. In most cases, the “SLiM time”
+        referred to by a time ago in the tree sequence (i.e., the value that would
+        be reported by sim.generation within SLiM at the point in time thus
+        referenced) can be obtained by subtracting that time ago from
+        ts.slim_generation. However, in WF models, birth happens between the
+        “early()” and “late()” stages, so if the tree sequence was written out
+        using sim.treeSeqOutput() during “early()” in a WF model, the tree
+        sequence’s times measure time before the last set of individuals are
+        born, i.e., before SLiM time step ts.slim_generation - 1.
+
+        Other situations may make this not return what you expect: for instance,
+        in WF models, mutations added using addNewMutation during early() in WF models.
+        XXX why? XXX
+
+        :param array time: An array of times to be converted.
+        """
+        slim_time = self.slim_generation - time
+        time_adjust = (self.metadata['SLiM']['model_type'] == "WF"
+                        and self.metadata['SLiM']['stage'] == "early")
+        return slim_time - time_adjust
 
     def first_generation_individuals(self):
         """
