@@ -207,7 +207,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         kas = kastore.load(path)
         if 'reference_sequence/data' in kas:
             int_rs = kas['reference_sequence/data']
-            reference_sequence = int_rs.tostring().decode('ascii')
+            reference_sequence = int_rs.tobytes().decode('ascii')
         else:
             reference_sequence = None
         return cls(ts, reference_sequence=reference_sequence, legacy_metadata=legacy_metadata)

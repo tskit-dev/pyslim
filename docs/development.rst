@@ -16,7 +16,7 @@ To install a particular version of ``pyslim`` from source, e.g., to obtain a rec
 Then, to run the tests to make sure everything is working, do::
 
 
-   $ python -m nose tests -vs
+   $ python -m pytest tests
 
 *Note:* if you use ``python3`` you may need to replace ``python`` with ``python3`` above.
 
@@ -36,7 +36,7 @@ Quickstart
 
 - Install the development requirements using
   ``python3 -m pip install -r requirements/development.txt``.
-- Run the tests to ensure everything has worked: ``python3 -m nose -vs``. These should
+- Run the tests to ensure everything has worked: ``python3 -m pytest tests``. These should
   all pass.
 - Make your changes in a local branch, and open a pull request on GitHub when you
   are ready. Please make sure that (a) the tests pass before you open the pull request; and

@@ -4,14 +4,15 @@ Test cases for the metadata reading/writing of pyslim.
 from __future__ import print_function
 from __future__ import division
 
-import pyslim
-import msprime
-import tskit
 import tests
 import unittest
 import os
 import tempfile
 import numpy as np
+import pytest
+import msprime
+import tskit
+import pyslim
 
 
 class TestMetadataSchemas(tests.PyslimTestCase):
@@ -24,7 +25,7 @@ class TestMetadataSchemas(tests.PyslimTestCase):
             raw_md = table.metadata[a:b]
             # this checks to make sure metadata follows the schema
             enc_md = ms.validate_and_encode_row(row.metadata)
-            self.assertEqual(bytes(raw_md), enc_md)
+            assert bytes(raw_md) == enc_md
 
     def validate_metadata(self, ts):
         tables = ts.tables
@@ -43,31 +44,20 @@ class TestMetadataSchemas(tests.PyslimTestCase):
             encoded = schema.validate_and_encode_row(entry)
             decoded = schema.decode_row(encoded)
             if entry is None:
-                self.assertTrue(decoded is None)
+                assert decoded is None
             else:
-                self.assertDictEqual(entry, decoded)
+                assert entry == decoded
 
     def test_slim_metadata_schema_equality(self):
         for ts in self.get_slim_examples():
             t = ts.tables
-            self.assertEqual(str(t.metadata_schema),
-                             str(pyslim.slim_metadata_schemas['tree_sequence']))
-            self.assertEqual(t.edges.metadata_schema,
-                             pyslim.slim_metadata_schemas['edge'])
-            self.assertEqual(t.sites.metadata_schema,
-                             pyslim.slim_metadata_schemas['site'])
-            self.assertEqual(
-                    t.mutations.metadata_schema,
-                    pyslim.slim_metadata_schemas['mutation'])
-            self.assertEqual(
-                    t.nodes.metadata_schema,
-                    pyslim.slim_metadata_schemas['node'])
-            self.assertEqual(
-                    t.individuals.metadata_schema,
-                    pyslim.slim_metadata_schemas['individual'])
-            self.assertEqual(
-                    t.populations.metadata_schema,
-                    pyslim.slim_metadata_schemas['population'])
+            assert str(t.metadata_schema) == str(pyslim.slim_metadata_schemas['tree_sequence'])
+            assert t.edges.metadata_schema == pyslim.slim_metadata_schemas['edge']
+            assert t.sites.metadata_schema == pyslim.slim_metadata_schemas['site']
+            assert t.mutations.metadata_schema == pyslim.slim_metadata_schemas['mutation']
+            assert t.nodes.metadata_schema == pyslim.slim_metadata_schemas['node']
+            assert t.individuals.metadata_schema == pyslim.slim_metadata_schemas['individual']
+            assert t.populations.metadata_schema == pyslim.slim_metadata_schemas['population']
 
 
 class TestTreeSequenceMetadata(tests.PyslimTestCase):
@@ -75,18 +65,18 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
     def validate_slim_metadata(self, t):
         # t could be tables or a tree sequence
         schema = t.metadata_schema.schema
-        self.assertTrue('SLiM' in schema['properties'])
-        self.assertTrue('SLiM' in t.metadata)
+        assert 'SLiM' in schema['properties']
+        assert 'SLiM' in t.metadata
         for k in pyslim.default_slim_metadata('tree_sequence')['SLiM']:
-            self.assertTrue(k in schema['properties']['SLiM']['properties'])
-            self.assertTrue(k in t.metadata['SLiM'])
+            assert k in schema['properties']['SLiM']['properties']
+            assert k in t.metadata['SLiM']
 
     def test_set_tree_sequence_metadata_errors(self):
         for ts in self.get_slim_examples():
             tables = ts.tables
             tables.metadata_schema = tskit.MetadataSchema(None)
-            self.assertGreater(len(tables.metadata), 0)
-            with self.assertRaises(ValueError):
+            assert len(tables.metadata) > 0
+            with pytest.raises(ValueError):
                 pyslim.set_tree_sequence_metadata(tables, "nonWF", 0)
             break
 
@@ -105,41 +95,40 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
             pyslim.set_tree_sequence_metadata(tables, "nonWF", 0)
             schema = tables.metadata_schema.schema
             for k in dummy_metadata:
-                self.assertTrue(k in schema['properties'])
-                self.assertTrue(k in tables.metadata)
-                self.assertEqual(tables.metadata[k], dummy_metadata[k])
+                assert k in schema['properties']
+                assert k in tables.metadata
+                assert tables.metadata[k] == dummy_metadata[k]
             self.validate_slim_metadata(tables)
-            self.assertEqual(tables.metadata['SLiM']['model_type'], "nonWF")
-            self.assertEqual(tables.metadata['SLiM']['generation'], 0)
+            assert tables.metadata['SLiM']['model_type'] == "nonWF"
+            assert tables.metadata['SLiM']['generation'] == 0
             break
 
     def test_set_tree_sequence_metadata(self):
         for ts in self.get_slim_examples():
             tables = ts.tables
             pyslim.set_tree_sequence_metadata(
-                    tables, "WF", 99, 
+                    tables, "WF", 99,
                     spatial_dimensionality='xy',
                     spatial_periodicity='y',
                     separate_sexes=False,
                     nucleotide_based=True)
             self.validate_slim_metadata(tables)
-            self.assertEqual(tables.metadata['SLiM']['model_type'], "WF")
-            self.assertEqual(tables.metadata['SLiM']['generation'], 99)
-            self.assertEqual(tables.metadata['SLiM']['spatial_dimensionality'], 'xy')
-            self.assertEqual(tables.metadata['SLiM']['spatial_periodicity'], 'y')
-            self.assertEqual(tables.metadata['SLiM']['separate_sexes'], False)
-            self.assertEqual(tables.metadata['SLiM']['nucleotide_based'], True)
+            assert tables.metadata['SLiM']['model_type'] == "WF"
+            assert tables.metadata['SLiM']['generation'] == 99
+            assert tables.metadata['SLiM']['spatial_dimensionality'] == 'xy'
+            assert tables.metadata['SLiM']['spatial_periodicity'] == 'y'
+            assert tables.metadata['SLiM']['separate_sexes'] == False
+            assert tables.metadata['SLiM']['nucleotide_based'] == True
             break
 
     def test_model_type(self):
         for model_type in ["WF", "nonWF"]:
             args = {model_type: True}
             for ts in self.get_slim_examples(**args):
-                self.assertEqual(ts.metadata['SLiM']['file_version'], pyslim.slim_file_version)
-                self.assertEqual(ts.metadata['SLiM']['model_type'], model_type)
-                self.assertGreater(ts.metadata['SLiM']['generation'], 0)
-                self.assertGreaterEqual(ts.metadata['SLiM']['generation'],
-                        np.max(ts.tables.nodes.time))
+                assert ts.metadata['SLiM']['file_version'] == pyslim.slim_file_version
+                assert ts.metadata['SLiM']['model_type'] == model_type
+                assert ts.metadata['SLiM']['generation'] > 0
+                assert ts.metadata['SLiM']['generation'] >= np.max(ts.tables.nodes.time)
 
     def test_recover_metadata(self):
         # msprime <=0.7.5 discards metadata, but we can recover it from provenance
@@ -148,7 +137,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
             t.metadata_schema = tskit.MetadataSchema(None)
             t.metadata = b''
             new_ts = pyslim.load_tables(t)
-            self.assertEqual(new_ts.metadata, ts.metadata)
+            assert new_ts.metadata == ts.metadata
 
 
 class TestDumpLoad(tests.PyslimTestCase):
@@ -156,23 +145,22 @@ class TestDumpLoad(tests.PyslimTestCase):
     Test reading and writing.
     '''
 
-    def setUp(self):
+    def setup_class(self):
         fd, self.temp_file = tempfile.mkstemp(prefix="pyslim_ts_")
         os.close(fd)
 
-    def tearDown(self):
+    def teardown_class(self):
         os.unlink(self.temp_file)
 
     def verify_times(self, ts, slim_ts):
         gen = slim_ts.slim_generation
-        self.assertEqual(ts.num_nodes, slim_ts.num_nodes)
+        assert ts.num_nodes == slim_ts.num_nodes
         # verify internal consistency
         for j in range(slim_ts.num_nodes):
-            self.assertEqual(slim_ts.node(j).time,
-                             slim_ts.tables.nodes.time[j])
+            assert slim_ts.node(j).time == slim_ts.tables.nodes.time[j]
         # verify consistency between tree sequences
         for n1, n2 in zip(ts.nodes(), slim_ts.nodes()):
-            self.assertEqual(n1.time, n2.time)
+            assert n1.time == n2.time
 
     def verify_dump_equality(self, ts):
         """
@@ -181,45 +169,45 @@ class TestDumpLoad(tests.PyslimTestCase):
         """
         ts.dump(self.temp_file)
         ts2 = pyslim.load(self.temp_file)
-        self.assertEqual(ts.num_samples, ts2.num_samples)
-        self.assertEqual(ts.sequence_length, ts2.sequence_length)
-        self.assertEqual(ts.tables, ts2.tables)
-        self.assertEqual(ts.reference_sequence, ts2.reference_sequence)
+        assert ts.num_samples == ts2.num_samples
+        assert ts.sequence_length == ts2.sequence_length
+        assert ts.tables == ts2.tables
+        assert ts.reference_sequence == ts2.reference_sequence
 
     def test_load_tables(self):
         for ts in self.get_slim_examples():
-            self.assertTrue(isinstance(ts, pyslim.SlimTreeSequence))
+            assert isinstance(ts, pyslim.SlimTreeSequence)
             tables = ts.tables
             new_ts = pyslim.load_tables(tables)
-            self.assertTrue(isinstance(new_ts, pyslim.SlimTreeSequence))
+            assert isinstance(new_ts, pyslim.SlimTreeSequence)
             new_tables = new_ts.tables
-            self.assertEqual(tables, new_tables)
+            assert tables == new_tables
 
     def test_load(self):
         for _, ex in self.get_slim_examples(return_info=True):
             fn = ex['basename'] + ".trees"
             # load in msprime then switch
             msp_ts = tskit.load(fn)
-            self.assertTrue(isinstance(msp_ts, tskit.TreeSequence))
+            assert isinstance(msp_ts, tskit.TreeSequence)
             # transfer tables
             msp_tables = msp_ts.tables
             new_ts = pyslim.load_tables(msp_tables)
-            self.assertTrue(isinstance(new_ts, pyslim.SlimTreeSequence))
+            assert isinstance(new_ts, pyslim.SlimTreeSequence)
             self.verify_times(msp_ts, new_ts)
             new_tables = new_ts.tables
             self.assertTableCollectionsEqual(msp_tables, new_tables)
             # convert directly
             new_ts = pyslim.SlimTreeSequence(msp_ts)
-            self.assertTrue(isinstance(new_ts, pyslim.SlimTreeSequence))
+            assert isinstance(new_ts, pyslim.SlimTreeSequence)
             self.verify_times(msp_ts, new_ts)
             new_tables = new_ts.tables
             self.assertTableCollectionsEqual(msp_tables, new_tables)
             # load to pyslim from file
             slim_ts = pyslim.load(fn)
-            self.assertTrue(isinstance(slim_ts, pyslim.SlimTreeSequence))
+            assert isinstance(slim_ts, pyslim.SlimTreeSequence)
             slim_tables = slim_ts.tables
             self.assertTableCollectionsEqual(msp_tables, slim_tables)
-            self.assertEqual(slim_ts.slim_generation, new_ts.slim_generation)
+            assert slim_ts.slim_generation == new_ts.slim_generation
 
     def test_dump_equality(self):
         for ts in self.get_slim_examples():
@@ -251,8 +239,8 @@ class TestNucleotides(tests.PyslimTestCase):
         for mut in ts.mutations():
             print(mut)
             for u in mut.metadata['mutation_list']:
-                self.assertGreaterEqual(u["nucleotide"], -1)
-                self.assertLessEqual(u["nucleotide"], 3)
+                assert u["nucleotide"] >= -1
+                assert u["nucleotide"] <= 3
 
     def test_nucleotides(self):
         for ts in self.get_slim_examples():
@@ -270,12 +258,12 @@ class TestDecoding(tests.PyslimTestCase):
         nt.metadata_schema = ms
         for a, b in zip(t, nt):
             md = a.metadata
-            with self.assertWarns(FutureWarning):
+            with pytest.warns(FutureWarning):
                 omd = decoder(b.metadata)
             if md is None:
-                self.assertTrue(omd is None)
+                assert omd is None
             else:
-                self.assertEqual(md, omd.asdict())
+                assert md == omd.asdict()
 
     def verify_mutation_decoding(self, t):
         ms = tskit.MetadataSchema(None)
@@ -283,10 +271,9 @@ class TestDecoding(tests.PyslimTestCase):
         nt.metadata_schema = ms
         for a, b in zip(t, nt):
             md = a.metadata
-            with self.assertWarns(FutureWarning):
+            with pytest.warns(FutureWarning):
                 omd = pyslim.decode_mutation(b.metadata)
-            self.assertEqual(md,
-                    {"mutation_list": [u.asdict() for u in omd]})
+            assert md == {"mutation_list": [u.asdict() for u in omd]}
 
     def test_decoding(self):
         for ts in self.get_slim_examples():
@@ -303,32 +290,42 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
         for ts in self.get_slim_examples():
             for x in ts.populations():
                 if x.metadata is not None:
-                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    with pytest.raises(AttributeError) as exec_info:
                         _ = x.metadata.slim_id
-                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    assert 'legacy' in str(exec_info)
+                    with pytest.raises(AttributeError) as exec_info:
                         _ = x.metadata.selfing_fraction
-                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    assert 'legacy' in str(exec_info)
+                    with pytest.raises(AttributeError) as exec_info:
                         _ = x.metadata.sex_ratio
-                with self.assertRaisesRegex(AttributeError, "has no attribute 'ping'$"):
+                    assert 'legacy' in str(exec_info)
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.ping
+                assert "has no attribute 'ping'" in str(exec_info)
                 break
             break
 
     def test_individual_error(self):
         for ts in self.get_slim_examples():
             for x in ts.individuals():
-                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.pedigree_id
-                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                assert 'legacy' in str(exec_info)
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.age
-                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                assert 'legacy' in str(exec_info)
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.subpopulation
-                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                assert 'legacy' in str(exec_info)
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.sex
-                with self.assertRaisesRegex(AttributeError, 'legacy'):
+                assert 'legacy' in str(exec_info)
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.flags
-                with self.assertRaisesRegex(AttributeError, "has no attribute 'pong'$"):
+                assert 'legacy' in str(exec_info)
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.pong
+                assert "has no attribute 'pong'" in str(exec_info)
                 break
             break
 
@@ -336,25 +333,31 @@ class TestMetadataAttributeError(tests.PyslimTestCase):
         for ts in self.get_slim_examples():
             for x in ts.nodes():
                 if x.metadata is not None:
-                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    with pytest.raises(AttributeError) as exec_info:
                         _ = x.metadata.slim_id
-                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    assert 'legacy' in str(exec_info)
+                    with pytest.raises(AttributeError) as exec_info:
                         _ = x.metadata.is_null
-                    with self.assertRaisesRegex(AttributeError, 'legacy'):
+                    assert 'legacy' in str(exec_info)
+                    with pytest.raises(AttributeError) as exec_info:
                         _ = x.metadata.genome_type
-                with self.assertRaisesRegex(AttributeError, "has no attribute 'pang'$"):
+                    assert 'legacy' in str(exec_info)
+                with pytest.raises(AttributeError) as exec_info:
                     _ = x.metadata.pang
+                assert "has no attribute 'pang'" in str(exec_info)
                 break
             break
 
     def test_mutation_error(self):
         for ts in self.get_slim_examples():
             for x in ts.mutations():
-                with self.assertRaisesRegex(KeyError, 'legacy'):
+                with pytest.raises(KeyError) as exec_info:
                     _ = x.metadata[0]
-                with self.assertRaisesRegex(KeyError, 'legacy'):
+                assert 'legacy' in str(exec_info)
+                with pytest.raises(KeyError) as exec_info:
                     _ = x.metadata[999]
-                with self.assertRaises(KeyError):
+                assert 'legacy' in str(exec_info)
+                with pytest.raises(KeyError):
                     _ = x.metadata['ping']
                 break
             break
