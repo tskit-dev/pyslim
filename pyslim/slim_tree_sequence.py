@@ -550,7 +550,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         return get_provenance(self, only_last=False)
 
-    def individuals_alive_at(self, time, stage='late', remembered_stage=None):
+    def individuals_alive_at(self, time, stage='late', remembered_stage=None,
+                             population=None, samples_only=False):
         """
         Returns an array giving the IDs of all individuals that are known to be
         alive at the given time ago.  This is determined using their birth time
@@ -590,6 +591,10 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param str remembered_stage: The stage in the SLiM life cycle
             that individuals were Remembered during (defaults to the stage the
             tree sequence was recorded at, stored in metadata).
+        :param int population: If given, return only individuals in the
+            population(s) with these population ID(s).
+        :param bool samples_only: Whether to return only individuals who have at
+            least one node marked as samples.
         """
         if stage not in ("late", "early"):
             raise ValueError(f"Unknown stage '{stage}': "
@@ -638,6 +643,14 @@ class SlimTreeSequence(tskit.TreeSequence):
         alive_bool = np.logical_and(
                 birth_time >= time + birth_offset,
                 birth_time - ages <= time + birth_offset + age_offset)
+
+        if population is not None:
+            alive_bool &= np.isin(self.individual_populations, population)
+        if samples_only:
+            alive_bool &= (0 < np.bincount(1 + self.tables.nodes.individual,
+                                           self.tables.nodes.flags & tskit.NODE_IS_SAMPLE,
+                                           minlength=1 + self.num_individuals)[1:])
+
         return np.where(alive_bool)[0]
 
     def individual_ages_at(self, time, stage="late", remembered_stage="late"):

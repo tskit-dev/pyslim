@@ -45,7 +45,7 @@ jobs:
           name: Run Python tests
           command: |
             PYTHONPATH=python pytest --cov=pyslim --cov-report=xml --cov-branch \
-              -n `nproc` pyslim
+              -n 1 tests
 
       - run:
           name: Upload Python coverage

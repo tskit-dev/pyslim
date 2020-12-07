@@ -23,6 +23,7 @@ import numpy as np
 #  everyone: records everyone ever
 #  pedigree: writes out accompanying info file containing the pedigree
 #  remembered_early: remembering and saving the ts happens during early
+#  multipop: has more than one population
 # All files are of the form `tests/examples/{key}.slim`
 example_files = {}
 example_files['recipe_nonWF'] = {"nonWF": True, "pedigree": True}
@@ -97,13 +98,19 @@ class PyslimTestCase:
             assert np.array_equal(g1, g2)
 
     def get_slim_examples(self, return_info=False, **kwargs):
+        num_examples = 0
         for ex in example_files.values():
             basename = ex['basename']
             use = True
             for a in kwargs:
-                if a not in ex or ex[a] != kwargs[a]:
-                    use = False
+                if a in ex:
+                    if ex[a] != kwargs[a]:
+                        use = False
+                else:
+                    if kwargs[a] != False:
+                        use = False
             if use:
+                num_examples += 1
                 treefile = basename + ".trees"
                 print("---->", treefile)
                 assert os.path.isfile(treefile)
@@ -117,6 +124,7 @@ class PyslimTestCase:
                     yield (ts, ex)
                 else:
                     yield ts
+        assert num_examples > 0
 
     def get_slim_restarts(self, **kwargs):
         # Loads previously produced tree sequences and SLiM scripts

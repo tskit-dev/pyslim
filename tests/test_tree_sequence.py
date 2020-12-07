@@ -224,6 +224,29 @@ class TestIndividualAges(tests.PyslimTestCase):
                 with pytest.warns(UserWarning):
                     ts.individuals_alive_at(0, remembered_stage="early")
 
+    def test_population(self):
+        for ts in self.get_slim_examples(multipop=True, remembered_early=False):
+            all_inds = ts.individuals_alive_at(0)
+            for p in range(ts.num_populations):
+                sub_inds = ts.individuals_alive_at(0, population=p)
+                assert set(sub_inds) == set(all_inds[ts.individual_populations == p])
+                sub_inds = ts.individuals_alive_at(0, population=[p])
+                assert set(sub_inds) == set(all_inds[ts.individual_populations == p])
+            sub_inds = ts.individuals_alive_at(0, population=np.arange(p))
+            assert set(sub_inds) == set(all_inds[ts.individual_populations != p])
+
+    def test_samples_only(self):
+        for ts in self.get_slim_examples(nonWF=True, remembered_early=False):
+            all_inds = ts.individuals_alive_at(0)
+            assert set(all_inds) == set(ts.individuals_alive_at(0, samples_only=False))
+            sub_inds = np.random.choice(all_inds, size=min(len(all_inds), 4), replace=False)
+            flags = np.array([n.flags & (tskit.NODE_IS_SAMPLE * n.individual in sub_inds)
+                              for n in ts.nodes()], dtype=np.uint32)
+            tables = ts.tables
+            tables.nodes.flags = flags
+            new_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
+            assert set(sub_inds) == set(new_ts.individuals_alive_at(0, samples_only=True))
+
     def test_after_simplify(self):
         for ts in self.get_slim_examples(remembered_early=False):
             sts = ts.simplify()

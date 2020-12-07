@@ -28,6 +28,7 @@
 
 **New features**:
 
+- added `samples_only` and `population` arguments to `ts.individuals_alive_at()`
 - added the `ts.slim_time()` method
 - enabled dumping the reference sequence for nucleotide models
 
