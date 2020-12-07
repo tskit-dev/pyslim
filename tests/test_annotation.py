@@ -11,6 +11,8 @@ import tests
 import unittest
 import random
 import json
+import pytest
+import numpy as np
 
 
 class TestAnnotate(tests.PyslimTestCase):
@@ -26,32 +28,32 @@ class TestAnnotate(tests.PyslimTestCase):
         tables1 = ts1.tables
         tables2 = ts2.tables
         # compare nodes
-        self.assertArrayEqual(tables1.nodes.flags, tables2.nodes.flags)
-        self.assertArrayAlmostEqual(tables1.nodes.time, tables2.nodes.time)
-        self.assertArrayEqual(tables1.nodes.population, tables2.nodes.population)
+        assert np.array_equal(tables1.nodes.flags, tables2.nodes.flags)
+        assert np.array_equal(tables1.nodes.time, tables2.nodes.time)
+        assert np.array_equal(tables1.nodes.population, tables2.nodes.population)
         # compare edges
-        self.assertEqual(tables1.edges, tables2.edges)
+        assert tables1.edges == tables2.edges
         # compare sites
-        self.assertArrayEqual(tables1.sites.position, tables2.sites.position)
-        self.assertArrayEqual(tables1.sites.ancestral_state, tables2.sites.ancestral_state)
-        self.assertArrayEqual(tables1.sites.ancestral_state_offset,
+        assert np.array_equal(tables1.sites.position, tables2.sites.position)
+        assert np.array_equal(tables1.sites.ancestral_state, tables2.sites.ancestral_state)
+        assert np.array_equal(tables1.sites.ancestral_state_offset,
                               tables2.sites.ancestral_state_offset)
         # compare mutations
-        self.assertArrayEqual(tables1.mutations.site, tables2.mutations.site)
-        self.assertArrayEqual(tables1.mutations.node, tables2.mutations.node)
-        self.assertArrayEqual(tables1.mutations.derived_state, tables2.mutations.derived_state)
-        self.assertArrayEqual(tables1.mutations.derived_state_offset,
+        assert np.array_equal(tables1.mutations.site, tables2.mutations.site)
+        assert np.array_equal(tables1.mutations.node, tables2.mutations.node)
+        assert np.array_equal(tables1.mutations.derived_state, tables2.mutations.derived_state)
+        assert np.array_equal(tables1.mutations.derived_state_offset,
                               tables2.mutations.derived_state_offset)
 
     def verify_annotated_trees(self, ts1, ts2):
         '''
         Verify the *trees* returned before and after annotation are equal.
         '''
-        self.assertEqual(ts1.num_trees, ts2.num_trees)
+        assert ts1.num_trees == ts2.num_trees
         for t1, t2 in zip(ts1.trees(), ts2.trees()):
-            self.assertEqual(t1.length, t2.length)
-            self.assertEqual(t1.get_parent_dict(), t2.get_parent_dict())
-            self.assertAlmostEqual(t1.total_branch_length, t2.total_branch_length)
+            assert t1.length == t2.length
+            assert t1.get_parent_dict() == t2.get_parent_dict()
+            assert t1.total_branch_length == t2.total_branch_length
 
     def verify_defaults(self, ts):
         '''
@@ -59,36 +61,36 @@ class TestAnnotate(tests.PyslimTestCase):
         '''
         for m in ts.mutations():
             md = m.metadata
-            self.assertEqual(md["mutation_type"], 1)
-            self.assertEqual(md["selection_coeff"], 0.0)
-            self.assertEqual(md["population"], tskit.NULL)
-            self.assertEqual(md["slim_time"], 0)
+            assert md["mutation_type"] == 1
+            assert md["selection_coeff"] == 0.0
+            assert md["population"] == tskit.NULL
+            assert md["slim_time"] == 0
         for n in ts.nodes():
             md = n.metadata
             if not n.is_sample():
-                self.assertEqual(md, None)
+                assert md is None
             else:
-                self.assertEqual(md["is_null"], False)
-                self.assertEqual(md["genome_type"], pyslim.GENOME_TYPE_AUTOSOME)
+                assert md["is_null"] is False
+                assert md["genome_type"] == pyslim.GENOME_TYPE_AUTOSOME
         for ind in ts.individuals():
             md = ind.metadata
-            self.assertArrayEqual(ind.location, [0, 0, 0])
-            self.assertEqual(ind.flags, pyslim.INDIVIDUAL_ALIVE)
-            self.assertEqual(md["sex"], pyslim.INDIVIDUAL_TYPE_HERMAPHRODITE)
-            self.assertEqual(md["flags"], 0)
+            assert np.array_equal(ind.location, [0, 0, 0])
+            assert ind.flags == pyslim.INDIVIDUAL_ALIVE
+            assert md["sex"] == pyslim.INDIVIDUAL_TYPE_HERMAPHRODITE
+            assert md["flags"] == 0
         for pop in ts.populations():
             md = pop.metadata
-            self.assertEqual(md["selfing_fraction"], 0.0)
-            self.assertEqual(md["female_cloning_fraction"], 0.0)
-            self.assertEqual(md["male_cloning_fraction"], 0.0)
-            self.assertEqual(md["sex_ratio"], 0.5)
-            self.assertEqual(md["bounds_x0"], 0.0)
-            self.assertEqual(md["bounds_x1"], 0.0)
-            self.assertEqual(md["bounds_y0"], 0.0)
-            self.assertEqual(md["bounds_y1"], 0.0)
-            self.assertEqual(md["bounds_z0"], 0.0)
-            self.assertEqual(md["bounds_z1"], 0.0)
-            self.assertEqual(len(md["migration_records"]), 0)
+            assert md["selfing_fraction"] == 0.0
+            assert md["female_cloning_fraction"] == 0.0
+            assert md["male_cloning_fraction"] == 0.0
+            assert md["sex_ratio"] == 0.5
+            assert md["bounds_x0"] == 0.0
+            assert md["bounds_x1"] == 0.0
+            assert md["bounds_y0"] == 0.0
+            assert md["bounds_y1"] == 0.0
+            assert md["bounds_z0"] == 0.0
+            assert md["bounds_z1"] == 0.0
+            assert len(md["migration_records"]) == 0
 
     def verify_provenance(self, ts):
         for u in ts.provenances():
@@ -98,7 +100,7 @@ class TestAnnotate(tests.PyslimTestCase):
         """
         Check for equality, in everything but the last provenance.
         """
-        self.assertEqual(in_ts.num_provenances + 1, out_ts.num_provenances)
+        assert in_ts.num_provenances + 1 == out_ts.num_provenances
         in_tables = in_ts.tables
         in_tables.sort()
         out_tables = out_ts.tables
@@ -107,23 +109,24 @@ class TestAnnotate(tests.PyslimTestCase):
 
     def test_annotate_errors(self):
         for ts in self.get_msprime_examples():
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 _ = pyslim.annotate_defaults(ts, model_type="WF",
                                              slim_generation=0)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 _ = pyslim.annotate_defaults(ts, model_type="WF",
                                              slim_generation=4.4)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 _ = pyslim.annotate_defaults(ts, model_type="foo",
                                              slim_generation=4)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 _ = pyslim.annotate_defaults(ts, model_type=[],
                                              slim_generation=4)
         # odd number of samples
         ts = msprime.simulate(3)
-        with self.assertRaisesRegex(ValueError, "diploid"):
+        with pytest.raises(ValueError) as except_info:
             _ = pyslim.annotate_defaults(ts, model_type="WF",
                                          slim_generation=1)
+        assert "diploid" in str(except_info)
         # inconsistent populations for diploids
         ts = msprime.simulate(
             population_configurations=[
@@ -131,9 +134,10 @@ class TestAnnotate(tests.PyslimTestCase):
                 msprime.PopulationConfiguration(sample_size=1)],
             migration_matrix=[[0.0, 1.0], [1.0, 0.0]]
             )
-        with self.assertRaisesRegex(ValueError, "more than one population"):
+        with pytest.raises(ValueError) as except_info:
             _ = pyslim.annotate_defaults(ts, model_type="WF",
                                          slim_generation=1)
+        assert "more than one population" in str(except_info)
         # inconsistent times for diploids
         samples = [
             msprime.Sample(population=0, time=0),
@@ -142,18 +146,19 @@ class TestAnnotate(tests.PyslimTestCase):
             msprime.Sample(population=0, time=1),
         ]
         ts = msprime.simulate(samples=samples)
-        with self.assertRaisesRegex(ValueError, "more than one time"):
+        with pytest.raises(ValueError) as except_info:
             _ = pyslim.annotate_defaults(ts, model_type="WF",
                                          slim_generation=1)
+        assert "more than one time" in str(except_info)
 
     def test_basic_annotation(self):
         for ts in self.get_msprime_examples():
             slim_gen = 4
             slim_ts = pyslim.annotate_defaults(ts, model_type="WF",
                                                slim_generation=slim_gen)
-            self.assertEqual(slim_ts.metadata['SLiM']['model_type'], 'WF')
-            self.assertEqual(slim_ts.metadata['SLiM']['generation'], slim_gen)
-            self.assertEqual(slim_ts.metadata['SLiM']['file_version'], pyslim.slim_file_version)
+            assert slim_ts.metadata['SLiM']['model_type'] == 'WF'
+            assert slim_ts.metadata['SLiM']['generation'] == slim_gen
+            assert slim_ts.metadata['SLiM']['file_version'] == pyslim.slim_file_version
             self.verify_annotated_tables(ts, slim_ts)
             self.verify_annotated_trees(ts, slim_ts)
             self.verify_haplotype_equality(ts, slim_ts)
@@ -190,7 +195,7 @@ class TestAnnotate(tests.PyslimTestCase):
             new_ts = pyslim.load_tables(tables)
             for j, ind in enumerate(new_ts.individuals()):
                 md = ind.metadata
-                self.assertEqual(md["sex"], sexes[j])
+                assert md["sex"] == sexes[j]
             self.verify_annotated_tables(new_ts, slim_ts)
             self.verify_annotated_trees(new_ts, slim_ts)
             self.verify_haplotype_equality(new_ts, slim_ts)
@@ -264,7 +269,7 @@ class TestAnnotate(tests.PyslimTestCase):
             new_ts = pyslim.load_tables(tables)
             for x, g in zip(new_ts.nodes(), gtypes):
                 if x.metadata is not None:
-                    self.assertEqual(x.metadata["genome_type"], g)
+                    assert x.metadata["genome_type"] == g
             # not testing SLiM because needs annotation of indivs to make sense
 
     def test_annotate_mutations(self):
@@ -281,7 +286,7 @@ class TestAnnotate(tests.PyslimTestCase):
             new_ts = pyslim.load_tables(tables)
             for j, x in enumerate(new_ts.mutations()):
                 md = x.metadata
-                self.assertEqual(md['mutation_list'][0]["selection_coeff"], selcoefs[j])
+                assert md['mutation_list'][0]["selection_coeff"] == selcoefs[j]
 
     def test_reload_recapitate(self):
         # Test the ability of SLiM to load our files after recapitation.
@@ -338,11 +343,11 @@ class TestReload(tests.PyslimTestCase):
             out_ts = self.run_slim_restart(cleared_ts, basename)
             out_tables = out_ts.tables
             out_tables.provenances.clear()
-            self.assertEqual(in_tables, out_tables)
+            assert in_tables == out_tables
 
     def test_reload_reference_sequence(self):
         for in_ts, basename in self.get_slim_restarts(no_op=True, nucleotides=True):
             out_ts = self.run_slim_restart(in_ts, basename)
-            self.assertEqual(in_ts.metadata['SLiM']['nucleotide_based'], True)
-            self.assertEqual(out_ts.metadata['SLiM']['nucleotide_based'], True)
-            self.assertEqual(in_ts.reference_sequence, out_ts.reference_sequence)
+            assert in_ts.metadata['SLiM']['nucleotide_based'] is True
+            assert out_ts.metadata['SLiM']['nucleotide_based'] is True
+            assert in_ts.reference_sequence == out_ts.reference_sequence

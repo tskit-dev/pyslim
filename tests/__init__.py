@@ -10,10 +10,12 @@ import tskit
 import msprime
 import random
 import unittest
+import pytest
 import base64
 import os
 import attr
 import json
+import numpy as np
 
 # possible attributes to simulation scripts are
 #  WF, nonWF
@@ -21,6 +23,7 @@ import json
 #  everyone: records everyone ever
 #  pedigree: writes out accompanying info file containing the pedigree
 #  remembered_early: remembering and saving the ts happens during early
+#  multipop: has more than one population
 # All files are of the form `tests/examples/{key}.slim`
 example_files = {}
 example_files['recipe_nonWF'] = {"nonWF": True, "pedigree": True}
@@ -81,73 +84,36 @@ def run_slim_script(slimfile, seed=23, **kwargs):
     return out
 
 
-def setUp():
-    # Make random tests reproducible.
-    random.seed(210)
-
-    # run SLiM
-    for f in example_files:
-        basename = example_files[f]['basename']
-        treefile = basename + ".trees"
-        print(treefile)
-        try:
-            os.remove(treefile)
-        except FileNotFoundError:
-            pass
-        slimfile = basename + ".slim"
-        out = run_slim_script(slimfile)
-        assert out == 0
-
-
-def tearDown():
-    for f in example_files:
-        basename = example_files[f]['basename']
-        treefile = basename + ".trees"
-        try:
-            os.remove(treefile)
-            pass
-        except FileNotFoundError:
-            pass
-        infofile = treefile + ".pedigree"
-        try:
-            os.remove(infofile)
-            pass
-        except FileNotFoundError:
-            pass
-
-
-class PyslimTestCase(unittest.TestCase):
+class PyslimTestCase:
     '''
     Base class for test cases in pyslim.
     '''
 
-    def assertArrayEqual(self, x, y):
-        self.assertListEqual(list(x), list(y))
-
-    def assertArrayAlmostEqual(self, x, y):
-        self.assertEqual(len(x), len(y))
-        for a, b in zip(x, y):
-            self.assertAlmostEqual(a, b)
-
     def verify_haplotype_equality(self, ts, slim_ts):
-        self.assertEqual(ts.num_sites, slim_ts.num_sites)
+        assert ts.num_sites == slim_ts.num_sites
         for j, v1, v2 in zip(range(ts.num_sites), ts.variants(),
                              slim_ts.variants()):
             g1 = [v1.alleles[x] for x in v1.genotypes]
             g2 = [v2.alleles[x] for x in v2.genotypes]
-            self.assertArrayEqual(g1, g2)
+            assert np.array_equal(g1, g2)
 
     def get_slim_examples(self, return_info=False, **kwargs):
+        num_examples = 0
         for ex in example_files.values():
             basename = ex['basename']
             use = True
             for a in kwargs:
-                if a not in ex or ex[a] != kwargs[a]:
-                    use = False
+                if a in ex:
+                    if ex[a] != kwargs[a]:
+                        use = False
+                else:
+                    if kwargs[a] != False:
+                        use = False
             if use:
+                num_examples += 1
                 treefile = basename + ".trees"
                 print("---->", treefile)
-                self.assertTrue(os.path.isfile(treefile))
+                assert os.path.isfile(treefile)
                 ts = pyslim.load(treefile)
                 if return_info:
                     infofile = treefile + ".pedigree"
@@ -158,9 +124,10 @@ class PyslimTestCase(unittest.TestCase):
                     yield (ts, ex)
                 else:
                     yield ts
+        assert num_examples > 0
 
     def get_slim_restarts(self, **kwargs):
-        # Loads previously produced tree sequences and SLiM scripts 
+        # Loads previously produced tree sequences and SLiM scripts
         # appropriate for restarting from these tree sequences.
         for exname in restart_files:
             ex = restart_files[exname]
@@ -172,7 +139,7 @@ class PyslimTestCase(unittest.TestCase):
                 basename = ex['basename']
                 treefile = ex['input']
                 print(f"restarting {treefile} as {basename}")
-                self.assertTrue(os.path.isfile(treefile))
+                assert os.path.isfile(treefile)
                 ts = pyslim.load(treefile)
                 yield ts, basename
 
@@ -195,8 +162,8 @@ class PyslimTestCase(unittest.TestCase):
             os.remove(infile)
         except FileNotFoundError:
             pass
-        self.assertEqual(out, 0)
-        self.assertTrue(os.path.isfile(outfile))
+        assert out == 0
+        assert os.path.isfile(outfile)
         out_ts = pyslim.load(outfile)
         try:
             os.remove(outfile)
@@ -248,13 +215,11 @@ class PyslimTestCase(unittest.TestCase):
         # - 'age' is a dictionary whose keys are tuples (SLiM generation, stage)
         #   and whose values are ages (keys not present are ones the indivdiual was
         #   not alive for)
-        self.assertTrue(os.path.isfile(fname))
+        assert os.path.isfile(fname)
         out = {}
         with open(fname, 'r') as f:
             header = f.readline().split()
-            self.assertSequenceEqual(
-                    header,
-                    ['generation', 'stage', 'individual', 'age', 'parent1', 'parent2'])
+            assert header == ['generation', 'stage', 'individual', 'age', 'parent1', 'parent2']
             for line in f:
                 gen, stage, ind, age, p1, p2 = line.split()
                 gen = int(gen)
@@ -268,7 +233,7 @@ class PyslimTestCase(unittest.TestCase):
                             }
                 else:
                     for p in parents:
-                        self.assertIn(p, out[ind]['parents'])
+                        assert p in out[ind]['parents']
                 out[ind]['age'][(gen, stage)] = age
         return out
 
@@ -280,7 +245,7 @@ class PyslimTestCase(unittest.TestCase):
                 print(t1.metadata_schema)
                 print(f"{label} :::::::::: t2 ::::::::::::")
                 print(t2.metadata_schema)
-            self.assertEqual(t1.metadata_schema, t2.metadata_schema)
+            assert t1.metadata_schema == t2.metadata_schema
         if t1.num_rows != t2.num_rows:
             print(f"{label}: t1.num_rows {t1.num_rows} != {t2.num_rows} t2.num_rows")
         for k, (e1, e2) in enumerate(zip(t1, t2)):
@@ -289,25 +254,25 @@ class PyslimTestCase(unittest.TestCase):
                 print(e1)
                 print(f"{label} :::::::::: t2 ({k}) ::::::::::::")
                 print(e2)
-            self.assertEqual(e1, e2)
-        self.assertEqual(t1.num_rows, t2.num_rows)
-        self.assertEqual(t1, t2)
+            assert e1 == e2
+        assert t1.num_rows == t2.num_rows
+        assert t1 == t2
 
     def assertMetadataEqual(self, t1, t2):
         # check top-level metadata, first the parsed version:
-        self.assertEqual(t1.metadata_schema, t2.metadata_schema)
-        self.assertEqual(t1.metadata, t2.metadata)
+        assert t1.metadata_schema == t2.metadata_schema
+        assert t1.metadata == t2.metadata
         # and now check the underlying bytes
         # TODO: use the public interface if https://github.com/tskit-dev/tskit/issues/832 happens
         md1 = t1._ll_tables.metadata
         md2 = t2._ll_tables.metadata
-        self.assertEqual(md1, md2)
+        assert md1 == md2
 
     def verify_trees_equal(self, ts1, ts2):
         # check that trees are equal by checking MRCAs between randomly
         # chosen nodes with matching slim_ids
         random.seed(23)
-        self.assertEqual(ts1.sequence_length, ts2.sequence_length)
+        assert ts1.sequence_length == ts2.sequence_length
         if isinstance(ts1, tskit.TableCollection):
             ts1 = ts1.tree_sequence()
         if isinstance(ts2, tskit.TableCollection):
@@ -320,24 +285,23 @@ class PyslimTestCase(unittest.TestCase):
         for j, n in enumerate(ts2.nodes()):
             if n.metadata is not None:
                 map2[n.metadata['slim_id']] = j
-        self.assertEqual(set(map1.keys()), set(map2.keys()))
+        assert set(map1.keys()) == set(map2.keys())
         sids = list(map1.keys())
         for sid in sids:
             n1 = ts1.node(map1[sid])
             n2 = ts2.node(map2[sid])
-            self.assertEqual(n1.time, n2.time)
-            self.assertEqual(n1.metadata, n2.metadata)
+            assert n1.time == n2.time
+            assert n1.metadata == n2.metadata
             i1 = ts1.individual(n1.individual)
             i2 = ts2.individual(n2.individual)
-            self.assertEqual(i1.metadata, i2.metadata)
+            assert i1.metadata == i2.metadata
         for _ in range(10):
             pos = random.uniform(0, ts1.sequence_length)
             t1 = ts1.at(pos)
             t2 = ts2.at(pos)
             for _ in range(10):
                 a, b = random.choices(sids, k=2)
-                self.assertEqual(t1.tmrca(map1[a], map1[b]),
-                                 t2.tmrca(map2[a], map2[b]))
+                assert t1.tmrca(map1[a], map1[b]) == t2.tmrca(map2[a], map2[b])
 
     def assertTableCollectionsEqual(self, t1, t2,
             skip_provenance=False, check_metadata_schema=True,
@@ -350,34 +314,25 @@ class PyslimTestCase(unittest.TestCase):
         t1_samples.sort()
         t2_samples = [(n.metadata['slim_id'], j) for j, n in enumerate(t2.nodes) if (n.flags & tskit.NODE_IS_SAMPLE)]
         t2_samples.sort()
-        print('1', t1_samples)
-        print('2', t2_samples)
-        t1.simplify([j for (_, j) in t1_samples])
-        t2.simplify([j for (_, j) in t2_samples])
+        t1.simplify([j for (_, j) in t1_samples], record_provenance=False)
+        t2.simplify([j for (_, j) in t2_samples], record_provenance=False)
         if skip_provenance is True:
             t1.provenances.clear()
             t2.provenances.clear()
         if skip_provenance == -1:
-            self.assertEqual(t1.provenances.num_rows + 1, t2.provenances.num_rows)
+            assert t1.provenances.num_rows + 1 == t2.provenances.num_rows
             t2.provenances.truncate(t1.provenances.num_rows)
+            assert t1.provenances.num_rows == t2.provenances.num_rows
         if check_metadata_schema:
             # this is redundant now, but will help diagnose if things go wrong
-            self.assertEqual(t1.metadata_schema.schema,
-                             t2.metadata_schema.schema)
-            self.assertEqual(t1.populations.metadata_schema.schema,
-                             t2.populations.metadata_schema.schema)
-            self.assertEqual(t1.individuals.metadata_schema.schema,
-                             t2.individuals.metadata_schema.schema)
-            self.assertEqual(t1.nodes.metadata_schema.schema,
-                             t2.nodes.metadata_schema.schema)
-            self.assertEqual(t1.edges.metadata_schema.schema,
-                             t2.edges.metadata_schema.schema)
-            self.assertEqual(t1.sites.metadata_schema.schema,
-                             t2.sites.metadata_schema.schema)
-            self.assertEqual(t1.mutations.metadata_schema.schema,
-                             t2.mutations.metadata_schema.schema)
-            self.assertEqual(t1.migrations.metadata_schema.schema,
-                             t2.migrations.metadata_schema.schema)
+            assert t1.metadata_schema.schema == t2.metadata_schema.schema
+            assert t1.populations.metadata_schema.schema == t2.populations.metadata_schema.schema
+            assert t1.individuals.metadata_schema.schema == t2.individuals.metadata_schema.schema
+            assert t1.nodes.metadata_schema.schema == t2.nodes.metadata_schema.schema
+            assert t1.edges.metadata_schema.schema == t2.edges.metadata_schema.schema
+            assert t1.sites.metadata_schema.schema == t2.sites.metadata_schema.schema
+            assert t1.mutations.metadata_schema.schema == t2.mutations.metadata_schema.schema
+            assert t1.migrations.metadata_schema.schema == t2.migrations.metadata_schema.schema
         if not check_metadata_schema:
             # need to pull out metadata to compare as dicts before zeroing the schema
             m1 = t1.metadata
@@ -394,22 +349,22 @@ class PyslimTestCase(unittest.TestCase):
                 t.migrations.metadata_schema = ms
             t1.metadata = b''
             t2.metadata = b''
-            self.assertEqual(m1, m2)
+            assert m1 == m2
         if reordered_individuals:
             ind1 = {i.metadata['pedigree_id']: j for j, i in enumerate(t1.individuals)}
             ind2 = {i.metadata['pedigree_id']: j for j, i in enumerate(t2.individuals)}
             for pid in ind1:
                 if not pid in ind2:
                     print("not in t2:", ind1[pid])
-                self.assertTrue(pid in ind2)
+                assert pid in ind2
                 if t1.individuals[ind1[pid]] != t2.individuals[ind2[pid]]:
                     print("t1:", t1.individuals[ind1[pid]])
                     print("t2:", t2.individuals[ind2[pid]])
-                self.assertEqual(t1.individuals[ind1[pid]], t2.individuals[ind2[pid]])
+                assert t1.individuals[ind1[pid]] == t2.individuals[ind2[pid]]
             for pid in ind2:
                 if not pid in ind1:
                     print("not in t1:", ind2[pid])
-                self.assertTrue(pid in ind1)
+                assert pid in ind1
             t1.individuals.clear()
             t2.individuals.clear()
         # go through one-by-one so we know which fails
@@ -422,5 +377,5 @@ class PyslimTestCase(unittest.TestCase):
         self.assertTablesEqual(t1.migrations, t2.migrations, "migrations")
         self.assertTablesEqual(t1.provenances, t2.provenances, "provenances")
         self.assertMetadataEqual(t1, t2)
-        self.assertEqual(t1.sequence_length, t2.sequence_length)
-        self.assertEqual(t1, t2)
+        assert t1.sequence_length == t2.sequence_length
+        assert t1 == t2

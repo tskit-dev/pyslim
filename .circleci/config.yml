@@ -44,9 +44,8 @@ jobs:
       - run:
           name: Run Python tests
           command: |
-            PYTHONPATH=python nosetests -v --with-coverage --cover-package pyslim \
-              --cover-branches --cover-erase --cover-xml \
-              --cover-inclusive tests
+            PYTHONPATH=python pytest --cov=pyslim --cov-report=xml --cov-branch \
+              -n 1 tests
 
       - run:
           name: Upload Python coverage

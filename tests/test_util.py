@@ -14,12 +14,12 @@ class TestUniqueLabelsByGroup(unittest.TestCase):
 
     def verify_unique_labels_by_group(self, group, label, minlength):
         x = pyslim.util.unique_labels_by_group(group, label, minlength)
-        self.assertGreaterEqual(len(x), minlength)
+        assert len(x) >= minlength
         for g in range(len(x)):
             u = set(label[group == g])
             if (len(u) == 1) != x[g]:
                 print(g, u, x[g], label[group == g], label.dtype)
-            self.assertEqual(len(u) == 1, x[g])
+            assert (len(u) == 1) == x[g]
 
     def test_all_same(self):
         n = 10
@@ -27,15 +27,15 @@ class TestUniqueLabelsByGroup(unittest.TestCase):
         label = np.arange(10)
         self.verify_unique_labels_by_group(group, label, 1)
         x = pyslim.util.unique_labels_by_group(group, label, 1)
-        self.assertEqual(len(x), 2)
-        self.assertEqual(x[0], False)
-        self.assertEqual(x[1], False)
+        assert len(x) == 2
+        assert x[0] == False
+        assert x[1] == False
         label = np.repeat(5, 10)
         self.verify_unique_labels_by_group(group, label, 1)
         x = pyslim.util.unique_labels_by_group(group, label, 1)
-        self.assertEqual(len(x), 2)
-        self.assertEqual(x[0], False)
-        self.assertEqual(x[1], True)
+        assert len(x) == 2
+        assert x[0] == False
+        assert x[1] == True
 
     def test_all_unique(self):
         ng = 10
@@ -43,12 +43,12 @@ class TestUniqueLabelsByGroup(unittest.TestCase):
         label = np.arange(ng)
         self.verify_unique_labels_by_group(group, label, ng)
         x = pyslim.util.unique_labels_by_group(group, label, ng)
-        self.assertTrue(np.all(x))
+        assert np.all(x)
         group = np.append(group, [-1, -1, -1])
         label = np.append(label, [0, 1, 2])
         self.verify_unique_labels_by_group(group, label, ng)
         x = pyslim.util.unique_labels_by_group(group, label, ng)
-        self.assertTrue(np.all(x))
+        assert np.all(x)
 
     def test_unique_labels_by_group(self):
         np.random.seed(23)
