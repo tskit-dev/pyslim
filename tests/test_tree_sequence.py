@@ -71,6 +71,12 @@ class TestSlimTime(tests.PyslimTestCase):
             for mut in ts.mutations():
                 mut_time = max([x['slim_time'] for x in mut.metadata['mutation_list']])
                 assert mut_time == ts.slim_time(mut.time)
+        # the mutations in "init_mutated" examples have mutations that are *added*
+        # in *early*, and so their times match in that stage.
+        for ts in self.get_slim_examples(init_mutated=True):
+            for mut in ts.mutations():
+                mut_time = max([x['slim_time'] for x in mut.metadata['mutation_list']])
+                assert mut_time == ts.slim_time(mut.time, stage="early")
 
 
 class TestMutate(tests.PyslimTestCase):

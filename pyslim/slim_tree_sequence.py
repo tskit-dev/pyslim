@@ -672,7 +672,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         ages[alive] = self.individual_times[alive] - time
         return ages
 
-    def slim_time(self, time):
+    def slim_time(self, time, stage="late"):
         """
         Converts the given "tskit times" (i.e., in units of time before the end
         of the simulation) to SLiM times (those recorded by SLiM, usually in units
@@ -691,16 +691,21 @@ class SlimTreeSequence(tskit.TreeSequence):
         sequence’s times measure time before the last set of individuals are
         born, i.e., before SLiM time step ts.slim_generation - 1.
 
-        Other situations may make this not return what you expect: for instance,
-        in WF models, mutations added using addNewMutation during early() in WF models.
-        XXX why? XXX
+        In some situations (e.g., mutations added during early() in WF models)
+        this may not return what you expect. See :ref:`sec_metadata_converting_times`
+        for more discussion.
 
         :param array time: An array of times to be converted.
+        :param string stage: The stage of the SLiM life cycle that the SLiM time
+            should be computed for.
         """
         slim_time = self.slim_generation - time
-        time_adjust = (self.metadata['SLiM']['model_type'] == "WF"
-                        and self.metadata['SLiM']['stage'] == "early")
-        return slim_time - time_adjust
+        if self.metadata['SLiM']['model_type'] == "WF":
+            if (self.metadata['SLiM']['stage'] == "early" and stage == "late"):
+                slim_time -= 1
+            if (self.metadata['SLiM']['stage'] == "late" and stage == "early"):
+                slim_time += 1
+        return slim_time
 
     def first_generation_individuals(self):
         """

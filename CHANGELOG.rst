@@ -28,6 +28,7 @@
 
 **New features**:
 
+- added the `ts.slim_time()` method
 - enabled dumping the reference sequence for nucleotide models
 
 ********************
