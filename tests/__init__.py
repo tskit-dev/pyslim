@@ -97,10 +97,26 @@ class PyslimTestCase:
             g2 = [v2.alleles[x] for x in v2.genotypes]
             assert np.array_equal(g1, g2)
 
+    def get_slim_example(self, name, return_info=False):
+        ex = example_files[name]
+        treefile = ex['basename'] + ".trees"
+        print("---->", treefile)
+        assert os.path.isfile(treefile)
+        ts = pyslim.load(treefile)
+        if return_info:
+            infofile = treefile + ".pedigree"
+            if os.path.isfile(infofile):
+                ex['info'] = self.get_slim_info(infofile)
+            else:
+                ex['info'] = None
+            out = (ts, ex)
+        else:
+            out = ts
+        return out
+
     def get_slim_examples(self, return_info=False, **kwargs):
         num_examples = 0
-        for ex in example_files.values():
-            basename = ex['basename']
+        for name, ex in example_files.items():
             use = True
             for a in kwargs:
                 if a in ex:
@@ -111,19 +127,7 @@ class PyslimTestCase:
                         use = False
             if use:
                 num_examples += 1
-                treefile = basename + ".trees"
-                print("---->", treefile)
-                assert os.path.isfile(treefile)
-                ts = pyslim.load(treefile)
-                if return_info:
-                    infofile = treefile + ".pedigree"
-                    if os.path.isfile(infofile):
-                        ex['info'] = self.get_slim_info(infofile)
-                    else:
-                        ex['info'] = None
-                    yield (ts, ex)
-                else:
-                    yield ts
+                yield self.get_slim_example(name, return_info=return_info)
         assert num_examples > 0
 
     def get_slim_restarts(self, **kwargs):
