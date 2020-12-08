@@ -2,6 +2,10 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+********************
+[0.500] - 2020-12-07
+********************
+
 **Breaking changes**:
 
 - "First generation" individuals no longer need to be retained by SLiM to recapitate,
