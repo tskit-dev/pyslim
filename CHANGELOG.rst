@@ -2,6 +2,19 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+
+********************
+[0.501] - 2020-12-08
+********************
+
+**Bugfix**:
+
+- Making `.slim_generation` derive from the tree sequence's top-level metadata
+    had the unanticipated consequence that it could not be modified, which some
+    people were doing. This restores the previous behavior, but in the future,
+    modifying `.slim_generation` on a tree sequence will be deprecated - instead,
+    this should be modified in the metadata of the TableCollection.
+
 ********************
 [0.500] - 2020-12-07
 ********************
