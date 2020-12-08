@@ -62,6 +62,27 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
         with pytest.raises(ValueError):
             _ = pyslim.SlimTreeSequence(ts)
 
+    # tmp_path is a pytest fixture, and is a pathlib.Path object
+    def test_slim_generation(self, tmp_path):
+        # tests around awkward backwards-compatible patch for setting slim_generation
+        ts = self.get_slim_example(name="recipe_nonWF")
+        assert ts.slim_generation == ts.metadata['SLiM']['generation']
+        new_sg = 12345
+        ts.slim_generation = new_sg
+        assert ts.slim_generation == new_sg
+        # check persists through dump/load
+        temp_file = tmp_path / "temp.trees"
+        ts.dump(temp_file.name)
+        loaded_ts = pyslim.load(temp_file.name)
+        assert loaded_ts.slim_generation == new_sg
+        assert loaded_ts.metadata['SLiM']['generation'] == new_sg
+        # check persists through recapitate
+        recap = ts.recapitate(recombination_rate=1e-8)
+        assert recap.slim_generation == new_sg
+        # check persists through simplify
+        simp = ts.simplify(ts.samples())
+        assert simp.slim_generation == new_sg
+
 
 class TestSlimTime(tests.PyslimTestCase):
     # Tests for slim_time()

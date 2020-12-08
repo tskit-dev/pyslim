@@ -166,6 +166,8 @@ class SlimTreeSequence(tskit.TreeSequence):
             ts = tables.tree_sequence()
         super().__init__(ts._ll_tree_sequence)
         self.reference_sequence = reference_sequence
+        # need this for backwards compatibility
+        self._slim_generation = ts.metadata['SLiM']['generation']
         # pre-extract individual metadata
         self.individual_locations = ts.tables.individuals.location
         self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
@@ -190,7 +192,13 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     @property
     def slim_generation(self):
-        return self.metadata['SLiM']['generation']
+        # return self.metadata['SLiM']['generation']
+        return self._slim_generation
+
+    @slim_generation.setter
+    def slim_generation(self, value):
+        # TODO: throw a deprecation warning here after stdpopsim updates
+        self._slim_generation = value
 
     @property
     def model_type(self):
@@ -237,7 +245,15 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param str path: The file path to write the TreeSequence to.
         :param kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
         '''
-        super(SlimTreeSequence, self).dump(path, **kwargs)
+        # temporary until we remove support for setting slim_generation
+        if self.slim_generation != self.metadata['SLiM']['generation']:
+            tables = self.tables
+            md = tables.metadata
+            md['SLiM']['generation'] = self.slim_generation
+            tables.metadata = md
+            tables.dump(path, **kwargs)
+        else:
+            super(SlimTreeSequence, self).dump(path, **kwargs)
         if self.reference_sequence is not None:
             # to convert to a kastore store we need to reload from a file,
             # and for it to be mutable we need to make it a dict
@@ -257,7 +273,16 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :rtype SlimTreeSequence:
         '''
-        sts = super(SlimTreeSequence, self).simplify(*args, **kwargs)
+        # temporary until we remove support for setting slim_generation
+        if self.slim_generation != self.metadata['SLiM']['generation']:
+            tables = self.tables
+            md = tables.metadata
+            md['SLiM']['generation'] = self.slim_generation
+            tables.metadata = md
+            # note we have to go to a tree sequence to get the map_nodes argument
+            sts = tables.tree_sequence().simplify(*args, **kwargs)
+        else:
+            sts = super(SlimTreeSequence, self).simplify(*args, **kwargs)
         if (type(sts) == tuple):
             ret = (SlimTreeSequence(sts[0]), sts[1])
             ret[0].reference_sequence = self.reference_sequence
@@ -435,9 +460,18 @@ class SlimTreeSequence(tskit.TreeSequence):
         if population_configurations is None:
             population_configurations = [msprime.PopulationConfiguration()
                                          for _ in range(self.num_populations)]
+        # temporary until we remove support for setting slim_generation
+        if self.slim_generation != self.metadata['SLiM']['generation']:
+            tables = self.tables
+            md = tables.metadata
+            md['SLiM']['generation'] = self.slim_generation
+            tables.metadata = md
+            ts = tables.tree_sequence()
+        else:
+            ts = self
 
         recap = msprime.simulate(
-                    from_ts = self,
+                    from_ts = ts,
                     population_configurations = population_configurations,
                     recombination_map = recombination_map,
                     start_time = self.slim_generation,
@@ -448,6 +482,10 @@ class SlimTreeSequence(tskit.TreeSequence):
             tables = recap.tables
             tables.metadata = self._ll_tree_sequence.get_metadata()
             tables.metadata_schema = self.metadata_schema
+            if self.slim_generation != tables.metadata['SLiM']['generation']:
+                md = tables.metadata
+                md['SLiM']['generation'] = self.slim_generation
+                tables.metadata = md
             _set_metadata_schemas(tables)
             recap = tables.tree_sequence()
         return SlimTreeSequence(recap, reference_sequence=self.reference_sequence)
