@@ -13,6 +13,7 @@ from .slim_metadata import *
 from .provenance import *
 from .util import *
 from .slim_metadata import _decode_mutation_pre_nucleotides, _set_metadata_schemas
+from .vcf import VcfWriter
 
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
@@ -261,6 +262,43 @@ class SlimTreeSequence(tskit.TreeSequence):
             kas['reference_sequence/data'] = np.frombuffer(self.reference_sequence.encode(),
                                                            dtype=np.int8)
             kastore.dump(kas, path)
+
+    def write_vcf(
+        self,
+        output,
+        nucleotide_based=None,
+        **kwargs
+    ):
+        """
+        Copied from tskit.TreeSequence.write_vcf.
+        """
+        if nucleotide_based is None:
+            nucleotide_based = self.reference_sequence is not None
+
+        if nucleotide_based:
+            def allele_mapper(variant):
+                allele_map = {}
+                allele_map[''] = self.reference_sequence[int(variant.position)]
+                for mut in variant.site.mutations:
+                    allele_map[mut.derived_state] = "".join([NUCLEOTIDES[u['nucleotide']] for u in mut.metadata['mutation_list']])
+                alleles = list(set(allele_map.values()))
+                # if the original allele was the jth, then the new allele
+                # should be alleles[genotype_map[j]]
+                genotype_map = np.array([alleles.index(allele_map[a]) for a in variant.alleles])
+                return alleles, genotype_map
+        else:
+            def allele_mapper(variant):
+                alleles = []
+                idx = [0]
+                for a in variant.alleles:
+                    alleles.append("".join([NUCLEOTIDES[i] for i in idx]))
+                    if idx[0] == 3:
+                        idx = [0] + idx
+                assert len(alleles) == len(set(alleles))
+                genotype_map = np.arange(len(alleles))
+                return alleles
+        writer = VcfWriter(self, **kwargs, allele_mapper=allele_mapper)
+        writer.write(output)
 
     def simplify(self, *args, **kwargs):
         '''
