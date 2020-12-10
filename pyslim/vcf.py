@@ -99,7 +99,7 @@ class VcfWriter:
             # from the legacy VCF output code.
             self.contig_length = max(self.transformed_positions[-1], self.contig_length)
         if allele_mapper is None:
-            self.allele_mapper = lambda v: v.alleles
+            self.allele_mapper = lambda v: v.alleles, np.arange(len(v.alleles))
         else:
             self.allele_mapper = allele_mapper
 
@@ -195,6 +195,8 @@ class VcfWriter:
                 )
             ref = alleles[0]
             alt = ",".join(alleles[1:])
+            if len(alt) == 0:
+                alt = "."
             print(
                 self.contig_id,
                 pos,
