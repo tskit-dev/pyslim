@@ -354,15 +354,19 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                             right_answer[i.id] = False
                         else:
                             ptime = ts.individual_times[p]
+                            parent_alive = True
                             if ts.metadata["SLiM"]["model_type"] == "WF":
                                 if i.time + 1 != ptime:
-                                    right_answer[i.id] = False
+                                    parent_alive = False
                             else:
                                 pdeath = ptime - ts.individual_ages[p]
                                 if i.time + 1 < pdeath:
-                                    right_answer[i.id] = False
-                            parent_ids[i.id].add(p)
-                            node_parent_ids[n].add(p)
+                                    parent_alive = False
+                            if not parent_alive:
+                                right_answer[i.id] = False
+                            else:
+                                parent_ids[i.id].add(p)
+                                node_parent_ids[n].add(p)
         for j, p in enumerate(parent_ids):
             if len(p) == 0:
                 right_answer[j] = False
@@ -371,16 +375,18 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                 ind = ts.node(j).individual
                 if ind != tskit.NULL:
                     right_answer[ts.node(j).individual] = False
+        right_parents = []
+        for j, p in enumerate(parent_ids):
+            if right_answer[j]:
+                for pp in p:
+                    right_parents.append([pp, j])
         has_parents = ts.has_individual_parents()
-        for j, (a, b) in enumerate(zip(right_answer, has_parents)):
-            if a != b:
-                print("------------")
-                print(j, a, b)
-                print(parent_ids[j])
-                for n in ts.individual(j).nodes:
-                    print(n, node_parent_ids[n])
-                print("------------")
+        right_parents = np.sort(np.array(right_parents), axis=0)
+        parents = np.sort(ts.individual_parents(), axis=0)
         assert np.array_equal(right_answer, has_parents)
+        print("right:", right_parents)
+        print("pyslim:", parents)
+        assert np.array_equal(right_parents, parents)
 
     def get_first_gen(self, ts):
         root_time = ts.metadata["SLiM"]["generation"]
@@ -429,7 +435,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             assert sum(has_parents) > 0
             self.verify_has_parents(ts)
 
-    def test_pedigree(self):
+    def test_pedigree_has_parents(self):
         for ts, ex in self.get_slim_examples(pedigree=True, return_info=True):
             has_parents = ts.has_individual_parents()
             info = ex['info']
@@ -443,6 +449,30 @@ class TestHasIndividualParents(tests.PyslimTestCase):
                     if p not in slim_map:
                         slim_hasp = False
                 assert hasp == slim_hasp
+
+    def test_pedigree_parents(self):
+        for ts, ex in self.get_slim_examples(pedigree=True, return_info=True):
+            has_parents = ts.has_individual_parents()
+            parents = ts.individual_parents()
+            info = ex['info']
+            slim_map = {}
+            for ind in ts.individuals():
+                slim_map[ind.metadata["pedigree_id"]] = ind.id
+            ts_to_slim = {sid: [] for sid in slim_map}
+            for (pa, ch) in parents:
+                assert pa >= 0 and pa < ts.num_individuals
+                assert ch >= 0 and pa < ts.num_individuals
+                pa_ind = ts.individual(pa).metadata["pedigree_id"]
+                ch_ind = ts.individual(ch).metadata["pedigree_id"]
+                ts_to_slim[ch_ind].append(pa_ind)
+            for ind in ts.individuals():
+                sid = ind.metadata["pedigree_id"]
+                a = ts_to_slim[sid]
+                b = [x for x in info[sid]["parents"] if x in slim_map]
+                if len(b) == 2:
+                    assert set(a) == set(b)
+                else:
+                    assert a == []
 
 
 class TestSimplify(tests.PyslimTestCase):

@@ -3,6 +3,11 @@
 ***************************
 
 
+**New features**:
+
+- Added `ts.individual_parents()`, a way to get the IDs of individual's parents
+    when both of them are present in the tree sequence.
+
 ********************
 [0.501] - 2020-12-08
 ********************

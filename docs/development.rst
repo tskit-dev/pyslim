@@ -20,7 +20,7 @@ Then, to run the tests to make sure everything is working, do::
 
 *Note:* if you use ``python3`` you may need to replace ``python`` with ``python3`` above.
 
-If you would like to add some features to ```pyslim```, please read the
+If you would like to add some features to ``pyslim``, please read the
 following. If you think there is anything missing,
 please open an `issue <http://github.com/tskit-dev/pyslim/issues>`_ or
 `pull request <http://github.com/tskit-dev/pyslim/pulls>`_ on GitHub!
