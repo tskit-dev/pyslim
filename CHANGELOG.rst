@@ -2,6 +2,12 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**Breaking changes**:
+
+- Added an argument to `SlimTreeSequence.write_vcf()` that by outputs
+  nucleotide alleles instead of the comma-separated strings of SLiM allele
+  numbers that were produced previously. (Note: vcf-writing code will be copied
+  from tskit, but only until available in a tskit release.)
 
 **New features**:
 
@@ -15,10 +21,10 @@
 **Bugfix**:
 
 - Making `.slim_generation` derive from the tree sequence's top-level metadata
-    had the unanticipated consequence that it could not be modified, which some
-    people were doing. This restores the previous behavior, but in the future,
-    modifying `.slim_generation` on a tree sequence will be deprecated - instead,
-    this should be modified in the metadata of the TableCollection.
+  had the unanticipated consequence that it could not be modified, which some
+  people were doing. This restores the previous behavior, but in the future,
+  modifying `.slim_generation` on a tree sequence will be deprecated - instead,
+  this should be modified in the metadata of the TableCollection.
 
 ********************
 [0.500] - 2020-12-07

@@ -297,10 +297,14 @@ class SlimTreeSequence(tskit.TreeSequence):
                 idx = [0]
                 for a in variant.alleles:
                     alleles.append("".join([NUCLEOTIDES[i] for i in idx]))
-                    if idx[0] == 3:
-                        idx = [0] + idx
+                    j = 0
+                    while j < len(idx) and idx[j] == 3:
+                        idx[j] = 0
+                        j += 1
+                    if j < len(idx):
+                        idx[j] += 1
                     else:
-                        idx[0] += 1
+                        idx = idx + [0]
                 genotype_map = np.arange(len(alleles))
                 return alleles, np.array(genotype_map)
         writer = VcfWriter(self, **kwargs, allele_mapper=allele_mapper)
