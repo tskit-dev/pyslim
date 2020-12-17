@@ -776,25 +776,9 @@ class SlimTreeSequence(tskit.TreeSequence):
                 "to retain them in the tree sequence.", FutureWarning)
         return np.where(self.tables.individuals.flags & INDIVIDUAL_FIRST_GEN > 0)[0]
 
-    def has_individual_parents(self):
-        '''
-        Finds which individuals have both their parent individuals also present
-        in the tree sequence, as far as we can tell. To do this, we return the
-        IDs of individuals for which:
-
-        - all edges terminating in that individual's nodes are in individuals,
-        - each of the individual's nodes inherit from a single individual only,
-        - those parental individuals were alive when the individual was born,
-        - the parental individuals account for two whole genomes.
-
-        This returns a boolean array indicating for each individual whether all
-        these are true.
-
-        See :meth:`.individuals_alive_at` for further discussion about how
-        this is determined based on when the individuals were Remembered.
-
-        :return: A boolean array of length equal to ``targets``.
-        '''
+    def _do_individual_parents_stuff(self, return_parents=False):
+        # Helper for has_individual_parents and individual_parents,
+        # which share a lot of machinery.
         edges = self.tables.edges
         nodes = self.tables.nodes
         edge_parent_indiv = nodes.individual[edges.parent]
@@ -820,7 +804,6 @@ class SlimTreeSequence(tskit.TreeSequence):
         else:
             parent_deaths = parent_births - self.individual_ages[edge_parent_indiv[indiv_edges]]
             alive_edges[indiv_edges] = (child_births + 1 >= parent_deaths)
-        # total genome inherited from parents
         edge_spans = edges.right - edges.left
         parental_span = np.bincount(edge_child_indiv[alive_edges],
                 weights=edge_spans[alive_edges], minlength=self.num_individuals)
@@ -828,8 +811,56 @@ class SlimTreeSequence(tskit.TreeSequence):
         # in this individual, but this is unnecessary as the entire genome is
         # accounted for
         has_all_parents = (parental_span == 2 * self.sequence_length)
-        return has_all_parents
+        if return_parents:
+            full_parent_edges = np.logical_and(
+                    alive_edges,
+                    has_all_parents[edge_child_indiv])
+            parents = np.unique(np.column_stack(
+                            [edge_parent_indiv[full_parent_edges],
+                             edge_child_indiv[full_parent_edges]]
+                            ), axis=0)
+            return parents
+        else:
+            return has_all_parents
 
+    def individual_parents(self):
+        '''
+        Finds all parent-child relationships in the tree sequence (as far as we
+        can tell). The output will be a two-column array with row [i,j]
+        indicating that individual i is a parent of individual j.  See
+        :meth:`.has_individual_parents` for exactly which parents are returned.
+
+        See :meth:`.individuals_alive_at` for further discussion about how
+        this is determined based on when the individuals were Remembered.
+
+        :param array individuals: The IDs of individuals that parents should be found
+            for (defaults to all individuals).
+        :return: An array of individual IDs, with row [i, j] if individual i is
+            a parent of individual j.
+        '''
+        return self._do_individual_parents_stuff(return_parents=True)
+
+    def has_individual_parents(self):
+        '''
+        Finds which individuals have both their parent individuals also present
+        in the tree sequence, as far as we can tell. To do this, we return a
+        boolean array with True for those individuals for which:
+
+        - all edges terminating in that individual's nodes are in individuals,
+        - each of the individual's nodes inherit from a single individual only,
+        - those parental individuals were alive when the individual was born,
+        - the parental individuals account for two whole genomes.
+
+        This returns a boolean array indicating for each individual whether all
+        these are true. Note in particular that individuals with only *one*
+        recorded parent are *not* counted as "having parents".
+
+        See :meth:`.individuals_alive_at` for further discussion about how
+        this is determined based on when the individuals were Remembered.
+
+        :return: A boolean array of length equal to ``targets``.
+        '''
+        return self._do_individual_parents_stuff(return_parents=False)
 
 def _set_metadata_from_provenance(tables):
     # note this uses defaults on keys not present in provenance,
