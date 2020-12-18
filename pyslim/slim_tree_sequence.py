@@ -496,6 +496,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                             **kwargs):
         """
         some explanation here
+        This is mostly from 'Following up with more coalescent simulation' example
 
         :param int time: The desired period of time to simulate in msprime,
             in units of generations
