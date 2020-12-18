@@ -490,6 +490,96 @@ class SlimTreeSequence(tskit.TreeSequence):
             recap = tables.tree_sequence()
         return SlimTreeSequence(recap, reference_sequence=self.reference_sequence)
 
+    def resume_simulation(self, time, Ne, samples, 
+                            mutation_rate=None, 
+                            recombination_rate=None,
+                            **kwargs):
+        """
+        some explanation here
+
+        :param int time: The desired period of time to simulate in msprime,
+            in units of generations
+        :param int Ne: The effective population size for :meth:`msprime.simulate`,
+            in units of diploid individuals
+        :param int samples: Sample count for msprime.simulate,
+            in units of haploid samples,
+            should be twice Ne used for SLiM simulation
+        :param float mutation_rate: A (constant) mutation rate,
+            in units of mutations per nucleotide per unit of time.
+        :param float recombination_rate: A (constant) recombination rate,
+            in units of crossovers per nucleotide per unit of time.
+        :param dict kwargs: Any other arguments to :meth:`msprime.simulate`.
+        """
+        if "keep_first_generation" in kwargs:
+            raise ValueError("The keep_first_generation argument is deprecated:"
+                             "the FIRST_GEN flag is no longer used.")
+
+        # toggle for hacks below to deal with old msprime
+        discrete_msprime = hasattr(msprime, "RateMap")
+
+        if recombination_rate is not None:
+            if recombination_map is not None:
+                raise ValueError("Cannot specify length/recombination_rate along with a recombination map")
+            if discrete_msprime:
+                recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
+                                                             rates = [recombination_rate, 0.0])
+            else:
+                recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
+                                                             rates = [recombination_rate, 0.0],
+                                                             num_loci = int(self.sequence_length))
+        if discrete_msprime and ('discrete_genome' not in kwargs):
+            kwargs['discrete_genome'] = True
+
+        if population_configurations is None:
+            population_configurations = [msprime.PopulationConfiguration()
+                                         for _ in range(self.num_populations)] 
+        new_ts = msprime.simulate(
+                            samples,
+                            Ne=Ne,
+                            end_time=time,
+                            length=self.sequence_length,
+                            mutation_rate=mutation_rate,
+                            population_configurations = population_configurations,
+                            recombination_map = recombination_map
+                            **kwargs)
+
+        new_nodes = np.where(new_ts.tables.nodes.time == slim_time)[0]
+        slim_indivs = self.individuals_alive_at(0)
+        slim_nodes = []
+        for ind in slim_indivs:
+            slim_nodes.extend(self.individual(ind).nodes)
+        slim_nodes = np.array(slim_nodes)
+        assert(len(slim_nodes) == samples)
+
+        node_map = np.repeat(tskit.NULL, new_ts.num_nodes)
+        node_map[new_nodes] = np.random.choice(slim_nodes, len(new_nodes), replace=False)
+
+        tables = self.tables
+        tables.nodes.set_columns(
+                flags=self.tables.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE),
+                time=self.tables.nodes.time + time,
+                population=self.tables.nodes.population,
+                individual=self.tables.nodes.individual,
+                metadata=self.tables.nodes.metadata,
+                metadata_offset=self.tables.nodes.metadata_offset,
+                metadata_schema=json.dumps(self.tables.nodes.metadata_schema.schema))
+        tables.mutations.set_columns(
+                site=self.tables.mutations.site,
+                node=self.tables.mutations.node,
+                time=self.tables.mutations.time + time,
+                derived_state=self.tables.mutations.derived_state,
+                derived_state_offset=self.tables.mutations.derived_state_offset,
+                parent=self.tables.mutations.parent,
+                metadata=self.tables.mutations.metadata,
+                metadata_offset=self.tables.mutations.metadata_offset,
+                metadata_schema=json.dumps(self.tables.mutations.metadata_schema.schema))
+
+        tables.union(new_ts.tables, node_map,
+                add_populations=False,
+                check_shared_equality=False)
+
+        return pyslim.SlimTreeSequence(tables.tree_sequence())
+
     def mutation_at(self, node, position, time=None):
         '''
         Finds the mutation present in the genome of ``node`` at ``position``,
