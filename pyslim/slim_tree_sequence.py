@@ -88,7 +88,6 @@ def annotate_defaults_tables(tables, model_type, slim_generation, annotate_mutat
     if annotate_mutations:
         _set_sites_mutations(tables)
 
-
 class MetadataDictWrapper(dict):
     '''
     A simple wrapper around metadata dicts that will throw an informative error
@@ -490,32 +489,54 @@ class SlimTreeSequence(tskit.TreeSequence):
             recap = tables.tree_sequence()
         return SlimTreeSequence(recap, reference_sequence=self.reference_sequence)
 
-    def resume_simulation(self, time, Ne, samples, 
+    def continue_simulation(self, slim_time, Ne, 
+                            samples=None,
                             mutation_rate=None, 
                             recombination_rate=None,
+                            recombination_map=None,
                             **kwargs):
-        """
-        some explanation here
-        This is mostly from 'Following up with more coalescent simulation' example
+        '''
+        Returns a full tree sequence, by continuing the simulation using msprime
+        after a slim simulation has been performed. The msprime simulation and slim
+        simulation are joined using :meth:`tskit.tables.TableCollection.union()`. 
 
-        :param int time: The desired period of time to simulate in msprime,
+        This method executes code from 'Following up with more coalescent simulation'
+
+        Samples defaults to double the given value for ``Ne``. This should only be
+        altered if a different Ne is used than the diploid population at the end
+        of the slim simulation.
+
+        In general, all defaults excepting ``samples`` are whatever the defaults 
+        of ``msprime.simulate`` are; this includes recombination rate, so that if neither 
+        ``recombination_rate`` or a ``recombination_map`` are provided, there will be 
+        *no* recombination.
+
+        However, if ``recombination_rate`` *is* provided, then recapitation will
+        use a constant rate of recombination on a discretized map -- in other words,
+        recombinations in the coalescent portion of the simulation will only occur
+        at integer locations, just as in SLiM. If you do not want this to happen,
+        you need to construct a ``recombination_map`` explicitly.
+
+        :param int slim_time: The desired period of time to simulate in msprime,
             in units of generations
         :param int Ne: The effective population size for :meth:`msprime.simulate`,
             in units of diploid individuals
-        :param int samples: Sample count for msprime.simulate,
+        :param int samples: Sample count for :meth:`msprime.simulate`,
             in units of haploid samples,
-            should be twice Ne used for SLiM simulation
+            should be double Ne used for slim simulation
         :param float mutation_rate: A (constant) mutation rate,
             in units of mutations per nucleotide per unit of time.
         :param float recombination_rate: A (constant) recombination rate,
             in units of crossovers per nucleotide per unit of time.
+        :type recombination_map: :class`msprime.RecombinationMap`
+        :param recombination_map: The recombination map, or None,
+            if recombination_rate is specified.
         :param dict kwargs: Any other arguments to :meth:`msprime.simulate`.
-        """
+        '''
         if "keep_first_generation" in kwargs:
             raise ValueError("The keep_first_generation argument is deprecated:"
                              "the FIRST_GEN flag is no longer used.")
 
-        # toggle for hacks below to deal with old msprime
         discrete_msprime = hasattr(msprime, "RateMap")
 
         if recombination_rate is not None:
@@ -531,17 +552,15 @@ class SlimTreeSequence(tskit.TreeSequence):
         if discrete_msprime and ('discrete_genome' not in kwargs):
             kwargs['discrete_genome'] = True
 
-        if population_configurations is None:
-            population_configurations = [msprime.PopulationConfiguration()
-                                         for _ in range(self.num_populations)] 
+        if samples is None:
+            samples = 2*Ne
+
         new_ts = msprime.simulate(
                             samples,
                             Ne=Ne,
-                            end_time=time,
-                            length=self.sequence_length,
+                            end_time=slim_time,
                             mutation_rate=mutation_rate,
-                            population_configurations = population_configurations,
-                            recombination_map = recombination_map
+                            recombination_map = recombination_map,
                             **kwargs)
 
         new_nodes = np.where(new_ts.tables.nodes.time == slim_time)[0]
@@ -556,6 +575,27 @@ class SlimTreeSequence(tskit.TreeSequence):
         node_map[new_nodes] = np.random.choice(slim_nodes, len(new_nodes), replace=False)
 
         tables = self.tables
+        self.adjust_tables_time(tables, slim_time)
+        tables.union(new_ts.tables, node_map,
+                add_populations=False,
+                check_shared_equality=False)
+
+        return SlimTreeSequence(tables.tree_sequence())
+
+    def adjust_tables_time(self, tables, time):
+        '''
+        Modifies a given :class`tskit.tables.TableCollection` by copying all values
+        from the tree sequence's tables and modifying the time in the time column of
+        the nodes and mutations tables. This method is called by :meth`continue_simulaton`
+        to adjust the tables' time before the union is performed. 
+
+        This method executes code from 'Following up with more coalescent simulation'
+
+        :type tables: :class`tskit.tables.TableCollection`
+        :param tables: TableCollection to modify
+        :param time int: The time to adjust tables by,
+            in units of generations
+        '''
         tables.nodes.set_columns(
                 flags=self.tables.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE),
                 time=self.tables.nodes.time + time,
@@ -574,13 +614,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                 metadata=self.tables.mutations.metadata,
                 metadata_offset=self.tables.mutations.metadata_offset,
                 metadata_schema=json.dumps(self.tables.mutations.metadata_schema.schema))
-
-        tables.union(new_ts.tables, node_map,
-                add_populations=False,
-                check_shared_equality=False)
-
-        return pyslim.SlimTreeSequence(tables.tree_sequence())
-
+        
     def mutation_at(self, node, position, time=None):
         '''
         Finds the mutation present in the genome of ``node`` at ``position``,
