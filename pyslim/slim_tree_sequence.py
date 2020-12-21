@@ -554,11 +554,18 @@ class SlimTreeSequence(tskit.TreeSequence):
         if discrete_msprime and ('discrete_genome' not in kwargs):
             kwargs['discrete_genome'] = True
 
+        slim_indivs = self.individuals_alive_at(0)
+        slim_nodes = []
+        for ind in slim_indivs:
+            slim_nodes.extend(self.individual(ind).nodes)
+        slim_nodes = np.array(slim_nodes)
+    
         if samples is None:
-            samples = len(self.samples())
+            samples=len(slim_nodes)
+        assert(len(slim_nodes) == samples)
 
         if Ne is None:
-            Ne = 1.0
+            Ne=1.0
 
         new_ts = msprime.simulate(
                             samples,
@@ -567,14 +574,8 @@ class SlimTreeSequence(tskit.TreeSequence):
                             mutation_rate=mutation_rate,
                             recombination_map = recombination_map,
                             **kwargs)
-
+        
         new_nodes = np.where(new_ts.tables.nodes.time == slim_time)[0]
-        slim_indivs = self.individuals_alive_at(0)
-        slim_nodes = []
-        for ind in slim_indivs:
-            slim_nodes.extend(self.individual(ind).nodes)
-        slim_nodes = np.array(slim_nodes)
-        assert(len(slim_nodes) == samples)
 
         node_map = np.repeat(tskit.NULL, new_ts.num_nodes)
         node_map[new_nodes] = np.random.choice(slim_nodes, len(new_nodes), replace=False)
