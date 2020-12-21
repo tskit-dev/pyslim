@@ -517,6 +517,9 @@ class SlimTreeSequence(tskit.TreeSequence):
         at integer locations, just as in SLiM. If you do not want this to happen,
         you need to construct a ``recombination_map`` explicitly.
 
+        Note that ``Ne`` defaults to ``1.0``; you probably
+        want to set it explicitly.
+
         :param int slim_time: The desired period of time to simulate in msprime,
             in units of generations
         :param int Ne: The effective population size for :meth:`msprime.simulate`,
@@ -553,6 +556,9 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         if samples is None:
             samples = len(self.samples())
+
+        if Ne is None:
+            Ne = 1.0
 
         new_ts = msprime.simulate(
                             samples,
