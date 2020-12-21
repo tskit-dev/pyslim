@@ -490,7 +490,8 @@ class SlimTreeSequence(tskit.TreeSequence):
             recap = tables.tree_sequence()
         return SlimTreeSequence(recap, reference_sequence=self.reference_sequence)
 
-    def continue_simulation(self, slim_time, Ne, 
+    def continue_simulation(self, slim_time, 
+                            Ne=None, 
                             samples=None,
                             mutation_rate=None, 
                             recombination_rate=None,
@@ -503,9 +504,7 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         This method executes code from 'Following up with more coalescent simulation'
 
-        ``samples`` defaults to double the given value for ``Ne``. This should only be
-        altered if a different Ne is used than the diploid population at the end
-        of the slim simulation.
+        ``samples`` defaults to the number of samples present in the input tree sequence.
 
         In general, all defaults excepting ``samples`` are whatever the defaults 
         of ``msprime.simulate`` are; this includes recombination rate, so that if neither 
@@ -524,7 +523,6 @@ class SlimTreeSequence(tskit.TreeSequence):
             in units of diploid individuals
         :param int samples: Sample count for :meth:`msprime.simulate`,
             in units of haploid samples,
-            should be double Ne used for slim simulation
         :param float mutation_rate: A (constant) mutation rate,
             in units of mutations per nucleotide per unit of time.
         :param float recombination_rate: A (constant) recombination rate,
@@ -554,7 +552,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             kwargs['discrete_genome'] = True
 
         if samples is None:
-            samples = 2*Ne
+            samples = len(self.samples())
 
         new_ts = msprime.simulate(
                             samples,
