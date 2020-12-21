@@ -503,7 +503,7 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         This method executes code from 'Following up with more coalescent simulation'
 
-        Samples defaults to double the given value for ``Ne``. This should only be
+        ``samples`` defaults to double the given value for ``Ne``. This should only be
         altered if a different Ne is used than the diploid population at the end
         of the slim simulation.
 
@@ -585,10 +585,12 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     def adjust_tables_time(self, tables, time):
         '''
-        Modifies a given :class`tskit.tables.TableCollection` by copying all values
+        Modifies a :class`tskit.tables.TableCollection` by copying all values
         from the tree sequence's tables and modifying the time in the time column of
-        the nodes and mutations tables. This method is called by :meth`continue_simulaton`
-        to adjust the tables' time before the union is performed. 
+        the nodes and mutations tables. 
+        
+        This method is called by :meth`continue_simulaton` to adjust the tables' time 
+        before the union is performed. 
 
         This method executes code from 'Following up with more coalescent simulation'
 
