@@ -88,6 +88,7 @@ def annotate_defaults_tables(tables, model_type, slim_generation, annotate_mutat
     if annotate_mutations:
         _set_sites_mutations(tables)
 
+
 class MetadataDictWrapper(dict):
     '''
     A simple wrapper around metadata dicts that will throw an informative error
