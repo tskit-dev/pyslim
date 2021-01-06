@@ -304,8 +304,11 @@ Restating this:
 .. note::
 
    To make an script that relied on previous metadata parsing work,
-   it should suffice to replace ``pyslim.load("file.trees")`` with
-   ``pyslim.load("file.trees", legacy_metadata=True)``.
+   it should suffice to add `legacy_metadata=True` to calls producing
+   SlimTreeSequences, e.g., replacing ``pyslim.load("file.trees")`` with
+   ``pyslim.load("file.trees", legacy_metadata=True)``, and
+   ``ts.simplify(nodes)`` with
+   ``pyslim.SlimTreeSequence(ts.simplify(nodes), legacy_metadata=True)``.
    If this fails, please file an issue on github.
 
 Here are more detailed notes on how to migrate a script from the legacy
