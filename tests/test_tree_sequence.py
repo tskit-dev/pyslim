@@ -105,7 +105,7 @@ class TestMutate(tests.PyslimTestCase):
     # again after msprime.mutate.
 
     def test_mutate(self):
-        for ts in self.get_slim_examples():
+        for ts in self.get_slim_examples(user_metadata=False):
             mts = msprime.mutate(ts, rate=1e-8, random_seed=5)
             pts = pyslim.SlimTreeSequence(mts)
             assert ts.metadata == pts.metadata

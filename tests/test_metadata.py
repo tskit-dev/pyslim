@@ -51,7 +51,7 @@ class TestMetadataSchemas(tests.PyslimTestCase):
     def test_slim_metadata_schema_equality(self):
         for ts in self.get_slim_examples():
             t = ts.tables
-            assert str(t.metadata_schema) == str(pyslim.slim_metadata_schemas['tree_sequence'])
+            assert t.metadata_schema == pyslim.slim_metadata_schemas['tree_sequence']
             assert t.edges.metadata_schema == pyslim.slim_metadata_schemas['edge']
             assert t.sites.metadata_schema == pyslim.slim_metadata_schemas['site']
             assert t.mutations.metadata_schema == pyslim.slim_metadata_schemas['mutation']
@@ -132,12 +132,22 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
 
     def test_recover_metadata(self):
         # msprime <=0.7.5 discards metadata, but we can recover it from provenance
-        for ts in self.get_slim_examples():
+        for ts in self.get_slim_examples(user_metadata=False):
             t = ts.tables
             t.metadata_schema = tskit.MetadataSchema(None)
             t.metadata = b''
             new_ts = pyslim.load_tables(t)
             assert new_ts.metadata == ts.metadata
+
+    def test_user_metadata(self):
+        for ts in self.get_slim_examples(user_metadata=True):
+            md = ts.metadata["SLiM"]
+            print(md)
+            assert "user_metadata" in md
+            assert md['user_metadata'] == {
+                    "hello" : ["world"],
+                    "pi" : [3, 1, 4, 1, 5, 9]
+                    }
 
 
 class TestDumpLoad(tests.PyslimTestCase):
