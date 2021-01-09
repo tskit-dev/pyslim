@@ -39,6 +39,7 @@ example_files['recipe_roots'] = {"WF": True, "pedigree": True}
 example_files['recipe_nonWF_selfing'] = {"nonWF": True, "pedigree": True}
 example_files['recipe_init_mutated_WF'] = {"WF": True, "init_mutated": True}
 example_files['recipe_init_mutated_nonWF'] = {"nonWF": True, "init_mutated": True}
+example_files['recipe_with_metadata'] = {"user_metadata": True}
 for t in ("WF", "nonWF"):
     for s in ("early", "late"):
         value = {t: True, "everyone": True, "pedigree": True}
