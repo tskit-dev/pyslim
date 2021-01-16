@@ -226,7 +226,13 @@ def make_slim_provenance_dict(model_type, slim_generation,
                     "17": {
                         "name" : "SLIM_TSK_INDIVIDUAL_REMEMBERED",
                         "description" : "the individual was requested "
-                              + "by the user to be remembered",
+                              + "by the user to be permanently remembered",
+                          },
+                    "18": {
+                        "name" : "SLIM_TSK_INDIVIDUAL_RETAINED",
+                        "description" : "the individual was requested "
+                              + "by the user to be retained only if its "
+                              + "nodes continue to exist in the tree sequence",
                           },
                 }
             }

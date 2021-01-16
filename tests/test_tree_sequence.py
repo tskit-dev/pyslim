@@ -12,7 +12,7 @@ import pyslim
 
 import tests
 
-from .recipe_specs import basic_recipe_eq
+from .recipe_specs import recipe_eq
 
 class TestSlimTreeSequence(tests.PyslimTestCase):
 
@@ -62,10 +62,10 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
             _ = pyslim.SlimTreeSequence(ts)
 
     # tmp_path is a pytest fixture, and is a pathlib.Path object
-    @pytest.mark.parametrize("basic_recipe", ["recipe_nonWF.slim"], indirect=True)    
-    def test_slim_generation(self, basic_recipe, tmp_path):
+    @pytest.mark.parametrize("recipe", ["recipe_nonWF.slim"], indirect=True)    
+    def test_slim_generation(self, recipe, tmp_path):
         # tests around awkward backwards-compatible patch for setting slim_generation
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         assert ts.slim_generation == ts.metadata['SLiM']['generation']
         new_sg = 12345
         ts.slim_generation = new_sg
@@ -87,9 +87,9 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
 class TestSlimTime(tests.PyslimTestCase):
     # Tests for slim_time()
 
-    def test_slim_time(self, basic_recipe):
-        ts = basic_recipe["ts"]
-        if "init_mutated" not in basic_recipe:
+    def test_slim_time(self, recipe):
+        ts = recipe["ts"]
+        if "init_mutated" not in recipe:
             for mut in ts.mutations():
                 mut_time = max([x['slim_time'] for x in mut.metadata['mutation_list']])
                 assert mut_time == ts.slim_time(mut.time)
@@ -105,12 +105,9 @@ class TestMutate(tests.PyslimTestCase):
     # Tests for making a tree sequence a SlimTreeSequence
     # again after msprime.mutate.
 
-    @pytest.mark.parametrize(
-        'basic_recipe',
-        basic_recipe_eq(exclude_if_has_key="user_metadata"),
-        indirect=True)
-    def test_mutate(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', recipe_eq(exclude="user_metadata"), indirect=True)
+    def test_mutate(self, recipe):
+        ts = recipe["ts"]
         mts = msprime.mutate(ts, rate=1e-8, random_seed=5)
         pts = pyslim.SlimTreeSequence(mts)
         assert ts.metadata == pts.metadata
@@ -131,8 +128,9 @@ class TestRecapitate(tests.PyslimTestCase):
             assert n1.individual >= 0
             i1 = recap.individual(n1.individual)
             remembered = ((pyslim.INDIVIDUAL_REMEMBERED & i1.flags) > 0)
+            retained = ((pyslim.INDIVIDUAL_RETAINED & i1.flags) > 0)
             alive = ((pyslim.INDIVIDUAL_ALIVE & i1.flags) > 0)
-            assert alive or remembered
+            assert alive or remembered or retained
             assert u in ts_samples
             n2 = ts.node(u)
             assert n1.time == n2.time
@@ -147,16 +145,16 @@ class TestRecapitate(tests.PyslimTestCase):
             assert p1.metadata == p2.metadata
 
     # Just test on the first recipe
-    @pytest.mark.parametrize('basic_recipe', [next(basic_recipe_eq())], indirect=True)
-    def test_recapitate_errors(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
+    def test_recapitate_errors(self, recipe):
+        ts = recipe["ts"]
         with pytest.raises(ValueError):
             _ = ts.recapitate(
                         recombination_rate=0.0,
                         keep_first_generation=True)
 
-    def test_recapitation(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    def test_recapitation(self, recipe):
+        ts = recipe["ts"]
         if ts.num_populations <= 2:
             # if not we need migration rates
             recomb_rate = 1.0 / ts.sequence_length
@@ -180,16 +178,16 @@ class TestRecapitate(tests.PyslimTestCase):
 class TestIndividualMetadata(tests.PyslimTestCase):
     # Tests for extra stuff related to Individuals.
 
-    def test_individual_derived_info(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    def test_individual_derived_info(self, recipe):
+        ts = recipe["ts"]
         for ind in ts.individuals():
             for n in ind.nodes:
                 assert ts.node(n).population == ind.population
                 assert ts.node(n).time == ind.time
 
-    def test_individual_embellishments(self, basic_recipe):
+    def test_individual_embellishments(self, recipe):
         # Test the individual additional information.
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         is_wf = (ts.metadata["SLiM"]["model_type"] == "WF")
         for j, ind in enumerate(ts.individuals()):
             assert ts.individual_times[j] == ind.time
@@ -200,9 +198,9 @@ class TestIndividualMetadata(tests.PyslimTestCase):
             assert ts.individual_populations[j] == ind.population
             assert np.array_equal(ts.individual_locations[j], ind.location)
 
-    def test_first_gen_nodes(self, basic_recipe):
+    def test_first_gen_nodes(self, recipe):
         # check that all the roots of the trees are present
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         root_time = ts.slim_generation
         if (ts.metadata['SLiM']['stage'] == 'early'
                 or ts.metadata['SLiM']['model_type'] == 'nonWF'):
@@ -217,12 +215,9 @@ class TestMutationMetadata(tests.PyslimTestCase):
     Tests for extra stuff related to Mutations.
     '''
 
-    @pytest.mark.parametrize(
-        'basic_recipe',
-        basic_recipe_eq(exclude_if_has_key="init_mutated"),
-        indirect=True)
-    def test_slim_time(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', recipe_eq(exclude="init_mutated"), indirect=True)
+    def test_slim_time(self, recipe):
+        ts = recipe["ts"]
         # check that slim_times make sense
         # Mutation's slim_times are one less than the corresponding node's slim times
         # in WF models, but not in WF models, for some reason.
@@ -236,10 +231,9 @@ class TestMutationMetadata(tests.PyslimTestCase):
 class TestIndividualAges(tests.PyslimTestCase):
     # tests for individuals_alive_at and individual_ages_at
 
-    @pytest.mark.parametrize(
-        'basic_recipe', [next(basic_recipe_eq("everyone"))], indirect=True)
-    def test_errors(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', [next(recipe_eq("everyone"))], indirect=True)
+    def test_errors(self, recipe):
+        ts = recipe["ts"]
         for stage in ['abcd', 10, []]:
             with pytest.raises(ValueError):
                 ts.individuals_alive_at(0, stage=stage)
@@ -248,24 +242,20 @@ class TestIndividualAges(tests.PyslimTestCase):
             with pytest.raises(ValueError):
                 ts.individual_ages_at(0, stage=stage)
 
-    @pytest.mark.parametrize(
-        'basic_recipe', [next(basic_recipe_eq("pedigree", "WF"))], indirect=True)
-    def test_mismatched_remembered_stage(self, basic_recipe):
-        ts = basic_recipe["ts"]
-        info = basic_recipe["info"]
-        if "remembered_early" in basic_recipe:
+    @pytest.mark.parametrize('recipe', [next(recipe_eq("pedigree", "WF"))], indirect=True)
+    def test_mismatched_remembered_stage(self, recipe):
+        ts = recipe["ts"]
+        info = recipe["info"]
+        if "remembered_early" in recipe:
             with pytest.warns(UserWarning):
                 ts.individuals_alive_at(0, remembered_stage="late")
         else:
             with pytest.warns(UserWarning):
                 ts.individuals_alive_at(0, remembered_stage="early")
 
-    @pytest.mark.parametrize(
-        'basic_recipe',
-        basic_recipe_eq("multipop", exclude_if_has_key="remembered_early"),
-        indirect=True)
-    def test_population(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', recipe_eq("multipop", exclude="remembered_early"), indirect=True)
+    def test_population(self, recipe):
+        ts = recipe["ts"]
         all_inds = ts.individuals_alive_at(0)
         for p in range(ts.num_populations):
             sub_inds = ts.individuals_alive_at(0, population=p)
@@ -275,12 +265,9 @@ class TestIndividualAges(tests.PyslimTestCase):
         sub_inds = ts.individuals_alive_at(0, population=np.arange(p))
         assert set(sub_inds) == set(all_inds[ts.individual_populations != p])
 
-    @pytest.mark.parametrize(
-        'basic_recipe',
-        basic_recipe_eq("nonWF", exclude_if_has_key="remembered_early"),
-        indirect=True)
-    def test_samples_only(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', recipe_eq("nonWF", exclude="remembered_early"), indirect=True)
+    def test_samples_only(self, recipe):
+        ts = recipe["ts"]
         all_inds = ts.individuals_alive_at(0)
         assert set(all_inds) == set(ts.individuals_alive_at(0, samples_only=False))
         sub_inds = np.random.choice(all_inds, size=min(len(all_inds), 4), replace=False)
@@ -291,12 +278,9 @@ class TestIndividualAges(tests.PyslimTestCase):
         new_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
         assert set(sub_inds) == set(new_ts.individuals_alive_at(0, samples_only=True))
 
-    @pytest.mark.parametrize(
-        'basic_recipe',
-        basic_recipe_eq(exclude_if_has_key="remembered_early"),
-        indirect=True)
-    def test_after_simplify(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', recipe_eq(exclude="remembered_early"), indirect=True)
+    def test_after_simplify(self, recipe):
+        ts = recipe["ts"]
         sts = ts.simplify()
         orig_inds = ts.individuals_alive_at(0)
         simp_inds = sts.individuals_alive_at(0)
@@ -309,11 +293,11 @@ class TestIndividualAges(tests.PyslimTestCase):
             if n.flags & tskit.NODE_IS_SAMPLE:
                 assert slim_id in sdict
 
-    @pytest.mark.parametrize('basic_recipe', basic_recipe_eq("pedigree"), indirect=True)
-    def test_ages(self, basic_recipe):
-        ts = basic_recipe["ts"]
-        info = basic_recipe["info"]
-        remembered_stage = 'early' if 'remembered_early' in basic_recipe else 'late'
+    @pytest.mark.parametrize('recipe', recipe_eq("pedigree"), indirect=True)
+    def test_ages(self, recipe):
+        ts = recipe["ts"]
+        info = recipe["info"]
+        remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
         assert remembered_stage == ts.metadata['SLiM']['stage']
         max_time_ago = ts.slim_generation
         if remembered_stage == 'early':
@@ -340,7 +324,96 @@ class TestIndividualAges(tests.PyslimTestCase):
                             stage=stage,
                             remembered_stage=remembered_stage)
                 for ind in ts.individuals():
-                    if 'everyone' in basic_recipe or ind.time == 0:
+                    if 'everyone' in recipe or ind.time == 0:
+                        slim_id = ind.metadata["pedigree_id"]
+                        assert slim_id in info
+                        slim_alive = (slim_time, stage) in info[slim_id]['age']
+                        pyslim_alive = ind.id in alive
+                        assert slim_alive == pyslim_alive
+                        if slim_alive:
+                            slim_age = info[slim_id]['age'][(slim_time, stage)]
+                            if ts.metadata["SLiM"]["model_type"] == "WF":
+                                # SLiM records -1 but we return 0 in late and 1 in early
+                                slim_age = 0 + (stage == 'early')
+                            assert ages[ind.id] == slim_age
+                        else:
+                            assert np.isnan(ages[ind.id])
+                with pytest.warns(UserWarning):
+                    ts.individuals_alive_at(0, remembered_stage="early")
+
+    
+    @pytest.mark.parametrize('recipe', recipe_eq("multipop", exclude="remembered_early"), indirect=True)
+    def test_population(self, recipe):
+        ts = recipe["ts"]
+        all_inds = ts.individuals_alive_at(0)
+        for p in range(ts.num_populations):
+            sub_inds = ts.individuals_alive_at(0, population=p)
+            assert set(sub_inds) == set(all_inds[ts.individual_populations == p])
+            sub_inds = ts.individuals_alive_at(0, population=[p])
+            assert set(sub_inds) == set(all_inds[ts.individual_populations == p])
+        sub_inds = ts.individuals_alive_at(0, population=np.arange(p))
+        assert set(sub_inds) == set(all_inds[ts.individual_populations != p])
+
+    @pytest.mark.parametrize('recipe', recipe_eq("nonWF", exclude="remembered_early"), indirect=True)
+    def test_samples_only(self, recipe):
+        ts = recipe["ts"]
+        all_inds = ts.individuals_alive_at(0)
+        assert set(all_inds) == set(ts.individuals_alive_at(0, samples_only=False))
+        sub_inds = np.random.choice(all_inds, size=min(len(all_inds), 4), replace=False)
+        flags = np.array([n.flags & (tskit.NODE_IS_SAMPLE * n.individual in sub_inds)
+                          for n in ts.nodes()], dtype=np.uint32)
+        tables = ts.tables
+        tables.nodes.flags = flags
+        new_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
+        assert set(sub_inds) == set(new_ts.individuals_alive_at(0, samples_only=True))
+
+    @pytest.mark.parametrize('recipe', recipe_eq(exclude="remembered_early"), indirect=True)
+    def test_after_simplify(self, recipe):
+        ts = recipe["ts"]
+        sts = ts.simplify()
+        orig_inds = ts.individuals_alive_at(0)
+        simp_inds = sts.individuals_alive_at(0)
+        odict = {ts.individual(i).metadata["pedigree_id"]: i for i in orig_inds}
+        sdict = {sts.individual(i).metadata["pedigree_id"]: i for i in simp_inds}
+        for slim_id in odict:
+            i = odict[slim_id]
+            ind = ts.individual(i)
+            n = ts.node(ind.nodes[0])
+            if n.flags & tskit.NODE_IS_SAMPLE:
+                assert slim_id in sdict
+
+    @pytest.mark.parametrize('recipe', recipe_eq("pedigree"), indirect=True)
+    def test_ages(self, recipe):
+        ts = recipe["ts"]
+        info = recipe["info"]
+        remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
+        assert remembered_stage == ts.metadata['SLiM']['stage']
+        max_time_ago = ts.slim_generation
+        if remembered_stage == 'early':
+            max_time_ago -= 1
+        for time in range(0, max_time_ago):
+            # if written out during 'early' in a WF model,
+            # tskit time 0 will be the SLiM time step *before* slim_generation
+            slim_time = ts.slim_generation - time
+            if remembered_stage == 'early' and ts.metadata["SLiM"]["model_type"] == "WF":
+                slim_time -= 1
+            if remembered_stage == 'early' and time == 0:
+                # if we remember in early we don't know who's still there
+                # in late of the last time step
+                check_stages = ('early',)
+            else:
+                check_stages = ('early', 'late')
+            for stage in check_stages:
+                alive = ts.individuals_alive_at(
+                            time,
+                            stage=stage,
+                            remembered_stage=remembered_stage)
+                ages = ts.individual_ages_at(
+                            time,
+                            stage=stage,
+                            remembered_stage=remembered_stage)
+                for ind in ts.individuals():
+                    if 'everyone' in recipe or ind.time == 0:
                         slim_id = ind.metadata["pedigree_id"]
                         assert slim_id in info
                         slim_alive = (slim_time, stage) in info[slim_id]['age']
@@ -419,11 +492,11 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         first_gen.discard(tskit.NULL)
         return np.array(list(first_gen), dtype='int')
 
-    @pytest.mark.parametrize('basic_recipe', basic_recipe_eq("everyone"), indirect=True)
-    def test_everyone(self, basic_recipe):
+    @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
+    def test_everyone(self, recipe):
         # since everyone is recorded, only the initial individuals should
         # not have parents
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         right_answer = np.repeat(True, ts.num_individuals)
         first_gen = self.get_first_gen(ts)
         right_answer[first_gen] = False
@@ -431,10 +504,10 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_answer, has_parents)
         self.verify_has_parents(ts)
 
-    @pytest.mark.parametrize('basic_recipe', basic_recipe_eq("everyone"), indirect=True)
-    def test_post_recap(self, basic_recipe):
+    @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
+    def test_post_recap(self, recipe):
         # the same should be true after recapitation
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         right_answer = np.repeat(True, ts.num_individuals)
         first_gen = self.get_first_gen(ts)
         right_answer[first_gen] = False
@@ -445,9 +518,9 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_answer, has_parents)
         self.verify_has_parents(ts)
 
-    @pytest.mark.parametrize('basic_recipe', basic_recipe_eq("everyone"), indirect=True)
-    def test_post_simplify(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
+    def test_post_simplify(self, recipe):
+        ts = recipe["ts"]
         keep_indivs = np.random.choice(
                 np.where(ts.individual_times < ts.slim_generation - 1)[0],
                 size=30, replace=False)
@@ -461,46 +534,53 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert sum(has_parents) > 0
         self.verify_has_parents(ts)
 
-    @pytest.mark.parametrize('basic_recipe', basic_recipe_eq("pedigree"), indirect=True)
-    def test_pedigree_has_parents(self, basic_recipe):
-        ts = basic_recipe["ts"]
-        info = basic_recipe["info"]
+    @pytest.mark.parametrize('recipe', recipe_eq("pedigree"), indirect=True)
+    def test_pedigree_parents(self, recipe):
+        # we are only guaranteed to have whole genomes for ALIVE or
+        # REMEMBERED individuals (not RETAINED), and the same for parental
+        # genomes, unless keep_unary is enabled
+        ts = recipe["ts"]
+        info = recipe["info"]
         has_parents = ts.has_individual_parents()
+        parents = ts.individual_parents()
         slim_map = {}
         for ind in ts.individuals():
-            slim_map[ind.metadata["pedigree_id"]] = ind.id
+            all_there = (ind.flags & (pyslim.INDIVIDUAL_ALIVE | pyslim.INDIVIDUAL_REMEMBERED) > 0)
+            slim_map[ind.metadata["pedigree_id"]] = ind.id, all_there
+        ts_to_slim = {sid: [] for sid in slim_map}
+        for (pa, ch) in parents:
+            assert pa >= 0 and pa < ts.num_individuals
+            assert ch >= 0 and pa < ts.num_individuals
+            pa_ind = ts.individual(pa).metadata["pedigree_id"]
+            ch_ind = ts.individual(ch).metadata["pedigree_id"]
+            ts_to_slim[ch_ind].append(pa_ind)
         for hasp, ind in zip(has_parents, ts.individuals()):
-            slim_parents = info[ind.metadata["pedigree_id"]]['parents']
-            slim_hasp = len(slim_parents) > 0
-            for p in slim_parents:
-                if p not in slim_map:
-                    slim_hasp = False
-            assert hasp == slim_hasp
-
-    @pytest.mark.parametrize('basic_recipe', basic_recipe_eq("pedigree"), indirect=True)
-    def test_pedigree_parents(self, basic_recipe):
-            ts = basic_recipe["ts"]
-            info = basic_recipe["info"]
-            has_parents = ts.has_individual_parents()
-            parents = ts.individual_parents()
-            slim_map = {}
-            for ind in ts.individuals():
-                slim_map[ind.metadata["pedigree_id"]] = ind.id
-            ts_to_slim = {sid: [] for sid in slim_map}
-            for (pa, ch) in parents:
-                assert pa >= 0 and pa < ts.num_individuals
-                assert ch >= 0 and pa < ts.num_individuals
-                pa_ind = ts.individual(pa).metadata["pedigree_id"]
-                ch_ind = ts.individual(ch).metadata["pedigree_id"]
-                ts_to_slim[ch_ind].append(pa_ind)
-            for ind in ts.individuals():
-                sid = ind.metadata["pedigree_id"]
-                a = ts_to_slim[sid]
-                b = [x for x in info[sid]["parents"] if x in slim_map]
-                if len(b) == 2:
-                    assert set(a) == set(b)
-                else:
-                    assert a == []
+            all_there = (ind.flags & (pyslim.INDIVIDUAL_ALIVE | pyslim.INDIVIDUAL_REMEMBERED) > 0)
+            if all_there:
+                if len(ind.nodes) != 2:
+                    print("Individual does not have two nodes, who should:")
+                    print(ind)
+                    print(info[sid])
+                assert len(ind.nodes) == 2
+            sid = ind.metadata["pedigree_id"]
+            ts_p = ts_to_slim[sid]
+            assert hasp == (len(ts_p) > 0)
+            # parents, as recorded by SLiM, that we know about:
+            slim_p = [x for x in info[sid]["parents"] if x in slim_map]
+            # parents, as recorded by SLiM, that we know about AND are remembered or alive:
+            # TODO: and also if retained, if we're doing keep_unary
+            definitely_slim_p = [x for x in slim_p if slim_map[x][1]]
+            if len(slim_p) != 2:
+                # if we don't have two slim parents, then we sure shouldn't
+                # have any pyslim parents
+                assert ts_p == []
+            if all_there and len(definitely_slim_p) == 2:
+                # should have parents when individual and both parents are remembered or alive
+                for b in definitely_slim_p:
+                    assert b in ts_p
+            for a in ts_p:
+                # all pyslim parents should be legit
+                assert a in slim_p
 
 
 class TestSimplify(tests.PyslimTestCase):
@@ -508,8 +588,8 @@ class TestSimplify(tests.PyslimTestCase):
     Our simplify() is just a wrapper around the tskit simplify.
     '''
 
-    def test_simplify(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    def test_simplify(self, recipe):
+        ts = recipe["ts"]
         sts = ts.simplify(map_nodes=False)
         assert ts.sequence_length == sts.sequence_length
         assert type(ts) == type(sts)
@@ -525,8 +605,8 @@ class TestReferenceSequence(tests.PyslimTestCase):
     Test for operations involving the reference sequence
     '''
 
-    def test_reference_sequence(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    def test_reference_sequence(self, recipe):
+        ts = recipe["ts"]
         if ts.num_mutations > 0:
             mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md["mutation_list"][0]["nucleotide"] >= 0)
@@ -540,8 +620,8 @@ class TestReferenceSequence(tests.PyslimTestCase):
             sts = ts.simplify(ts.samples()[:2])
             assert sts.reference_sequence == ts.reference_sequence
 
-    def test_mutation_at_errors(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    def test_mutation_at_errors(self, recipe):
+        ts = recipe["ts"]
         u = ts.samples()[0]
         with pytest.raises(ValueError):
             ts.mutation_at(-2, 3)
@@ -552,8 +632,8 @@ class TestReferenceSequence(tests.PyslimTestCase):
         with pytest.raises(ValueError):
             ts.mutation_at(u, ts.sequence_length)
 
-    def test_nucleotide_at_errors(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    def test_nucleotide_at_errors(self, recipe):
+        ts = recipe["ts"]
         u = ts.samples()[0]
         if ts.num_mutations > 0:
             mut_md = ts.mutation(0).metadata
@@ -562,9 +642,9 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 with pytest.raises(ValueError):
                     ts.nucleotide_at(u, 3)
 
-    def test_mutation_at(self, basic_recipe):
+    def test_mutation_at(self, recipe):
         random.seed(42)
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         for _ in range(100):
             node = random.randint(0, ts.num_nodes - 1)
             pos = random.randint(0, ts.sequence_length - 1)
@@ -583,9 +663,9 @@ class TestReferenceSequence(tests.PyslimTestCase):
                         b = mut.id
                 assert a == b
 
-    def test_nucleotide_at(self, basic_recipe):
+    def test_nucleotide_at(self, recipe):
         random.seed(42)
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         if ts.num_mutations > 0:
             mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md["mutation_list"][0]["nucleotide"] >= 0)
@@ -611,8 +691,8 @@ class TestReferenceSequence(tests.PyslimTestCase):
 
 class TestDeprecations(tests.PyslimTestCase):
     # test on one arbitrary recipe
-    @pytest.mark.parametrize('basic_recipe', [next(basic_recipe_eq())], indirect=True)
-    def test_first_gen(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
+    def test_first_gen(self, recipe):
+        ts = recipe["ts"]
         with pytest.warns(FutureWarning):
             _ = ts.first_generation_individuals()

@@ -4,6 +4,12 @@
 Tutorial
 ========
 
+There are several very common uses of tree sequences in SLiM/pyslim. These are covered
+in this tutorial.
+
++++++++++++++++++++++++++++++++++++++++++++++++++
+Recapitation, simplification and neutral mutation
++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Coalescent simulation is more limited in the degree of biological realism
 it can attain, but is much faster than
@@ -215,14 +221,18 @@ Simplification
 Probably, your simulations have produced many more fictitious genomes
 than you will be lucky enough to have in real life,
 so at some point you may want to reduce your dataset to a realistic sample size.
-We can get rid of the extra information using an operation called *simplification*.
-This is depicted in the figure at the right:
-we have only retained information relevant to the genealogies of the remaining samples,
-substantially simplifying the tree sequence.
-(Precisely, simplification retains only nodes of the tree sequence that are
-branching points of some marginal genealogy -- see
-`Kelleher et al 2018 <https://doi.org/10.1371/journal.pcbi.1006581>`_
-for details.)
+We can get rid of unneeded samples and any extra information from them by using
+an operation called *simplification* (this is the same basic approach that SLiM
+implements under the hood when outputting a tree sequence, as described in
+:ref:`the introduction <Left in tree sequence>`).
+
+Depicted in the figure at the right is the result of applying an explicit call to
+``simplify()`` to our example tree sequence. In the call we asked to keep only 4
+genomes (contained in 2 of the individuals in the current generation). This has
+substantially simplified the tree sequence, because only information relevant to the
+genealogies of the 4 sample nodes has been kept. (Precisely, simplification retains only
+nodes of the tree sequence that are branching points of some marginal genealogy -- see
+`Kelleher et al 2018 <https://doi.org/10.1371/journal.pcbi.1006581>`_ for details.)
 While simplification sounds very appealing - it makes things simpler after all -
 it is often not necessary in practice, because tree sequences are very compact,
 and many operations with them are quite fast.
@@ -232,8 +242,8 @@ So, you should probably not make simplification a standard step in your workflow
 only using it if necessary.
 
 It is important that simplification - if it happens at all -
-either (a) comes after recapitation, or
-(b) is done with the ``keep_input_roots=True`` option (see :meth:`tskit.TreeSequence.simplify`).
+either (a) comes after recapitation, or (b) is done with the
+``keep_input_roots=True`` option (see :meth:`tskit.TreeSequence.simplify`).
 This is because simplification removes some of the
 ancestral genomes in the first generation,
 which are necessary for recapitation,
@@ -318,6 +328,53 @@ defined by ``pyslim``. (The conversion does not modify the tree sequence at all,
 it only adds the ``.slim_generation`` attribute.) The output of other ``msprime``
 functions that return tree sequences may be converted back to
 :class:`pyslim.SlimTreeSequence` in the same way.
+
+
+*****************************************************
+What if I'm interested in historical individuals too?
+*****************************************************
+
+As we've seen, the tree sequence retains enough of the nodes (genomes) in the past to
+reconstruct the genetic ancestry of the currently alive individuals. But you might want
+more than that. For example, there may be individuals who are not alive any more, but
+whose complete ancestry you would like to know. Or perhaps you'd like to know how the
+final generation relates to particular individuals in the past. Or it may be that you
+want to access the spatial location of historical genomes (which, for technical reasons
+is linked to individuals, not to genomes). The solution is to *remember* an individual
+during the simulation, using the SLiM function ``treeSeqRememberIndividuals()``. 
+
+.. _sec_remembering_individuals:
+
+By default, individuals included in the tree sequence by a call to
+``treeSeqRememberIndividuals()`` are *permanently* remembered, by marking their nodes as
+actual samples: the simulated equivalent of ancient DNA dug out of permafrost, or stored
+in an old collecting tube. This means any tree sequence subsequently recorded will always
+contain this individual, its nodes (now marked as samples), and its full ancestry. 
+
+.. _sec_retaining_individuals:
+
+Alternatively, you may want to avoid treating historical individuals and their genomes as
+actual samples, but simply *retain* them as long as they are relevant to the genetic
+ancestry of the sample nodes. You can do this by using
+``treeSeqRememberIndividuals(..., permanent=F)``. In this case, the individual's nodes
+are not marked as samples, and are therefore subject to the normal removal rules. If only
+one is removed, you may, unusually, end up with a individual containing only one genome.
+However, as soon as both nodes of a retained individual have been lost, the individual
+itself is deleted too.
+
+These following diagram adds these two possibilities to the example above, with a
+reminder of the terminology we have now introduced.
+
+.. figure:: _static/pedigree3.png
+   :scale: 40%
+
+Note that if you are willing to sacrifice enough computer memory, you can call
+``treeSeqRememberIndividuals(sim.individuals, ...)`` on every generation, which will
+remember *everyone* in the population, over all time. This reduces some of the
+efficiencies provided by tree sequence recording, and is not needed to reconstruct the
+history of the genomes in the final generation, but can (surprisingly) be possible even
+with medium-sized simulations. **Any stuff to add here about ``retainCoalescentOnly``,
+or whatever we are calling it**?
 
 
 .. _sec_extracting_individuals:
@@ -471,18 +528,21 @@ all individuals would have sex equal to :data:`.INDIVIDUAL_TYPE_HERMAPHRODITE`
 
 The "flags" object also tells us the reasons that each individual
 was retained in the tree sequence: whether they were Remembered,
-or whether they were alive at the
-end of the simulation. (Note these are not mutually exclusive.)
+Retained, or whether they were alive at the
+end of the simulation (note these are not mutually exclusive).
 To count these up, we could do this (even though this simulation had
 no remembered individuals):
 
 .. code-block:: python
 
    indiv_types = {"remembered" : 0,
+                  "retained" : 0,
                   "alive" : 0}
    for ind in ts.individuals():
       if ind.flags & pyslim.INDIVIDUAL_REMEMBERED:
          indiv_types['remembered'] += 1
+      if ind.flags & pyslim.INDIVIDUAL_RETAINED:
+         indiv_types['retained'] += 1
       if ind.flags & pyslim.INDIVIDUAL_ALIVE:
          indiv_types['alive'] += 1
 
@@ -490,6 +550,7 @@ no remembered individuals):
       print(f"Number of individuals that are {k}: {indiv_types[k]}")
 
    # Number of individuals that are remembered: 0
+   # Number of individuals that are retained: 0
    # Number of individuals that are alive: 2012
 
 
@@ -939,10 +1000,17 @@ Also known as "gotchas".
 
 2. Make sure to distinguish *individuals* and *nodes*!
    ``tskit`` "nodes" correspond to SLiM "genomes".
-   Individuals in SLiM are diploid, so each has two nodes.
+   Individuals in SLiM are diploid, so normally, each has two nodes (but retained
+   individuals may have nodes removed by simplification: see below).
 
-3. Since in SLiM, all individual are diploid, every individual will be associated with two nodes.
-   As described above, the Individual table contains entries for 
+3. As described above, the Individual table contains entries for 
 
    a. the currently alive individuals, 
-   b. any individuals that have been remembered with ``treeSeqRememberIndividuals()``, and
+   b. any individuals that have been permanently remembered with
+      ``treeSeqRememberIndividuals()``
+   c. any individuals that have been temporarily retained with
+      ``treeSeqRememberIndividuals(permanent=F)``. Importantly, the nodes in these
+      individuals are *not* marked as sample nodes, so they can be lost during
+      simplification. This means that a retained individual may only have one node (but
+      if both nodes are lost due to simplification, the individual is removed too, and
+      will not appear in the Individual table).

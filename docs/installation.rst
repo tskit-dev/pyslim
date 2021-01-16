@@ -4,7 +4,7 @@
 Installation
 ============
 
-Tszip can be installed using the standard `pip <https://pypi.org/project/pip/>`_ distribution method::
+Pyslim can be installed using the standard `pip <https://pypi.org/project/pip/>`_ distribution method::
 
 
     $ python3 -m pip install pyslim

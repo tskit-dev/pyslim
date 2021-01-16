@@ -1,0 +1,65 @@
+initialize()
+{
+    setSeed(23);
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+    if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
+    initializeSLiMOptions(keepPedigrees=T, dimensionality="xy");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+    defineConstant("K", 10);
+}
+
+1 early() {
+    sim.addSubpop("p1", 10);
+    for (ind in p1.individuals) {
+        ind.setSpatialPosition(p1.pointUniform());
+    }
+    // it will help to record the first-gen ones that die as well
+    sim.treeSeqRememberIndividuals(p1.individuals, permanent=F);
+}
+
+late() {
+    sim.treeSeqRememberIndividuals(p1.individuals, permanent=F);
+}
+
+10 late() {
+    sim.treeSeqOutput(TREES_FILE);
+    catn("Done.");
+    sim.simulationFinished();
+}
+
+// PEDIGREE OUTPUT
+1 early() {
+    writeFile(PEDIGREE_FILE,
+       paste(c("generation", "stage", "individual", "age", "parent1", "parent2"),
+             sep="\t"));
+}
+
+1: early() {
+    for (pop in sim.subpopulations) {
+        for (ind in pop.individuals) {
+            age = sim.modelType == "nonWF" ? ind.age else -1;
+            writeFile(PEDIGREE_FILE,
+             paste(c(sim.generation, 'early', ind.pedigreeID, age, ind.pedigreeParentIDs),
+                   sep='\t'),
+             append=T);
+        }
+    }
+}
+
+1: late() {
+    for (pop in sim.subpopulations) {
+        for (ind in pop.individuals) {
+            age = sim.modelType == "nonWF" ? ind.age else -1;
+            writeFile(PEDIGREE_FILE,
+             paste(c(sim.generation, 'late', ind.pedigreeID, age, ind.pedigreeParentIDs),
+                   sep='\t'),
+             append=T);
+        }
+    }
+}
+

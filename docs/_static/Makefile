@@ -34,7 +34,7 @@ pedigree3.svg : pedigrees.ink.svg
 pedigree_recapitate.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
 		ts_indivs simp_indivs pedigree simp_pedigree chromosomes simplify_removes \
-		recap_pedigree extra_chromosomes tskit_time recap_label recap \
+		recap_pedigree tskit_time recap_label recap \
 		> $@
 
 pedigree_simplify.svg : pedigrees.ink.svg
@@ -57,4 +57,4 @@ pedigree_mutate.svg : pedigrees.ink.svg
 	inkscape $<  --export-type="png" --export-dpi=300
 
 clean :
-	-rm pedigree*.png
+	-rm pedigree*.png $(filter-out pedigrees.ink.svg,$(wildcard *.svg))

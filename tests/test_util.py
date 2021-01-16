@@ -1,16 +1,12 @@
 """
 Test cases for utility functions.
 """
-from __future__ import print_function
-from __future__ import division
-
 import tests
-import unittest
 import numpy as np
 
 import pyslim
 
-class TestUniqueLabelsByGroup(unittest.TestCase):
+class TestUniqueLabelsByGroup():
 
     def verify_unique_labels_by_group(self, group, label, minlength):
         x = pyslim.util.unique_labels_by_group(group, label, minlength)

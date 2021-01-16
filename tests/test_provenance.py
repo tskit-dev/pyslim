@@ -12,7 +12,7 @@ import msprime
 import pyslim
 
 import tests
-from .recipe_specs import basic_recipe_specs, basic_recipe_eq
+from .recipe_specs import recipe_specs, recipe_eq
 
 # *Note:* it is now deprecated to extract information from provenance,
 # but we still need to do it, to be able to load old file versions.
@@ -126,57 +126,57 @@ class TestProvenance(tests.PyslimTestCase):
     
     def get_0_1_slim_examples(self):
         for filename in [
-            os.path.join(self.script_dir, 'examples', 'recipe_WF.v3.0.trees'),
-            os.path.join(self.script_dir, 'examples', 'recipe_nonWF.v3.0.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.0.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.0.trees'),
         ]:
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
     def get_0_2_slim_examples(self):
         for filename in [
-            os.path.join(self.script_dir, 'examples', 'recipe_WF.v3.2.trees'),
-            os.path.join(self.script_dir, 'examples', 'recipe_nonWF.v3.2.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.2.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.2.trees'),
         ]:
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
     def get_0_3_slim_examples(self):
         for filename in [
-            os.path.join(self.script_dir, 'examples', 'recipe_WF.v3.3.1.trees'),
-            os.path.join(self.script_dir, 'examples', 'recipe_nonWF.v3.3.1.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.3.1.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.3.1.trees'),
         ]:
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
     def get_0_4_slim_examples(self):
         for filename in [
-            os.path.join(self.script_dir, 'examples', 'recipe_WF.v3.4.trees'),
-            os.path.join(self.script_dir, 'examples', 'recipe_nonWF.v3.4.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.4.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.4.trees'),
         ]:
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
-    @pytest.mark.parametrize("basic_recipe", basic_recipe_eq("WF"), indirect=True)    
-    def test_get_WF_provenance(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize("recipe", recipe_eq("WF"), indirect=True)    
+    def test_get_WF_provenance(self, recipe):
+        ts = recipe["ts"]
         with pytest.warns(Warning):
             prov = ts.slim_provenance
         assert prov.model_type == "WF"
         assert prov == pyslim.get_provenance(ts)
         assert prov == pyslim.get_provenance(ts.tables)
 
-    @pytest.mark.parametrize("basic_recipe", basic_recipe_eq("nonWF"), indirect=True)    
-    def test_get_nonWF_provenance(self, basic_recipe):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize("recipe", recipe_eq("nonWF"), indirect=True)    
+    def test_get_nonWF_provenance(self, recipe):
+        ts = recipe["ts"]
         with pytest.warns(Warning):
             prov = ts.slim_provenance
         assert prov.model_type == "nonWF"
         assert prov == pyslim.get_provenance(ts)
         assert prov == pyslim.get_provenance(ts.tables)
 
-    @pytest.mark.parametrize("basic_recipe", basic_recipe_eq("WF"), indirect=True)    
-    def test_get_all_provenances(self, basic_recipe, helper_functions, tmp_path):
-        ts = basic_recipe["ts"]
+    @pytest.mark.parametrize("recipe", recipe_eq("WF"), indirect=True)    
+    def test_get_all_provenances(self, recipe, helper_functions, tmp_path):
+        ts = recipe["ts"]
         rts = helper_functions.run_msprime_restart(ts, tmp_path, WF=True)
         provenances = rts.slim_provenances
         assert len(provenances) == 2

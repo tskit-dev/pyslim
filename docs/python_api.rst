@@ -62,6 +62,10 @@ And, these are used in the `Individual.flags`:
 
    This flag is used by SLiM to record information in the :class:`tskit.Individual` metadata.
 
+.. data:: INDIVIDUAL_RETAINED == 2**18
+
+   This flag is used by SLiM to record information in the :class:`tskit.Individual` metadata.
+
 
 ********
 Metadata
