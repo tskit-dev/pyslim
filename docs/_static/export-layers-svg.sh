@@ -19,12 +19,11 @@ NOLAYERS=$(comm -1 -3 <(echo $YESLAYERS|tr ' ' '\n'|sort) <(echo $ALLLAYERS|tr '
 
 for layer in $NOLAYERS
 do
-    echo $layer
     id=$(xmlstarlet sel -t -m "//*[@inkscape:label=\"$layer\"]" -v "@id" $TMPFILE)
     xmlstarlet ed -S -L -d "//*[@id=\"$id\"]" $TMPFILE
 done
 
 # --export-area-drawing will crop to visible
-inkscape --without-gui --export-area-drawing --export-pdf=/dev/stdout $TMPFILE
+inkscape --export-area-drawing --export-type="svg" --export-filename=- $TMPFILE
 
 [ -f $TMPFILE ] && rm $TMPFILE
