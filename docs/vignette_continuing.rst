@@ -87,17 +87,36 @@ b. randomly match the initial ancestors in the msprime simulation
 c. merge the two together, using the :meth:`tskit.TreeSequence.union` method.
 
 
-*(a)* Simulating for a given period of time in msprime just requires the ``end_time`` argument
-(remembering that this is *time ago*).
-We'll continue the simulation for another 1000 generations.
+*(a)* Simulating for a given period of time in msprime requires the ``end_time`` argument
+(remembering that this is *time ago*);
+we'll do this to simulate an additional 1000 generations.
+
+This is almost what we need, but there is one more detail:
+if complete coalescence occurs on any region of the genome,
+msprime will stop simulating the history of that region.
+This is a problem, since we need all lineages to extend back to ``end_time``
+To make sure all lineages trace back to ``end_time``,
+we'll add one "fake" sample from a separate population, that *can't* coalesce with the rest,
+then remove it before the next step, using the ``keep_input_roots=True`` argument to ``simplify()``.
+
 
 .. code-block:: python
 
    new_time = 1000
-   new_ts = msprime.simulate(20000, Ne=10000, end_time=new_time,
+   popcons = [msprime.PopulationConfiguration(
+                        sample_size=20000, initial_size=10000),
+              msprime.PopulationConfiguration(
+                        sample_size=1, initial_size=1)]
+   new_ts = msprime.simulate(population_configurations=popcons,
+                  end_time=new_time,
                   length=rts.sequence_length,
                   mutation_rate=1e-8, recombination_rate=1e-8,
                   random_seed=9)
+   new_tables = new_ts.tables
+   # check that the spurious sample is number 20000
+   assert 20000 in new_ts.samples()
+   assert new_ts.node(20000).population == 1
+   new_tables.simplify(samples=np.arange(20000), keep_input_roots=True)
 
 *(b)* Now we'll pull out the IDs of the nodes from 1000 generations ago,
 shift the times in the SLiM tree sequence back 1000 generations,
@@ -106,7 +125,7 @@ and merge them.
 
 .. code-block:: python
 
-   new_nodes = np.where(new_ts.tables.nodes.time == new_time)[0]
+   new_nodes = np.where(new_tables.nodes.time == new_time)[0]
    print(f"There are {len(new_nodes)} nodes from the start of the new simulation.")
    # There are 4425 nodes from the start of the new simulation.
 
@@ -120,35 +139,19 @@ and merge them.
    assert(len(slim_nodes) == 20000)
 
    # randomly give new_nodes IDs in rts
-   node_map = np.repeat(tskit.NULL, new_ts.num_nodes)
+   node_map = np.repeat(tskit.NULL, new_tables.nodes.num_rows)
    node_map[new_nodes] = np.random.choice(slim_nodes, len(new_nodes), replace=False)
 
    # shift times: in nodes and mutations
    # since tree sequences are not mutable, we do this in the tables directly
    # also, unmark the nodes at the end of the SLiM simulation as samples
-   import json
    tables = rts.tables
-   tables.nodes.set_columns(
-      flags=rts.tables.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE),
-      time=rts.tables.nodes.time + 1000,
-      population=rts.tables.nodes.population,
-      individual=rts.tables.nodes.individual,
-      metadata=rts.tables.nodes.metadata,
-      metadata_offset=rts.tables.nodes.metadata_offset,
-      metadata_schema=json.dumps(rts.tables.nodes.metadata_schema.schema))
-   tables.mutations.set_columns(
-      site=rts.tables.mutations.site,
-      node=rts.tables.mutations.node,
-      time=rts.tables.mutations.time + 1000,
-      derived_state=rts.tables.mutations.derived_state,
-      derived_state_offset=rts.tables.mutations.derived_state_offset,
-      parent=rts.tables.mutations.parent,
-      metadata=rts.tables.mutations.metadata,
-      metadata_offset=rts.tables.mutations.metadata_offset,
-      metadata_schema=json.dumps(rts.tables.mutations.metadata_schema.schema))
+   tables.nodes.flags = tables.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE)
+   tables.nodes.time = tables.nodes.time + new_time
+   tables.mutations.time = tables.mutations.time + new_time
 
    # merge the two sets of tables
-   tables.union(new_ts.tables, node_map,
+   tables.union(new_tables, node_map,
                 add_populations=False,
                 check_shared_equality=False)
 
@@ -168,7 +171,7 @@ Now, things have drifted:
    There are 328814 segregating sites, of which 4312 are at frequency above 25%,
    and 20912 are above 5%.
 
-Let's do a sanity check:
+Let's do a consistency check:
 
 .. code-block:: python
 
