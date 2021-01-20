@@ -48,14 +48,15 @@ Running this code, we get
 
 .. code-block:: none
 
-   The tree sequence has 23908 trees on a genome of length 100000000.0,
-   1547 individuals, 3094 'sample' genomes, and 0 mutations.
+   The tree sequence has 37095 trees on a genome of length 100000000.0,
+   2712 individuals, 5424 'sample' genomes, and 0 mutations.
+
 
 It makes sense we have no mutations: we haven't added any yet.
-The tree sequence is recording the relationship between 3,094 genomes (the "samples"),
-which requires 23,908 distinct trees along the genome.
+The tree sequence is recording the relationship between 5,424 genomes (the "samples"),
+which requires 37,095 distinct trees along the genome.
 Individuals are diploid, which explains why the number of individuals
-is equal to twice the number of samples.
+is equal to half the number of samples.
 Let's have a look at how old those individuals are,
 by tabulating when they were born:
 
@@ -68,38 +69,39 @@ This gets us
 
 .. code-block:: none
 
-   There are 383 individuals from time 0.0.
-   There are 190 individuals from time 1.0.
-   There are 88 individuals from time 2.0.
-   There are 41 individuals from time 3.0.
-   There are 24 individuals from time 4.0.
-   There are 17 individuals from time 5.0.
-   There are 3 individuals from time 6.0.
-   There are 3 individuals from time 7.0.
-   There are 1 individuals from time 8.0.
-   There are 1 individuals from time 10.0.
-   There are 389 individuals from time 1000.0.
-   There are 200 individuals from time 1001.0.
-   There are 99 individuals from time 1002.0.
-   There are 48 individuals from time 1003.0.
-   There are 30 individuals from time 1004.0.
-   There are 19 individuals from time 1005.0.
-   There are 6 individuals from time 1006.0.
-   There are 2 individuals from time 1007.0.
-   There are 2 individuals from time 1008.0.
-   There are 1 individuals from time 1017.0.
+    There are 687 individuals from time 0.0.
+    There are 343 individuals from time 1.0.
+    There are 167 individuals from time 2.0.
+    There are 94 individuals from time 3.0.
+    There are 44 individuals from time 4.0.
+    There are 27 individuals from time 5.0.
+    There are 9 individuals from time 6.0.
+    There are 4 individuals from time 7.0.
+    There are 1 individuals from time 8.0.
+    There are 2 individuals from time 9.0.
+    There are 668 individuals from time 1000.0.
+    There are 334 individuals from time 1001.0.
+    There are 165 individuals from time 1002.0.
+    There are 84 individuals from time 1003.0.
+    There are 51 individuals from time 1004.0.
+    There are 10 individuals from time 1005.0.
+    There are 11 individuals from time 1006.0.
+    There are 6 individuals from time 1007.0.
+    There are 2 individuals from time 1008.0.
+    There are 1 individuals from time 1009.0.
+    There are 2 individuals from time 1010.0.
 
 
 These "times" record the birth times of each individual.
 These are *tskit* times, which are in units of "time ago",
-so for instance, there are 190 individuals born one time unit before the end of the simulation
-and 88 born two time units before the end of the simulation.
+so for instance, there are 343 individuals born one time unit before the end of the simulation
+and 167 born two time units before the end of the simulation.
 (This confusing choice of units is because tskit was developed for msprime, a coalescent simulator.)
 This also tells us that there's a bunch of individuals born around 1000 time steps ago,
 when we asked SLiM to Remember everyone alive at the time,
 and some more in the past few time steps, i.e., the present.
 This is a non-Wright-Fisher simulation,
-and so individuals may live for more than one time step (even up to age 17, it seems).
+and so individuals may live for more than one time step (even up to age 10, it seems).
 Let's check that all these individuals are alive at either (a) today or (b) 1000 time steps ago.
 
 .. code-block:: python
@@ -113,10 +115,10 @@ This tells us that
 
 .. code-block:: none
 
-   There were 751 individuals alive 0 time steps in the past.
-   There were 796 individuals alive 1000 time steps in the past.
+    There were 1378 individuals alive 0 time steps in the past.
+    There were 1334 individuals alive 1000 time steps in the past.
 
-And, 751 + 796 is 1547, the total number of individuals.
+And, 1378 + 1334 is 2712, the total number of individuals.
 So, this all checks out.
 
 
@@ -138,7 +140,7 @@ In fact, *no* segments of the genome have coalesced:
    >> sum([t.num_roots == 1 for t in slim_ts.trees()])
    0
    >>> sum([t.num_roots > 0 for t in slim_ts.trees()])
-   23908
+   37095
 
 Next, we will:
 
@@ -175,7 +177,7 @@ resulting in
 
 .. code-block:: none
 
-   The tree sequence now has 29379 trees, and 55993 mutations.
+    The tree sequence now has 45160 trees, and 93280 mutations.
 
 .. note::
 
@@ -197,11 +199,11 @@ Take a sample of individuals
 Now it's time to compute some things.
 In real life we don't get to work with *everyone* usually,
 so we'll take a subset of individuals.
-The range we have simulated has width and height 25 units,
+The range we have simulated has width and height 35 units,
 with a population density of around 1 per unit area.
 We'll get genomes to work with by pulling out
 
-1. All the modern individuals in the five squares of width 3 in the corners of the range
+1. All the modern individuals in the five squares of width 5 in the corners of the range
    and the center, and
 2. Five individuals sampled randomly from everyone alive 1000 time steps ago.
 
@@ -213,8 +215,8 @@ We'll get genomes to work with by pulling out
    alive = ts.individuals_alive_at(0)
    locs = ts.individual_locations[alive, :]
 
-   W = 25
-   w = 3
+   W = 35
+   w = 5
    groups = {
       'topleft' : alive[np.logical_and(locs[:, 0] < w, locs[:, 1] < w)],
       'topright' : alive[np.logical_and(locs[:, 0] < w, locs[:, 1] > W - w)],
@@ -233,19 +235,19 @@ We'll get genomes to work with by pulling out
 
 .. code-block:: none
 
-   We have 12 individuals in the topleft group.
-   We have 14 individuals in the topright group.
-   We have 15 individuals in the bottomleft group.
-   We have 15 individuals in the bottomright group.
-   We have 5 individuals in the center group.
-   We have 5 individuals in the ancient group.
+    We have 36 individuals in the topleft group.
+    We have 34 individuals in the topright group.
+    We have 30 individuals in the bottomleft group.
+    We have 29 individuals in the bottomright group.
+    We have 24 individuals in the center group.
+    We have 5 individuals in the ancient group.
 
 To keep names associated with each subset of individuals,
 we've kept the individuals in a dict, so that for instance
 ``groups["topleft"]`` is an array of all the individual IDs that are in the top left corner.
 The IDs of the ancient individuals we will work with are kept in the array ``ancient``.
 
-Let's do a quick sanity check, that everyone in ``ancient`` was actually born around 1000 time steps ago:
+Let's do a quick consistency check, that everyone in ``ancient`` was actually born around 1000 time steps ago:
 
 .. code-block:: python
 
@@ -273,17 +275,17 @@ by indexing the rows of the individual location array:
 .. code-block:: none
 
    >>> ts.individual_locations
-   array([[ 6.72073019, 12.46786203,  0.        ],
-          [22.05001957,  4.56404005,  0.        ],
-          [24.5604073 ,  0.98884149,  0.        ],
-          ...,
-          [ 4.83666331,  9.70190874,  0.        ],
-          [15.22838762,  4.74636416,  0.        ],
-          [ 4.94981476, 14.35774083,  0.        ]])
+    array([[12.95327106, 10.6956274 ,  0.        ],
+           [10.45240784, 34.81249943,  0.        ],
+           [26.2278031 , 23.20632444,  0.        ],
+           ...,
+           [30.21201837, 20.9920904 ,  0.        ],
+           [ 1.38658573, 17.6933384 ,  0.        ],
+           [ 5.42651858, 12.30457856,  0.        ]])
    >>> ts.individual_locations.shape
-   (1547, 3)
+   (2712, 3)
    >>> ts.individual_locations[groups["topleft"], :].shape
-   (12, 3)
+   (9, 3)
 
 
 Using this, we can easily plot the locations of all the individuals from today
@@ -343,21 +345,21 @@ For instance, here's what we have for the five "ancient" individuals:
    >>> for i in groups['ancient']:
    ...   print(ts.individual(i))
    ... 
-   {'id': 1346, 'flags': 131072, 'location': array([20.90314355,  3.20240965,  0.        ]),
-    'nodes': array([1190, 1191], dtype=int32), 'population': 1, 'time': 1000.0,
-    'metadata': {pedigree_id": 814660, age": 0, population": 1, sex": -1, flags": 0}}
-   {'id': 1493, 'flags': 131072, 'location': array([12.26740846,  1.07346219,  0.        ]),
-    'nodes': array([1484, 1485], dtype=int32), 'population': 1, 'time': 1000.0,
-    'metadata': {"pedigree_id": 814951, "age": 0, "population": 1, "sex": -1, "flags": 0)}
-   {'id': 791, 'flags': 131072, 'location': array([12.46965163, 24.09913306,  0.        ]),
-    'nodes': array([80, 81], dtype=int32), 'population': 1, 'time': 1004.0,
-     'metadata': {"pedigree_id": 811245, "age": 4, "population": 1, "sex": -1, "flags": 0)}
-   {'id': 1239, 'flags': 131072, 'location': array([ 2.86034925, 23.946206  ,  0.        ]),
-    'nodes': array([976, 977], dtype=int32), 'population': 1, 'time': 1000.0,
-    'metadata': {"pedigree_id": 814407, "age": 0, "population": 1, "sex": -1, "flags": 0)}
-   {'id': 782, 'flags': 131072, 'location': array([4.39645586, 9.4739672 , 0.        ]),
-    'nodes': array([62, 63], dtype=int32), 'population': 1, 'time': 1004.0,
-    'metadata': {"pedigree_id": 811055, "age": 4, "population": 1, "sex": -1, "flags": 0)}
+   {'id': 1427, 'flags': 131072, 'location': array([24.6693165,  0.4198795,  0.       ]),
+    'nodes': array([98, 99], dtype=int32), 'population': 1, 'time': 1004.0,
+    'metadata': {'pedigree_id': 1299347, 'age': 4, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
+   {'id': 1837, 'flags': 131072, 'location': array([21.3849923 , 12.74527713,  0.        ]),
+    'nodes': array([918, 919], dtype=int32), 'population': 1, 'time': 1001.0,
+    'metadata': {'pedigree_id': 1303415, 'age': 1, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
+   {'id': 2594, 'flags': 131072, 'location': array([13.17510948, 27.74727477,  0.        ]),
+    'nodes': array([2432, 2433], dtype=int32), 'population': 1, 'time': 1000.0,
+    'metadata': {'pedigree_id': 1305382, 'age': 0, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
+   {'id': 2414, 'flags': 131072, 'location': array([17.50087554, 19.63608325,  0.        ]),
+    'nodes': array([2072, 2073], dtype=int32), 'population': 1, 'time': 1000.0,
+    'metadata': {'pedigree_id': 1305045, 'age': 0, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
+   {'id': 1911, 'flags': 131072, 'location': array([9.6343188 , 6.82903893, 0.        ]),
+    'nodes': array([1066, 1067], dtype=int32), 'population': 1, 'time': 1001.0,
+    'metadata': {'pedigree_id': 1303711, 'age': 1, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
 
 Notice that among other things, each individual carries around a list of their node IDs,
 i.e., their genomes.
@@ -374,16 +376,16 @@ we'll have to do some extra work to make sure we keep track of order.
       for ind in groups[k]:
          sampled_nodes[j].extend(ts.individual(ind).nodes)
 
-Let's do a sanity check: the number of nodes in each element of this list
+Let's do a consistency check: the number of nodes in each element of this list
 should be twice the number of individuals in the corresponding list.
 
 .. code-block:: none
 
    >>> [len(groups[k]) for k in groups]
-   [12, 14, 15, 15, 5, 5]
+   [9, 12, 13, 10, 6, 5]
 
    >>> [len(u) for u in sampled_nodes]
-   [24, 28, 30, 30, 10, 10]
+   [18, 24, 26, 20, 12, 10]
    
 So, in the 'topleft' corner there are 12 diploids. That checks out.   
 
@@ -403,12 +405,12 @@ This is done using the :meth:`ts.divergence <tskit.TreeSequence.divergence>` met
 
 .. code-block:: none
 
-   topleft:	3.66e-05	3.78e-05	3.87e-05	3.79e-05	3.80e-05	4.71e-05
-   topright:	3.78e-05	3.68e-05	3.87e-05	3.79e-05	3.79e-05	4.72e-05
-   bottomleft:	3.87e-05	3.87e-05	3.69e-05	3.81e-05	3.84e-05	4.75e-05
-   bottomright:	3.79e-05	3.79e-05	3.81e-05	3.67e-05	3.77e-05	4.71e-05
-   center:	3.80e-05	3.79e-05	3.84e-05	3.77e-05	3.80e-05	4.69e-05
-   ancient:	4.71e-05	4.72e-05	4.75e-05	4.71e-05	4.69e-05	3.67e-05
+    topleft:     3.69e-05    5.58e-05    5.57e-05    6.03e-05    5.56e-05    5.9e-05
+    topright:    5.58e-05    3.86e-05    5.83e-05    5.83e-05    5.55e-05    6.06e-05
+    bottomleft:  5.57e-05    5.83e-05    4.5e-05     5.79e-05    5.63e-05    6.02e-05
+    bottomright: 6.03e-05    5.83e-05    5.79e-05    3.18e-05    5.6e-05     6.14e-05
+    center:      5.56e-05    5.55e-05    5.63e-05    5.6e-05     4.73e-05    6.09e-05
+    ancient:     5.9e-05     6.06e-05    6.02e-05    6.14e-05    6.09e-05    4.56e-05
 
 
 That's nice, but to look at isolation by distance,
@@ -421,13 +423,15 @@ and to keep track of which group each one belongs to.
 
    ind_nodes = []
    ind_group = []
+   ind_ids = []
    for j, group in enumerate(group_order):
       for ind in groups[group]:
+         ind_ids.append(ind)
          ind_nodes.append(ts.individual(ind).nodes)
          ind_group.append(group_order[j])
 
-   nind = len(ind_nodes)
-   pairs = [(i, j) for i in range(nind) for j in range(nind) if i <= j]
+   nind = len(ind_ids)
+   pairs = [(i, j) for i in range(nind) for j in range(i, nind)]
    ind_div = ts.divergence(ind_nodes, indexes=pairs)
 
 Here we've only computed divergences in the *upper triangle* of the pairwise divergence matrix,
@@ -439,7 +443,7 @@ We'll also need pairwise geographic distances:
    geog_dist = np.repeat(0.0, len(pairs))
    locs = ts.individual_locations
    for k, (i, j) in enumerate(pairs):
-      geog_dist[k] = np.sqrt(np.sum((locs[i, :] - locs[j, :])**2))
+      geog_dist[k] = np.sqrt(np.sum((locs[ind_ids[i], :] - locs[ind_ids[j], :])**2))
 
 Let's check that makes sense: distances of individuals from themselves should be zero.
 
@@ -475,9 +479,9 @@ Now let's plot genetic distance against geographic distance.
 
 Since we multiplied ``ind_div`` by 1,000,
 the units of genetic distance are in mean number of nucleotide differences per kilobase.
-There is *not* strong IBD in this noisy and relatively small simulation,
-but notice that the "ancient" samples are more deeply diverged from modern samples (in yellow)
-than most modern ones are from each other.
+It is clear that closer samples are more closely related,
+and the distinct clusters corresponding to the five sampled boxes are visible.
+Furthermore, ancient samples are generally more distantly diverged.
 
 
 
