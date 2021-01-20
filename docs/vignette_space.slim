@@ -11,9 +11,9 @@ initialize() {
 
    defineConstant("LAMBDA", 2.0); // birth rate
    defineConstant("K", 1);      // carrying capacity per unit area
-   defineConstant("W", 25);      // width and height of the area
+   defineConstant("W", 35);      // width and height of the area
    defineConstant("MU", 0.5);     // death rate
-   defineConstant("SIGMA", 3.0);  // interaction distance
+   defineConstant("SIGMA", 1.0);  // interaction distance
    
    // spatial interaction for local competition
    initializeInteractionType("i1", "xy", reciprocal=T,
