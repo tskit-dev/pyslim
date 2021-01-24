@@ -1,88 +1,17 @@
 """
 Common code for the pyslim test cases.
 """
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import division
+import os
+import json
+import random
+import base64
 
 import pyslim
 import tskit
 import msprime
-import random
-import unittest
 import pytest
-import base64
-import os
 import attr
-import json
 import numpy as np
-
-# possible attributes to simulation scripts are
-#  WF, nonWF
-#  nucleotides
-#  everyone: records everyone ever
-#  pedigree: writes out accompanying info file containing the pedigree
-#  remembered_early: remembering and saving the ts happens during early
-#  multipop: has more than one population
-# All files are of the form `tests/examples/{key}.slim`
-example_files = {}
-example_files['recipe_nonWF'] = {"nonWF": True, "pedigree": True}
-example_files['recipe_long_nonWF'] = {"nonWF": True}
-example_files['recipe_WF'] = {"WF": True, "pedigree": True}
-example_files['recipe_long_WF'] = {"WF": True}
-example_files['recipe_WF_migration'] = {"WF": True, "pedigree": True, "multipop": True}
-example_files['recipe_nonWF_early'] = {"nonWF": True, "pedigree": True, "remembered_early": True}
-example_files['recipe_WF_early'] = {"WF": True, "pedigree": True, "remembered_early": True}
-example_files['recipe_nucleotides'] = {"WF": True, "pedigree": True, "nucleotides": True}
-example_files['recipe_long_nucleotides'] = {"WF": True, "nucleotides": True}
-example_files['recipe_roots'] = {"WF": True, "pedigree": True}
-example_files['recipe_nonWF_selfing'] = {"nonWF": True, "pedigree": True}
-example_files['recipe_init_mutated_WF'] = {"WF": True, "init_mutated": True}
-example_files['recipe_init_mutated_nonWF'] = {"nonWF": True, "init_mutated": True}
-example_files['recipe_with_metadata'] = {"user_metadata": True}
-for t in ("WF", "nonWF"):
-    for s in ("early", "late"):
-        value = {t: True, "everyone": True, "pedigree": True}
-        if s == 'early':
-            value['remembered_early'] = True
-        example_files[f'recipe_record_everyone_{t}_{s}'] = value
-
-
-for f in example_files:
-    example_files[f]['basename'] = os.path.join("tests", "examples", f)
-
-
-# These SLiM scripts read in an existing trees file; the "input" gives a .trees files produced
-# by recipes above that is appropriate for starting this script.
-restart_files = {}
-for t in ("WF", "nonWF"):
-    # recipes that read in and write out immediately ("no_op")
-    value = {t: True, "no_op": True, "input": f"tests/examples/recipe_{t}.trees"}
-    restart_files[f'restart_{t}'] = value
-restart_files['restart_nucleotides'] = {"WF": True, "nucleotides": True, "no_op": True, "input": f"tests/examples/recipe_nucleotides.trees"}
-restart_files['restart_and_run_WF'] = {"WF": True, "input": "recipe_init_mutated.trees"}
-restart_files['restart_and_run_nonWF'] = {"nonWF": True, "input": "recipe_init_mutated.trees"}
-
-for f in restart_files:
-    restart_files[f]['basename'] = os.path.join("tests", "examples", f)
-
-
-def run_slim_script(slimfile, seed=23, **kwargs):
-    outdir = os.path.dirname(slimfile)
-    script = os.path.basename(slimfile)
-    args = f"-s {seed}"
-    for k in kwargs:
-        x = kwargs[k]
-        if x is not None:
-            if isinstance(x, str):
-                x = f"'{x}'"
-            if isinstance(x, bool):
-                x = 'T' if x else 'F'
-            args += f" -d \"{k}={x}\""
-    command = "cd \"" + outdir + "\" && slim " + args + " \"" + script + "\" >/dev/null"
-    print("running: ", command)
-    out = os.system(command)
-    return out
 
 
 class PyslimTestCase:
@@ -98,149 +27,6 @@ class PyslimTestCase:
             g2 = [v2.alleles[x] for x in v2.genotypes]
             assert np.array_equal(g1, g2)
 
-    def get_slim_example(self, name, return_info=False):
-        ex = example_files[name]
-        treefile = ex['basename'] + ".trees"
-        print("---->", treefile)
-        assert os.path.isfile(treefile)
-        ts = pyslim.load(treefile)
-        if return_info:
-            infofile = treefile + ".pedigree"
-            if os.path.isfile(infofile):
-                ex['info'] = self.get_slim_info(infofile)
-            else:
-                ex['info'] = None
-            out = (ts, ex)
-        else:
-            out = ts
-        return out
-
-    def get_slim_examples(self, return_info=False, **kwargs):
-        num_examples = 0
-        for name, ex in example_files.items():
-            use = True
-            for a in kwargs:
-                if a in ex:
-                    if ex[a] != kwargs[a]:
-                        use = False
-                else:
-                    if kwargs[a] != False:
-                        use = False
-            if use:
-                num_examples += 1
-                yield self.get_slim_example(name, return_info=return_info)
-        assert num_examples > 0
-
-    def get_slim_restarts(self, **kwargs):
-        # Loads previously produced tree sequences and SLiM scripts
-        # appropriate for restarting from these tree sequences.
-        for exname in restart_files:
-            ex = restart_files[exname]
-            use = True
-            for a in kwargs:
-                if a not in ex or ex[a] != kwargs[a]:
-                    use = False
-            if use:
-                basename = ex['basename']
-                treefile = ex['input']
-                print(f"restarting {treefile} as {basename}")
-                assert os.path.isfile(treefile)
-                ts = pyslim.load(treefile)
-                yield ts, basename
-
-    def run_slim_restart(self, in_ts, basename, **kwargs):
-        # Saves out the tree sequence to the trees file that the SLiM script
-        # basename.slim will load from.
-        infile = basename + ".init.trees"
-        outfile = basename + ".trees"
-        slimfile = basename + ".slim"
-        for treefile in infile, outfile:
-            try:
-                os.remove(treefile)
-            except FileNotFoundError:
-                pass
-        in_ts.dump(infile)
-        if 'STAGE' not in kwargs:
-            kwargs['STAGE'] = in_ts.metadata['SLiM']['stage']
-        out = run_slim_script(slimfile, **kwargs)
-        try:
-            os.remove(infile)
-        except FileNotFoundError:
-            pass
-        assert out == 0
-        assert os.path.isfile(outfile)
-        out_ts = pyslim.load(outfile)
-        try:
-            os.remove(outfile)
-        except FileNotFoundError:
-            pass
-        return out_ts
-
-    def run_msprime_restart(self, in_ts, sex=None, WF=False):
-        basename = "tests/examples/restart_msprime"
-        out_ts = self.run_slim_restart(
-                    in_ts, basename, WF=WF, SEX=sex, L=int(in_ts.sequence_length))
-        return out_ts
-
-    def get_msprime_examples(self):
-        # NOTE: we use DTWF below to avoid rounding of floating-point times
-        # that occur with a continuous-time simulator
-        demographic_events = [
-            msprime.MassMigration(
-            time=5, source=1, destination=0, proportion=1.0)
-        ]
-        seed = 6
-        for n in [2, 10, 20]:
-            for mutrate in [0.0]:
-                for recrate in [0.0, 0.01]:
-                    yield msprime.simulate(n, mutation_rate=mutrate,
-                                           recombination_rate=recrate,
-                                           length=200, random_seed=seed,
-                                           model="dtwf")
-                    seed += 1
-                    population_configurations =[
-                        msprime.PopulationConfiguration(
-                        sample_size=n, initial_size=100),
-                        msprime.PopulationConfiguration(
-                        sample_size=n, initial_size=100)
-                    ]
-                    yield msprime.simulate(
-                        population_configurations=population_configurations,
-                        demographic_events=demographic_events,
-                        recombination_rate=recrate,
-                        mutation_rate=mutrate,
-                        length=250, random_seed=seed,
-                        model="dtwf")
-                    seed += 1
-
-    def get_slim_info(self, fname):
-        # returns a dictionary whose keys are SLiM individual IDs, and whose values
-        # are dictionaries with two entries:
-        # - 'parents' is the SLiM IDs of the parents
-        # - 'age' is a dictionary whose keys are tuples (SLiM generation, stage)
-        #   and whose values are ages (keys not present are ones the indivdiual was
-        #   not alive for)
-        assert os.path.isfile(fname)
-        out = {}
-        with open(fname, 'r') as f:
-            header = f.readline().split()
-            assert header == ['generation', 'stage', 'individual', 'age', 'parent1', 'parent2']
-            for line in f:
-                gen, stage, ind, age, p1, p2 = line.split()
-                gen = int(gen)
-                ind = int(ind)
-                age = int(age)
-                parents = tuple([int(p) for p in (p1, p2) if p != "-1"])
-                if ind not in out:
-                    out[ind] = {
-                            "parents" : parents,
-                            "age" : {}
-                            }
-                else:
-                    for p in parents:
-                        assert p in out[ind]['parents']
-                out[ind]['age'][(gen, stage)] = age
-        return out
 
     def assertTablesEqual(self, t1, t2, label=''):
         # make it easy to see what's wrong

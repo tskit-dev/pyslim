@@ -1,7 +1,7 @@
 initialize()
 {
     setSeed(23);
-    defineConstant("OUTFILE", "recipe_long_WF.trees");
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     initializeTreeSeq();
     initializeMutationRate(1e-2);
     initializeMutationType("m1", 0.5, "f", -0.1);
@@ -15,7 +15,7 @@ initialize()
 }
 
 500 late() {
-    sim.treeSeqOutput(OUTFILE);
+    sim.treeSeqOutput(TREES_FILE);
     catn("Done.");
     sim.simulationFinished();
 }

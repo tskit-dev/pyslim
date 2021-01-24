@@ -1,6 +1,9 @@
 initialize()
 {
     setSeed(23);
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+    // as well as any bespoke TREES_FILE for output, you need to define:
+    //  TREES_IN = path to trees to initialise
     initializeTreeSeq();
     initializeMutationRate(1e-2);
     initializeMutationType("m1", 0.5, "f", -0.1);
@@ -12,14 +15,14 @@ initialize()
 // output immediately! Nothing should have changed.
 1 early() { 
   if (STAGE == "early") {
-    sim.readFromPopulationFile("restart_WF.init.trees");
-    sim.treeSeqOutput("restart_WF.trees", simplify=F);
+    sim.readFromPopulationFile(TREES_IN);
+    sim.treeSeqOutput(TREES_FILE, simplify=F);
   }
 }
 1 late() { 
   if (STAGE == "late") {
-    sim.readFromPopulationFile("restart_WF.init.trees");
-    sim.treeSeqOutput("restart_WF.trees", simplify=F);
+    sim.readFromPopulationFile(TREES_IN);
+    sim.treeSeqOutput(TREES_FILE, simplify=F);
   }
 }
 

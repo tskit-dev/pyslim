@@ -1,19 +1,17 @@
 """
 Test cases for the metadata reading/writing of pyslim.
 """
-from __future__ import print_function
-from __future__ import division
-
-import pyslim
-import msprime
-import tskit
-import tests
-import unittest
 import random
 import json
+
+import msprime
+import tskit
 import pytest
 import numpy as np
 
+import pyslim
+import tests
+from .recipe_specs import restarted_recipe_eq
 
 class TestAnnotate(tests.PyslimTestCase):
     '''
@@ -107,8 +105,8 @@ class TestAnnotate(tests.PyslimTestCase):
         out_tables.sort()
         self.assertTableCollectionsEqual(in_tables, out_tables, skip_provenance=-1)
 
-    def test_annotate_errors(self):
-        for ts in self.get_msprime_examples():
+    def test_annotate_errors(self, helper_functions):
+        for ts in helper_functions.get_msprime_examples():
             with pytest.raises(ValueError):
                 _ = pyslim.annotate_defaults(ts, model_type="WF",
                                              slim_generation=0)
@@ -151,8 +149,8 @@ class TestAnnotate(tests.PyslimTestCase):
                                          slim_generation=1)
         assert "more than one time" in str(except_info)
 
-    def test_basic_annotation(self):
-        for ts in self.get_msprime_examples():
+    def test_basic_annotation(self, helper_functions, tmp_path):
+        for ts in helper_functions.get_msprime_examples():
             slim_gen = 4
             slim_ts = pyslim.annotate_defaults(ts, model_type="WF",
                                                slim_generation=slim_gen)
@@ -165,13 +163,13 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_defaults(slim_ts)
             self.verify_provenance(slim_ts)
             # try loading this into SLiM
-            loaded_ts = self.run_msprime_restart(slim_ts, WF=True)
+            loaded_ts = helper_functions.run_msprime_restart(slim_ts, tmp_path, WF=True)
             self.verify_annotated_tables(loaded_ts, slim_ts)
             self.verify_annotated_trees(loaded_ts, slim_ts)
             self.verify_haplotype_equality(loaded_ts, slim_ts)
 
-    def test_annotate_individuals(self):
-        for ts in self.get_msprime_examples():
+    def test_annotate_individuals(self, helper_functions, tmp_path):
+        for ts in helper_functions.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
             tables = slim_ts.tables
             top_md = tables.metadata
@@ -200,12 +198,12 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_annotated_trees(new_ts, slim_ts)
             self.verify_haplotype_equality(new_ts, slim_ts)
             # try loading this into SLiM
-            loaded_ts = self.run_msprime_restart(new_ts, sex="A")
+            loaded_ts = helper_functions.run_msprime_restart(new_ts, tmp_path, sex="A")
             self.verify_trees_equal(new_ts, loaded_ts)
 
-    def test_annotate_XY(self):
+    def test_annotate_XY(self, helper_functions, tmp_path):
         random.seed(8)
-        for ts in self.get_msprime_examples():
+        for ts in helper_functions.get_msprime_examples():
             for genome_type in ["X", "Y"]:
                 slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
                 tables = slim_ts.tables
@@ -246,15 +244,16 @@ class TestAnnotate(tests.PyslimTestCase):
                 self.verify_annotated_trees(new_ts, slim_ts)
                 self.verify_haplotype_equality(new_ts, slim_ts)
                 # try loading this into SLiM
-                loaded_ts = self.run_msprime_restart(new_ts, sex=genome_type)
+                loaded_ts = helper_functions.run_msprime_restart(
+                    new_ts, tmp_path, sex=genome_type)
                 self.verify_trees_equal(new_ts, loaded_ts)
                 # these are *not* equal but only due to re-ordering of nodes and individuals
                 # ... and for some reason, .subset( ) or .simplify( ) do not produce equality
                 # self.assertTableCollectionsEqual(new_ts, loaded_ts,
                 #         skip_provenance=-1, reordered_individuals=True)
 
-    def test_annotate_nodes(self):
-        for ts in self.get_msprime_examples():
+    def test_annotate_nodes(self, helper_functions):
+        for ts in helper_functions.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
             tables = slim_ts.tables
             metadata = [n.metadata for n in tables.nodes]
@@ -272,8 +271,8 @@ class TestAnnotate(tests.PyslimTestCase):
                     assert x.metadata["genome_type"] == g
             # not testing SLiM because needs annotation of indivs to make sense
 
-    def test_annotate_mutations(self):
-        for ts in self.get_msprime_examples():
+    def test_annotate_mutations(self, helper_functions):
+        for ts in helper_functions.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
             tables = slim_ts.tables
             metadata = [m.metadata for m in tables.mutations]
@@ -288,66 +287,84 @@ class TestAnnotate(tests.PyslimTestCase):
                 md = x.metadata
                 assert md['mutation_list'][0]["selection_coeff"] == selcoefs[j]
 
-    def test_reload_recapitate(self):
+    @pytest.mark.parametrize(
+        'restart_name, basic_recipe', restarted_recipe_eq("no_op"), indirect=["basic_recipe"])
+    def test_reload_recapitate(
+        self, restart_name, basic_recipe, helper_functions, tmp_path
+    ):
         # Test the ability of SLiM to load our files after recapitation.
-        for ts, basename in self.get_slim_restarts(no_op=True):
-            # recapitate, reload
-            in_ts = ts.recapitate(recombination_rate=1e-2, Ne=10, random_seed=25)
-            # put it through SLiM (which just reads in and writes out)
-            out_ts = self.run_slim_restart(in_ts, basename)
-            # check for equality, in everything but the last provenance
-            self.verify_slim_restart_equality(in_ts, out_ts)
+        ts = basic_recipe["ts"]
+        # recapitate, reload
+        in_ts = ts.recapitate(recombination_rate=1e-2, Ne=10, random_seed=25)
+        # put it through SLiM (which just reads in and writes out)
+        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
+        # check for equality, in everything but the last provenance
+        self.verify_slim_restart_equality(in_ts, out_ts)
 
-    def test_reload_annotate(self):
+    
+    @pytest.mark.parametrize(
+        'restart_name, basic_recipe', restarted_recipe_eq("no_op"), indirect=["basic_recipe"])
+    def test_reload_annotate(
+        self, restart_name, basic_recipe, helper_functions, tmp_path
+    ):
         # Test the ability of SLiM to load our files after annotation.
-        for ts, basename in self.get_slim_restarts(no_op=True):
-            tables = ts.tables
-            metadata = [m.metadata for m in tables.mutations]
-            has_nucleotides = tables.metadata['SLiM']['nucleotide_based']
-            if has_nucleotides:
-                nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
-                refseq = "".join(random.choices(pyslim.NUCLEOTIDES,
-                                                k = int(ts.sequence_length)))
-                for n, md in zip(nucs, metadata):
-                    for m in md['mutation_list']:
-                        m["nucleotide"] = n
-            else:
-                refseq = None
-            for md in metadata:
+        ts = basic_recipe["ts"]
+        tables = ts.tables
+        metadata = [m.metadata for m in tables.mutations]
+        has_nucleotides = tables.metadata['SLiM']['nucleotide_based']
+        if has_nucleotides:
+            nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
+            refseq = "".join(random.choices(pyslim.NUCLEOTIDES,
+                                            k = int(ts.sequence_length)))
+            for n, md in zip(nucs, metadata):
                 for m in md['mutation_list']:
-                    m["selection_coeff"] = random.random()
-            ms = tables.mutations.metadata_schema
-            tables.mutations.packset_metadata(
-                    [ms.validate_and_encode_row(r) for r in metadata])
-            in_ts = pyslim.load_tables(tables, reference_sequence=refseq)
-            # put it through SLiM (which just reads in and writes out)
-            out_ts = self.run_slim_restart(in_ts, basename)
-            # check for equality, in everything but the last provenance
-            self.verify_slim_restart_equality(in_ts, out_ts)
+                    m["nucleotide"] = n
+        else:
+            refseq = None
+        for md in metadata:
+            for m in md['mutation_list']:
+                m["selection_coeff"] = random.random()
+        ms = tables.mutations.metadata_schema
+        tables.mutations.packset_metadata(
+                [ms.validate_and_encode_row(r) for r in metadata])
+        in_ts = pyslim.load_tables(tables, reference_sequence=refseq)
+        # put it through SLiM (which just reads in and writes out)
+        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
+        # check for equality, in everything but the last provenance
+        self.verify_slim_restart_equality(in_ts, out_ts)
 
 
 class TestReload(tests.PyslimTestCase):
     '''
     Tests for basic things related to reloading with SLiM
     '''
-
-    def test_load_without_provenance(self):
+    @pytest.mark.parametrize(
+        'restart_name, basic_recipe', restarted_recipe_eq("no_op"), indirect=["basic_recipe"])
+    def test_load_without_provenance(
+        self, restart_name, basic_recipe, helper_functions, tmp_path
+    ):
+        in_ts = basic_recipe["ts"]
         # with 0.5, SLiM should read info from metadata, not provenances
-        for in_ts, basename in self.get_slim_restarts(no_op=True):
-            in_tables = in_ts.tables
-            in_tables.provenances.clear()
-            cleared_ts = pyslim.SlimTreeSequence(
-                    in_tables.tree_sequence(),
-                    reference_sequence=in_ts.reference_sequence
-                    )
-            out_ts = self.run_slim_restart(cleared_ts, basename)
-            out_tables = out_ts.tables
-            out_tables.provenances.clear()
-            assert in_tables == out_tables
+        in_tables = in_ts.tables
+        in_tables.provenances.clear()
+        cleared_ts = pyslim.SlimTreeSequence(
+                in_tables.tree_sequence(),
+                reference_sequence=in_ts.reference_sequence
+                )
+        out_ts = helper_functions.run_slim_restart(cleared_ts, restart_name, tmp_path)
+        out_tables = out_ts.tables
+        out_tables.provenances.clear()
+        assert in_tables == out_tables
 
-    def test_reload_reference_sequence(self):
-        for in_ts, basename in self.get_slim_restarts(no_op=True, nucleotides=True):
-            out_ts = self.run_slim_restart(in_ts, basename)
-            assert in_ts.metadata['SLiM']['nucleotide_based'] is True
-            assert out_ts.metadata['SLiM']['nucleotide_based'] is True
-            assert in_ts.reference_sequence == out_ts.reference_sequence
+    @pytest.mark.parametrize(
+        'restart_name, basic_recipe',
+        restarted_recipe_eq("no_op", "nucleotides"),
+        indirect=["basic_recipe"])
+    def test_reload_reference_sequence(
+        self, restart_name, basic_recipe, helper_functions, tmp_path
+    ):
+        in_ts = basic_recipe["ts"]
+        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
+        assert in_ts.metadata['SLiM']['nucleotide_based'] is True
+        assert out_ts.metadata['SLiM']['nucleotide_based'] is True
+        assert in_ts.reference_sequence == out_ts.reference_sequence

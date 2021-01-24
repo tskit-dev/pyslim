@@ -2,7 +2,7 @@
 
 initialize() {
     setSeed(23);
-    defineConstant("OUTFILE", "recipe_long_nucleotides.trees");
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
 	defineConstant("L", 1e2);
 	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
     initializeTreeSeq();
@@ -18,7 +18,7 @@ initialize() {
 }
 
 100000 late() {
-    sim.treeSeqOutput(OUTFILE);
+    sim.treeSeqOutput(TREES_FILE);
     catn("Done.");
     sim.simulationFinished();
 }
