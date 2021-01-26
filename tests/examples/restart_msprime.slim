@@ -1,7 +1,9 @@
 initialize()
 {
     setSeed(23);
-    // need to define:
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+    // as well as any bespoke TREES_FILE for output, you need to define:
+    //  TREES_IN = path to trees to initialise
     //  L = sequence length
     //  SEX = A, X, Y or not defined
     //  WF = T or F
@@ -25,14 +27,14 @@ initialize()
 // output immediately! Nothing should have changed.
 1 early() { 
   if (STAGE == "early") {
-    sim.readFromPopulationFile("restart_msprime.init.trees");
-    sim.treeSeqOutput("restart_msprime.trees");
+    sim.readFromPopulationFile(TREES_IN);
+    sim.treeSeqOutput(TREES_FILE);
   }
 }
 1 late() { 
   if (STAGE == "late") {
-    sim.readFromPopulationFile("restart_msprime.init.trees");
-    sim.treeSeqOutput("restart_msprime.trees");
+    sim.readFromPopulationFile(TREES_IN);
+    sim.treeSeqOutput(TREES_FILE);
   }
 }
 

@@ -1,50 +1,20 @@
 """
 Test cases for the deprecated, legacy metadata representation of pyslim.
 """
-from __future__ import print_function
-from __future__ import division
-
-import unittest
 import os
-import tempfile
-import numpy as np
 import warnings
+
+import numpy as np
 import pytest
 import msprime
 import tskit
 
 import pyslim
-
 import tests
 
 
-class LegacyPyslimTestCase(tests.PyslimTestCase):
 
-    # copied from __init__ but with legacy_metadata=True
-    def get_slim_examples(self, return_info=False, **kwargs):
-        for ex in tests.example_files.values():
-            basename = ex['basename']
-            use = True
-            for a in kwargs:
-                if a not in ex or ex[a] != kwargs[a]:
-                    use = False
-            if use:
-                treefile = basename + ".trees"
-                print("---->", treefile)
-                assert os.path.isfile(treefile)
-                ts = pyslim.load(treefile, legacy_metadata=True)
-                if return_info:
-                    infofile = treefile + ".pedigree"
-                    if os.path.isfile(infofile):
-                        ex['info'] = self.get_slim_info(infofile)
-                    else:
-                        ex['info'] = None
-                    yield (ts, ex)
-                else:
-                    yield ts
-
-
-class TestLegacyTypes(LegacyPyslimTestCase):
+class TestLegacyTypes(tests.PyslimTestCase):
 
     def test_test_warnings(self):
         # check that our checking for warnings works
@@ -52,29 +22,29 @@ class TestLegacyTypes(LegacyPyslimTestCase):
         with pytest.warns(FutureWarning):
             warnings.warn('hi', FutureWarning)
 
-    def test_legacy_types(self):
-        for ts in self.get_slim_examples():
-            assert ts.legacy_metadata
-            for pop in ts.populations():
-                if pop.metadata is not None:
-                    assert isinstance(pop.metadata, pyslim.PopulationMetadata)
-                    break
-            for ind in ts.individuals():
-                assert isinstance(ind.metadata, pyslim.IndividualMetadata)
+    def test_legacy_types(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        assert ts.legacy_metadata
+        for pop in ts.populations():
+            if pop.metadata is not None:
+                assert isinstance(pop.metadata, pyslim.PopulationMetadata)
                 break
-            for n in ts.nodes():
-                if n.metadata is not None:
-                    assert isinstance(n.metadata, pyslim.NodeMetadata)
-                    break
-            for mut in ts.mutations():
-                assert isinstance(mut.metadata, list)
-                if len(mut.metadata) > 0:
-                    for u in mut.metadata:
-                        assert isinstance(u, pyslim.MutationMetadata)
-                    break
+        for ind in ts.individuals():
+            assert isinstance(ind.metadata, pyslim.IndividualMetadata)
+            break
+        for n in ts.nodes():
+            if n.metadata is not None:
+                assert isinstance(n.metadata, pyslim.NodeMetadata)
+                break
+        for mut in ts.mutations():
+            assert isinstance(mut.metadata, list)
+            if len(mut.metadata) > 0:
+                for u in mut.metadata:
+                    assert isinstance(u, pyslim.MutationMetadata)
+                break
 
 
-class TestEncodeDecode(LegacyPyslimTestCase):
+class TestEncodeDecode(tests.PyslimTestCase):
     '''
     Tests for conversion to/from binary representations of metadata.
     '''
@@ -211,95 +181,88 @@ class TestEncodeDecode(LegacyPyslimTestCase):
             assert md == new_md
 
 
-class TestAnnotate(LegacyPyslimTestCase):
+class TestAnnotate(tests.PyslimTestCase):
     '''
     Tests the table annotation methods.
     '''
 
-    def test_annotate_mutations(self):
-        for ts in self.get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
-            metadata = []
-            for md in tskit.unpack_bytes(tables.mutations.metadata,
-                                         tables.mutations.metadata_offset):
-                with pytest.warns(FutureWarning):
-                    dm = pyslim.decode_mutation(md)
-                with pytest.warns(FutureWarning):
-                    edm = pyslim.encode_mutation(dm)
-                assert md == edm
-                metadata.append(dm)
-
+    def test_annotate_mutations(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        tables = ts.dump_tables()
+        new_tables = ts.dump_tables()
+        metadata = []
+        for md in tskit.unpack_bytes(tables.mutations.metadata,
+                                     tables.mutations.metadata_offset):
             with pytest.warns(FutureWarning):
-                pyslim.annotate_mutation_metadata(new_tables, metadata)
-            self.assertTableCollectionsEqual(tables, new_tables)
-
-    def test_annotate_nodes(self):
-        for ts in self.get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
-            metadata = []
-            for md in tskit.unpack_bytes(tables.nodes.metadata,
-                                           tables.nodes.metadata_offset):
-                with pytest.warns(FutureWarning):
-                    dm = pyslim.decode_node(md)
-                with pytest.warns(FutureWarning):
-                    edm = pyslim.encode_node(dm)
-                assert md == edm
-                metadata.append(dm)
-
+                dm = pyslim.decode_mutation(md)
             with pytest.warns(FutureWarning):
-                pyslim.annotate_node_metadata(new_tables, metadata)
-            self.assertTableCollectionsEqual(tables, new_tables)
+                edm = pyslim.encode_mutation(dm)
+            assert md == edm
+            metadata.append(dm)
 
-    def test_annotate_individuals(self):
-        for ts in self.get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
-            metadata = []
-            for md in tskit.unpack_bytes(tables.individuals.metadata,
-                                           tables.individuals.metadata_offset):
-                with pytest.warns(FutureWarning):
-                    dm = pyslim.decode_individual(md)
-                with pytest.warns(FutureWarning):
-                    edm = pyslim.encode_individual(dm)
-                assert md == edm
-                metadata.append(dm)
+        with pytest.warns(FutureWarning):
+            pyslim.annotate_mutation_metadata(new_tables, metadata)
+        self.assertTableCollectionsEqual(tables, new_tables)
 
+    def test_annotate_nodes(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        tables = ts.dump_tables()
+        new_tables = ts.dump_tables()
+        metadata = []
+        for md in tskit.unpack_bytes(tables.nodes.metadata,
+                                       tables.nodes.metadata_offset):
             with pytest.warns(FutureWarning):
-                pyslim.annotate_individual_metadata(new_tables, metadata)
-            self.assertTableCollectionsEqual(tables, new_tables)
-
-    def test_annotate_populations(self):
-        for ts in self.get_slim_examples():
-            tables = ts.tables
-            new_tables = ts.tables
-            metadata = []
-            for md in tskit.unpack_bytes(tables.populations.metadata,
-                                         tables.populations.metadata_offset):
-                with pytest.warns(FutureWarning):
-                    dm = pyslim.decode_population(md)
-                with pytest.warns(FutureWarning):
-                    edm = pyslim.encode_population(dm)
-                assert md == edm
-                metadata.append(dm)
-
+                dm = pyslim.decode_node(md)
             with pytest.warns(FutureWarning):
-                pyslim.annotate_population_metadata(new_tables, metadata)
-            self.assertTableCollectionsEqual(tables, new_tables)
+                edm = pyslim.encode_node(dm)
+            assert md == edm
+            metadata.append(dm)
+
+        with pytest.warns(FutureWarning):
+            pyslim.annotate_node_metadata(new_tables, metadata)
+        self.assertTableCollectionsEqual(tables, new_tables)
+
+    def test_annotate_individuals(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        tables = ts.dump_tables()
+        new_tables = ts.dump_tables()
+        metadata = []
+        for md in tskit.unpack_bytes(tables.individuals.metadata,
+                                       tables.individuals.metadata_offset):
+            with pytest.warns(FutureWarning):
+                dm = pyslim.decode_individual(md)
+            with pytest.warns(FutureWarning):
+                edm = pyslim.encode_individual(dm)
+            assert md == edm
+            metadata.append(dm)
+
+        with pytest.warns(FutureWarning):
+            pyslim.annotate_individual_metadata(new_tables, metadata)
+        self.assertTableCollectionsEqual(tables, new_tables)
+
+    def test_annotate_populations(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        tables = ts.dump_tables()
+        new_tables = ts.dump_tables()
+        metadata = []
+        for md in tskit.unpack_bytes(tables.populations.metadata,
+                                     tables.populations.metadata_offset):
+            with pytest.warns(FutureWarning):
+                dm = pyslim.decode_population(md)
+            with pytest.warns(FutureWarning):
+                edm = pyslim.encode_population(dm)
+            assert md == edm
+            metadata.append(dm)
+
+        with pytest.warns(FutureWarning):
+            pyslim.annotate_population_metadata(new_tables, metadata)
+        self.assertTableCollectionsEqual(tables, new_tables)
 
 
-class TestDumpLoad(LegacyPyslimTestCase):
+class TestDumpLoad(tests.PyslimTestCase):
     '''
     Test reading and writing.
     '''
-
-    def setup_class(self):
-        fd, self.temp_file = tempfile.mkstemp(prefix="pyslim_ts_")
-        os.close(fd)
-
-    def teardown_class(self):
-        os.unlink(self.temp_file)
 
     def verify_times(self, ts, slim_ts):
         gen = slim_ts.slim_generation
@@ -311,122 +274,120 @@ class TestDumpLoad(LegacyPyslimTestCase):
         for n1, n2 in zip(ts.nodes(), slim_ts.nodes()):
             assert n1.time == n2.time
 
-    def verify_dump_equality(self, ts):
+    def test_load_tables(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        assert isinstance(ts, pyslim.SlimTreeSequence)
+        tables = ts.tables
+        new_ts = pyslim.load_tables(tables, legacy_metadata=True)
+        assert isinstance(new_ts, pyslim.SlimTreeSequence)
+        new_tables = new_ts.tables
+        assert tables == new_tables
+
+    def test_load(self, basic_recipe):
+        assert basic_recipe["path"]["ts"] == basic_recipe["path"]["ts_legacy_metadata"]
+        fn = basic_recipe["path"]["ts"]
+        # load in msprime then switch
+        msp_ts = tskit.load(fn)
+        assert isinstance(msp_ts, tskit.TreeSequence)
+        # transfer tables
+        msp_tables = msp_ts.tables
+        new_ts = pyslim.load_tables(msp_tables, legacy_metadata=True)
+        assert isinstance(new_ts, pyslim.SlimTreeSequence)
+        self.verify_times(msp_ts, new_ts)
+        new_tables = new_ts.tables
+        self.assertTableCollectionsEqual(msp_tables, new_tables)
+        # convert directly
+        new_ts = pyslim.SlimTreeSequence(msp_ts)
+        assert isinstance(new_ts, pyslim.SlimTreeSequence)
+        self.verify_times(msp_ts, new_ts)
+        new_tables = new_ts.tables
+        self.assertTableCollectionsEqual(msp_tables, new_tables)
+        # load to pyslim from file
+        slim_ts = pyslim.load(fn, legacy_metadata=True)
+        assert isinstance(slim_ts, pyslim.SlimTreeSequence)
+        slim_tables = slim_ts.tables
+        self.assertTableCollectionsEqual(msp_tables, slim_tables)
+        assert slim_ts.slim_generation == new_ts.slim_generation
+
+    def test_dump_equality(self, basic_recipe, tmp_path):
         """
         Verifies that we can dump a copy of the specified tree sequence
         to the specified file, and load an identical copy.
         """
-        ts.dump(self.temp_file)
-        ts2 = pyslim.load(self.temp_file, legacy_metadata=True)
+        tmp_file = os.path.join(tmp_path, "test_dump.trees")
+        ts = basic_recipe["ts_legacy_metadata"]
+        ts.dump(tmp_file)
+        ts2 = pyslim.load(tmp_file, legacy_metadata=True)
         assert ts.num_samples == ts2.num_samples
         assert ts.sequence_length == ts2.sequence_length
         assert ts.tables == ts2.tables
         assert ts.reference_sequence == ts2.reference_sequence
 
-    def test_load_tables(self):
-        for ts in self.get_slim_examples():
-            assert isinstance(ts, pyslim.SlimTreeSequence)
-            tables = ts.tables
-            new_ts = pyslim.load_tables(tables, legacy_metadata=True)
-            assert isinstance(new_ts, pyslim.SlimTreeSequence)
-            new_tables = new_ts.tables
-            assert tables == new_tables
 
-    def test_load(self):
-        for _, ex in self.get_slim_examples(return_info=True):
-            fn = ex['basename'] + ".trees"
-            # load in msprime then switch
-            msp_ts = tskit.load(fn)
-            assert isinstance(msp_ts, tskit.TreeSequence)
-            # transfer tables
-            msp_tables = msp_ts.tables
-            new_ts = pyslim.load_tables(msp_tables, legacy_metadata=True)
-            assert isinstance(new_ts, pyslim.SlimTreeSequence)
-            self.verify_times(msp_ts, new_ts)
-            new_tables = new_ts.tables
-            self.assertTableCollectionsEqual(msp_tables, new_tables)
-            # convert directly
-            new_ts = pyslim.SlimTreeSequence(msp_ts)
-            assert isinstance(new_ts, pyslim.SlimTreeSequence)
-            self.verify_times(msp_ts, new_ts)
-            new_tables = new_ts.tables
-            self.assertTableCollectionsEqual(msp_tables, new_tables)
-            # load to pyslim from file
-            slim_ts = pyslim.load(fn, legacy_metadata=True)
-            assert isinstance(slim_ts, pyslim.SlimTreeSequence)
-            slim_tables = slim_ts.tables
-            self.assertTableCollectionsEqual(msp_tables, slim_tables)
-            assert slim_ts.slim_generation == new_ts.slim_generation
-
-    def test_dump_equality(self):
-        for ts in self.get_slim_examples():
-            self.verify_dump_equality(ts)
-
-
-class TestIndividualMetadata(LegacyPyslimTestCase):
+class TestIndividualMetadata(tests.PyslimTestCase):
     # Tests for extra stuff related to Individuals.
 
-    def test_individual_derived_info(self):
-        for ts in self.get_slim_examples():
-            for j, ind in enumerate(ts.individuals()):
-                a = ts.tables.individuals.metadata_offset[j]
-                b = ts.tables.individuals.metadata_offset[j+1]
-                raw_md = ts.tables.individuals.metadata[a:b]
-                with pytest.warns(FutureWarning):
-                    md = pyslim.decode_individual(raw_md)
-                assert ind.metadata == md
-                assert ts.individual(j).metadata == md
-                for n in ind.nodes:
-                    assert ts.node(n).population == ind.population
-                    assert ts.node(n).time == ind.time
+    def test_individual_derived_info(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        for j, ind in enumerate(ts.individuals()):
+            a = ts.tables.individuals.metadata_offset[j]
+            b = ts.tables.individuals.metadata_offset[j+1]
+            raw_md = ts.tables.individuals.metadata[a:b]
+            with pytest.warns(FutureWarning):
+                md = pyslim.decode_individual(raw_md)
+            assert ind.metadata == md
+            assert ts.individual(j).metadata == md
+            for n in ind.nodes:
+                assert ts.node(n).population == ind.population
+                assert ts.node(n).time == ind.time
 
 
-class TestNodeMetadata(LegacyPyslimTestCase):
+class TestNodeMetadata(tests.PyslimTestCase):
     '''
     Tests for extra stuff related to Nodes.
     '''
 
-    def test_node_derived_info(self):
-        for ts in self.get_slim_examples():
-            for j, node in enumerate(ts.nodes()):
-                a = ts.tables.nodes.metadata_offset[j]
-                b = ts.tables.nodes.metadata_offset[j+1]
-                raw_md = ts.tables.nodes.metadata[a:b]
-                with pytest.warns(FutureWarning):
-                    md = pyslim.decode_node(raw_md)
-                assert node.metadata == md
-                assert ts.node(j).metadata == md
+    def test_node_derived_info(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        for j, node in enumerate(ts.nodes()):
+            a = ts.tables.nodes.metadata_offset[j]
+            b = ts.tables.nodes.metadata_offset[j+1]
+            raw_md = ts.tables.nodes.metadata[a:b]
+            with pytest.warns(FutureWarning):
+                md = pyslim.decode_node(raw_md)
+            assert node.metadata == md
+            assert ts.node(j).metadata == md
 
 
-class TestMutationMetadata(LegacyPyslimTestCase):
+class TestMutationMetadata(tests.PyslimTestCase):
     '''
     Tests for extra stuff related to Mutations.
     '''
 
-    def test_mutation_derived_info(self):
-        for ts in self.get_slim_examples():
-            for j, mut in enumerate(ts.mutations()):
-                a = ts.tables.mutations.metadata_offset[j]
-                b = ts.tables.mutations.metadata_offset[j+1]
-                raw_md = ts.tables.mutations.metadata[a:b]
-                with pytest.warns(FutureWarning):
-                    md = pyslim.decode_mutation(raw_md)
-                assert mut.metadata == md
-                assert ts.mutation(j).metadata == md
+    def test_mutation_derived_info(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        for j, mut in enumerate(ts.mutations()):
+            a = ts.tables.mutations.metadata_offset[j]
+            b = ts.tables.mutations.metadata_offset[j+1]
+            raw_md = ts.tables.mutations.metadata[a:b]
+            with pytest.warns(FutureWarning):
+                md = pyslim.decode_mutation(raw_md)
+            assert mut.metadata == md
+            assert ts.mutation(j).metadata == md
 
 
-class TestPopulationMetadata(LegacyPyslimTestCase):
+class TestPopulationMetadata(tests.PyslimTestCase):
     '''
     Tests for extra stuff related to Populations.
     '''
 
-    def test_population_derived_info(self):
-        for ts in self.get_slim_examples():
-            for j, pop in enumerate(ts.populations()):
-                a = ts.tables.populations.metadata_offset[j]
-                b = ts.tables.populations.metadata_offset[j+1]
-                raw_md = ts.tables.populations.metadata[a:b]
-                with pytest.warns(FutureWarning):
-                    md = pyslim.decode_population(raw_md)
-                assert pop.metadata == md
-                assert ts.population(j).metadata == md
+    def test_population_derived_info(self, basic_recipe):
+        ts = basic_recipe["ts_legacy_metadata"]
+        for j, pop in enumerate(ts.populations()):
+            a = ts.tables.populations.metadata_offset[j]
+            b = ts.tables.populations.metadata_offset[j+1]
+            raw_md = ts.tables.populations.metadata[a:b]
+            with pytest.warns(FutureWarning):
+                md = pyslim.decode_population(raw_md)
+            assert pop.metadata == md
+            assert ts.population(j).metadata == md

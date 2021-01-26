@@ -1,7 +1,7 @@
 initialize()
 {
     setSeed(23);
-    defineConstant("OUTFILE", "recipe_long_nonWF.trees");
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     initializeSLiMModelType("nonWF");
     initializeTreeSeq();
     initializeMutationRate(1e-2);
@@ -25,7 +25,7 @@ early() {
 }
 
 500 late() {
-    sim.treeSeqOutput(OUTFILE);
+    sim.treeSeqOutput(TREES_FILE);
     catn("Done.");
     sim.simulationFinished();
 }

@@ -1,8 +1,8 @@
 initialize()
 {
     setSeed(23);
-    defineConstant("OUTFILE", "recipe_nonWF_selfing.trees");
-    defineConstant("PEDIGREE", paste0(c(OUTFILE, ".pedigree")));
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+    if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
     initializeSLiMModelType("nonWF");
     initializeSLiMOptions(keepPedigrees=T);
     initializeTreeSeq();
@@ -34,14 +34,14 @@ early() {
 }
 
 10 late() {
-    sim.treeSeqOutput(OUTFILE);
+    sim.treeSeqOutput(TREES_FILE);
     catn("Done.");
     sim.simulationFinished();
 }
 
 // PEDIGREE OUTPUT
 1 early() {
-    writeFile(PEDIGREE,
+    writeFile(PEDIGREE_FILE,
        paste(c("generation", "stage", "individual", "age", "parent1", "parent2"),
              sep="\t"));
 }
@@ -50,7 +50,7 @@ early() {
     for (pop in sim.subpopulations) {
         for (ind in pop.individuals) {
             age = sim.modelType == "nonWF" ? ind.age else -1;
-            writeFile(PEDIGREE,
+            writeFile(PEDIGREE_FILE,
              paste(c(sim.generation, 'early', ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
@@ -62,7 +62,7 @@ early() {
     for (pop in sim.subpopulations) {
         for (ind in pop.individuals) {
             age = sim.modelType == "nonWF" ? ind.age else -1;
-            writeFile(PEDIGREE,
+            writeFile(PEDIGREE_FILE,
              paste(c(sim.generation, 'late', ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
