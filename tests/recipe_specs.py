@@ -9,7 +9,7 @@ import os
 #  pedigree: writes out accompanying info file containing the pedigree
 #  remembered_early: remembering and saving the ts happens during early
 #  multipop: has more than one population
-# All files are of the form `tests/examples/{key}.slim`
+# All files are of the form `tests/test_recipes/{key}`
 recipe_specs = {
     "recipe_nonWF.slim":                      {"nonWF": True, "pedigree": True},
     "recipe_long_nonWF.slim":                 {"nonWF": True},

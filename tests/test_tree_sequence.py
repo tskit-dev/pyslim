@@ -557,6 +557,8 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         for hasp, ind in zip(has_parents, ts.individuals()):
             all_there = (ind.flags & (pyslim.INDIVIDUAL_ALIVE | pyslim.INDIVIDUAL_REMEMBERED) > 0)
             if all_there:
+                for n in ind.nodes:
+                    assert ts.node(n).is_sample()
                 if len(ind.nodes) != 2:
                     print("Individual does not have two nodes, who should:")
                     print(ind)
