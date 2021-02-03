@@ -572,17 +572,17 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             # parents, as recorded by SLiM, that we know about AND are remembered or alive:
             # TODO: and also if retained, if we're doing keep_unary
             definitely_slim_p = [x for x in slim_p if slim_map[x][1]]
-            if len(slim_p) != 2:
-                # if we don't have two slim parents, then we sure shouldn't
-                # have any pyslim parents
-                assert ts_p == []
             if all_there and len(definitely_slim_p) == 2:
                 # should have parents when individual and both parents are remembered or alive
                 for b in definitely_slim_p:
                     assert b in ts_p
-            for a in ts_p:
-                # all pyslim parents should be legit
-                assert a in slim_p
+            # all pyslim parents should be legit (so set(ts_p) - set(slim_p) should usually be empty)
+            # BUT sometimes we can mistake a grandparent for a parent
+            gfolks = []
+            for a in set(info[sid]["parents"]) - set(ts_p):
+                gfolks.extend(info[a]["parents"])
+            for a in set(ts_p) - set(slim_p):
+                assert a in gfolks
 
 
 class TestSimplify(tests.PyslimTestCase):

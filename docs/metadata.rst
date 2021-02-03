@@ -146,7 +146,6 @@ tskit time ago from the SLiM generation at time of output.
 |       n            |       late          |       n            |                                | treeSeqOutput :math:`\to` |         0          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 
-Sometimes you might want to find the 
 When the tree sequence is written out, SLiM records the value of its current generation,
 which can be found in the metadata: ``ts.metadata['SLiM']['generation']``
 (or, the ``ts.slim_generation`` attribute).
