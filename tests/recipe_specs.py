@@ -11,33 +11,32 @@ import os
 #  multipop: has more than one population
 # All files are of the form `tests/test_recipes/{key}`
 recipe_specs = {
-    "recipe_nonWF.slim":                      {"nonWF": True, "pedigree": True},
-    "recipe_long_nonWF.slim":                 {"nonWF": True},
-    "recipe_WF.slim":                         {"WF": True, "pedigree": True},
-    "recipe_long_WF.slim":                    {"WF": True},
-    "recipe_WF_migration.slim":               {"WF": True, "pedigree": True, "multipop": True},
-    "recipe_nonWF_early.slim":                {"nonWF": True, "pedigree": True, "remembered_early": True},
-    "recipe_WF_early.slim":                   {"WF": True, "pedigree": True, "remembered_early": True},
-    "recipe_nucleotides.slim":                {"WF": True, "pedigree": True, "nucleotides": True},
-    "recipe_long_nucleotides.slim":           {"WF": True, "nucleotides": True},
-    "recipe_roots.slim":                      {"WF": True, "pedigree": True},
-    "recipe_nonWF_selfing.slim":              {"nonWF": True, "pedigree": True},
-    "recipe_init_mutated_WF.slim":            {"WF": True, "init_mutated": True},
-    "recipe_init_mutated_nonWF.slim":         {"nonWF": True, "init_mutated": True},
-    "recipe_with_metadata.slim":              {"user_metadata": True},
-    "recipe_retain_everyone_WF_late.slim":    {"WF": True, "pedigree": True, "retained": True},
-    "recipe_retain_everyone_nonWF_late.slim": {"nonWF": True, "pedigree": True, "retained": True},
-    "recipe_remember_and_retain.slim":        {"nonWF": True, "pedigree": True, "retained": True},
+    "recipe_nonWF.slim":                       {"nonWF": True, "pedigree": True},
+    "recipe_long_nonWF.slim":                  {"nonWF": True},
+    "recipe_WF.slim":                          {"WF": True, "pedigree": True},
+    "recipe_long_WF.slim":                     {"WF": True},
+    "recipe_WF_migration.slim":                {"WF": True, "pedigree": True, "multipop": True},
+    "recipe_nonWF_early.slim":                 {"nonWF": True, "pedigree": True, "remembered_early": True},
+    "recipe_WF_early.slim":                    {"WF": True, "pedigree": True, "remembered_early": True},
+    "recipe_nucleotides.slim":                 {"WF": True, "pedigree": True, "nucleotides": True},
+    "recipe_long_nucleotides.slim":            {"WF": True, "nucleotides": True},
+    "recipe_roots.slim":                       {"WF": True, "pedigree": True},
+    "recipe_nonWF_selfing.slim":               {"nonWF": True, "pedigree": True},
+    "recipe_init_mutated_WF.slim":             {"WF": True, "init_mutated": True},
+    "recipe_init_mutated_nonWF.slim":          {"nonWF": True, "init_mutated": True},
+    "recipe_with_metadata.slim":               {"user_metadata": True},
+    "recipe_record_everyone_WF_late.slim":     {"WF": True, "pedigree": True, "everyone": True},
+    "recipe_record_everyone_WF_early.slim":    {"WF": True, "pedigree": True, "everyone": True, "remembered_early": True},
+    "recipe_retain_everyone_WF_late.slim":     {"WF": True, "pedigree": True, "retained": True},
+    "recipe_retain_sometimes_WF_late.slim":    {"WF": True, "pedigree": True, "retained": True},
+    "recipe_retain_unary_WF_late.slim":        {"WF": True, "pedigree": True, "retained": True, "retainCoalescentOnly": False},
+    "recipe_record_everyone_nonWF_late.slim":  {"nonWF": True, "pedigree": True, "everyone": True},
+    "recipe_record_everyone_nonWF_early.slim": {"nonWF": True, "pedigree": True, "everyone": True, "remembered_early": True},
+    "recipe_retain_everyone_nonWF_late.slim":  {"nonWF": True, "pedigree": True, "retained": True},
+    "recipe_retain_sometimes_nonWF_late.slim": {"nonWF": True, "pedigree": True, "retained": True},
+    "recipe_retain_unary_nonWF_late.slim":     {"nonWF": True, "pedigree": True, "retained": True, "retainCoalescentOnly": False},
+    "recipe_remember_and_retain.slim":         {"nonWF": True, "pedigree": True, "retained": True},
 }
-
-# Some more complicated ones
-for t in ("WF", "nonWF"):
-    for s in ("early", "late"):
-        # remember everyone
-        value = {t: True, "everyone": True, "pedigree": True}
-        if s == 'early':
-            value['remembered_early'] = True
-        recipe_specs[f'recipe_record_everyone_{t}_{s}.slim'] = value
 
 def recipe_eq(*keys, exclude=None):
     """

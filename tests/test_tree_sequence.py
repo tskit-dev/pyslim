@@ -534,19 +534,51 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert sum(has_parents) > 0
         self.verify_has_parents(ts)
 
-    @pytest.mark.parametrize('recipe', recipe_eq("pedigree"), indirect=True)
-    def test_pedigree_parents(self, recipe):
-        # we are only guaranteed to have whole genomes for ALIVE or
-        # REMEMBERED individuals (not RETAINED), and the same for parental
-        # genomes, unless keep_unary is enabled
+    @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
+    def test_pedigree_parents_everyone(self, recipe):
+        # We can only guarantee to correctly reconstruct parents when everyone is remembered:
+        # for instance, A selfs to produce B who selfs to produce C; if A and C are present
+        # but B is not, and A is still alive, we will think that A is C's parent.
+        # Or, suppose that X is the parent of Y, but we did not remember X at or after
+        # the time that Y was born, so that although X is alive at Y's birth, we don't know it,
+        # and so the parentage would not be reported by `individual_parents()`.
         ts = recipe["ts"]
         info = recipe["info"]
         has_parents = ts.has_individual_parents()
         parents = ts.individual_parents()
         slim_map = {}
         for ind in ts.individuals():
-            all_there = (ind.flags & (pyslim.INDIVIDUAL_ALIVE | pyslim.INDIVIDUAL_REMEMBERED) > 0)
-            slim_map[ind.metadata["pedigree_id"]] = ind.id, all_there
+            slim_map[ind.metadata["pedigree_id"]] = ind.id
+        ts_to_slim = {sid: [] for sid in slim_map}
+        for (pa, ch) in parents:
+            assert pa >= 0 and pa < ts.num_individuals
+            assert ch >= 0 and pa < ts.num_individuals
+            pa_ind = ts.individual(pa).metadata["pedigree_id"]
+            ch_ind = ts.individual(ch).metadata["pedigree_id"]
+            ts_to_slim[ch_ind].append(pa_ind)
+        for hasp, ind in zip(has_parents, ts.individuals()):
+            for n in ind.nodes:
+                assert ts.node(n).is_sample()
+            assert len(ind.nodes) == 2
+            sid = ind.metadata["pedigree_id"]
+            ts_p = ts_to_slim[sid]
+            assert hasp == (len(ts_p) > 0)
+            # parents, as recorded by SLiM, that we know about:
+            slim_p = [x for x in info[sid]["parents"] if x in slim_map]
+            assert set(slim_p) == set(ts_p)
+
+    @pytest.mark.parametrize('recipe', recipe_eq("pedigree"), indirect=True)
+    def test_pedigree_parents(self, recipe):
+        # Less strict test for consistency only: see caveats above in test_pedigree_parents_everyone.
+        # In particular, we are only guaranteed to have whole genomes for ALIVE
+        # or REMEMBERED individuals (not RETAINED), and the same for parental genomes.
+        ts = recipe["ts"]
+        info = recipe["info"]
+        has_parents = ts.has_individual_parents()
+        parents = ts.individual_parents()
+        slim_map = {}
+        for ind in ts.individuals():
+            slim_map[ind.metadata["pedigree_id"]] = ind.id
         ts_to_slim = {sid: [] for sid in slim_map}
         for (pa, ch) in parents:
             assert pa >= 0 and pa < ts.num_individuals
@@ -559,25 +591,14 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             if all_there:
                 for n in ind.nodes:
                     assert ts.node(n).is_sample()
-                if len(ind.nodes) != 2:
-                    print("Individual does not have two nodes, who should:")
-                    print(ind)
-                    print(info[sid])
                 assert len(ind.nodes) == 2
             sid = ind.metadata["pedigree_id"]
             ts_p = ts_to_slim[sid]
             assert hasp == (len(ts_p) > 0)
             # parents, as recorded by SLiM, that we know about:
             slim_p = [x for x in info[sid]["parents"] if x in slim_map]
-            # parents, as recorded by SLiM, that we know about AND are remembered or alive:
-            # TODO: and also if retained, if we're doing keep_unary
-            definitely_slim_p = [x for x in slim_p if slim_map[x][1]]
-            if all_there and len(definitely_slim_p) == 2:
-                # should have parents when individual and both parents are remembered or alive
-                for b in definitely_slim_p:
-                    assert b in ts_p
             # all pyslim parents should be legit (so set(ts_p) - set(slim_p) should usually be empty)
-            # BUT sometimes we can mistake a grandparent for a parent
+            # BUT sometimes we can mistake a (great)^n-grandparent for a parent
             gfolks = []
             for a in set(info[sid]["parents"]) - set(ts_p):
                 gfolks.extend(info[a]["parents"])

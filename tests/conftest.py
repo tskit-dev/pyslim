@@ -113,7 +113,7 @@ def run_slim(recipe, out_dir, recipe_dir="test_recipes", **kwargs):
     with open(os.path.join(out_dir, "SLiM_run_output.log"), "w") as out:
         retval = subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=out)
         if retval != 0:
-            raise RuntimeError(f"Could not run {cmd}")
+            raise RuntimeError(f"Could not run {' '.join(cmd)}")
     return outfiles.results()
 
 
