@@ -635,7 +635,7 @@ are not coalescent points in a tree (so-called "unary nodes"). Similarly, if you
 decide to reduce the number of samples via :ref:`sec_tutorial_simplification`,
 retained individuals will be kept only if they are still MRCAs in the ancestry of the
 selected samples. To preserve them even if their nodes are not coalescent points, you
-can specify ``ts.simplify(selected_samples, keep_unary="individuals")``.
+can specify ``ts.simplify(selected_samples, keep_unary_in_individuals=True)``.
 
 .. todo::
     Add SLiM code which includes retaining and remembering, and perhaps some python code
