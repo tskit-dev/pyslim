@@ -443,21 +443,10 @@ class SlimTreeSequence(tskit.TreeSequence):
             raise ValueError("The keep_first_generation argument is deprecated:"
                              "the FIRST_GEN flag is no longer used.")
 
-        # toggle for hacks below to deal with old msprime
-        discrete_msprime = hasattr(msprime, "RateMap")
-
-        if recombination_rate is not None:
-            if recombination_map is not None:
-                raise ValueError("Cannot specify length/recombination_rate along with a recombination map")
-            if discrete_msprime:
-                recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
-                                                             rates = [recombination_rate, 0.0])
-            else:
-                recombination_map = msprime.RecombinationMap(positions = [0.0, self.sequence_length],
-                                                             rates = [recombination_rate, 0.0],
-                                                             num_loci = int(self.sequence_length))
-        if discrete_msprime and ('discrete_genome' not in kwargs):
-            kwargs['discrete_genome'] = True
+        recombination_map = msprime.RecombinationMap(
+                   positions = [0.0, self.sequence_length],
+                   rates = [recombination_rate, 0.0],
+                   num_loci = int(self.sequence_length))
 
         if population_configurations is None:
             population_configurations = [msprime.PopulationConfiguration()
