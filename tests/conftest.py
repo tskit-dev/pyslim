@@ -8,7 +8,7 @@ from filelock import FileLock
 import pyslim
 import msprime
 
-from .recipe_specs import basic_recipe_specs
+from .recipe_specs import recipe_specs
 
 class Outfiles:
     """
@@ -85,7 +85,7 @@ class Outfiles:
         return res
     
 
-def run_slim(recipe, out_dir, recipe_dir="examples", **kwargs):
+def run_slim(recipe, out_dir, recipe_dir="test_recipes", **kwargs):
     """
     Run the recipe, present in the recipe_dir, outputting to files in out_dir
     kwargs are passed as variables to SLiM (in addition to the outfiles)
@@ -113,7 +113,7 @@ def run_slim(recipe, out_dir, recipe_dir="examples", **kwargs):
     with open(os.path.join(out_dir, "SLiM_run_output.log"), "w") as out:
         retval = subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=out)
         if retval != 0:
-            raise RuntimeError(f"Could not run {cmd}")
+            raise RuntimeError(f"Could not run {' '.join(cmd)}")
     return outfiles.results()
 
 
@@ -134,7 +134,7 @@ class HelperFunctions:
     def run_msprime_restart(cls, in_ts, out_dir, sex=None, WF=False):
         out_ts = cls.run_slim_restart(
             in_ts,
-            "restart_msprime.slim",  # This is standard script defined in examples
+            "restart_msprime.slim",  # This is standard script defined in test_recipes
             out_dir,
             WF=WF, SEX=sex, L=int(in_ts.sequence_length))
         return out_ts
@@ -175,8 +175,8 @@ class HelperFunctions:
 def helper_functions():
     return HelperFunctions
 
-@pytest.fixture(scope="session", params=basic_recipe_specs.keys())
-def basic_recipe(request, tmp_path_factory, worker_id):
+@pytest.fixture(scope="session", params=recipe_specs.keys())
+def recipe(request, tmp_path_factory, worker_id):
     """
     Most logic in this fixture is to check whether we are running as a single proc, or as a worker.
     If a worker, and this is the first run, we need to lock the process until the simulation has finished.
@@ -195,5 +195,5 @@ def basic_recipe(request, tmp_path_factory, worker_id):
             os.makedirs(out_dir, exist_ok=True)
             ret = run_slim(recipe=recipe_name, out_dir=out_dir)
     
-    ret.update(basic_recipe_specs[recipe_name])
+    ret.update(recipe_specs[recipe_name])
     return ret

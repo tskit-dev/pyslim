@@ -288,12 +288,12 @@ class TestAnnotate(tests.PyslimTestCase):
                 assert md['mutation_list'][0]["selection_coeff"] == selcoefs[j]
 
     @pytest.mark.parametrize(
-        'restart_name, basic_recipe', restarted_recipe_eq("no_op"), indirect=["basic_recipe"])
+        'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
     def test_reload_recapitate(
-        self, restart_name, basic_recipe, helper_functions, tmp_path
+        self, restart_name, recipe, helper_functions, tmp_path
     ):
         # Test the ability of SLiM to load our files after recapitation.
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         # recapitate, reload
         in_ts = ts.recapitate(recombination_rate=1e-2, Ne=10, random_seed=25)
         # put it through SLiM (which just reads in and writes out)
@@ -303,12 +303,12 @@ class TestAnnotate(tests.PyslimTestCase):
 
     
     @pytest.mark.parametrize(
-        'restart_name, basic_recipe', restarted_recipe_eq("no_op"), indirect=["basic_recipe"])
+        'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
     def test_reload_annotate(
-        self, restart_name, basic_recipe, helper_functions, tmp_path
+        self, restart_name, recipe, helper_functions, tmp_path
     ):
         # Test the ability of SLiM to load our files after annotation.
-        ts = basic_recipe["ts"]
+        ts = recipe["ts"]
         tables = ts.tables
         metadata = [m.metadata for m in tables.mutations]
         has_nucleotides = tables.metadata['SLiM']['nucleotide_based']
@@ -339,11 +339,11 @@ class TestReload(tests.PyslimTestCase):
     Tests for basic things related to reloading with SLiM
     '''
     @pytest.mark.parametrize(
-        'restart_name, basic_recipe', restarted_recipe_eq("no_op"), indirect=["basic_recipe"])
+        'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
     def test_load_without_provenance(
-        self, restart_name, basic_recipe, helper_functions, tmp_path
+        self, restart_name, recipe, helper_functions, tmp_path
     ):
-        in_ts = basic_recipe["ts"]
+        in_ts = recipe["ts"]
         # with 0.5, SLiM should read info from metadata, not provenances
         in_tables = in_ts.tables
         in_tables.provenances.clear()
@@ -357,13 +357,11 @@ class TestReload(tests.PyslimTestCase):
         assert in_tables == out_tables
 
     @pytest.mark.parametrize(
-        'restart_name, basic_recipe',
-        restarted_recipe_eq("no_op", "nucleotides"),
-        indirect=["basic_recipe"])
+        'restart_name, recipe', restarted_recipe_eq("no_op", "nucleotides"), indirect=["recipe"])
     def test_reload_reference_sequence(
-        self, restart_name, basic_recipe, helper_functions, tmp_path
+        self, restart_name, recipe, helper_functions, tmp_path
     ):
-        in_ts = basic_recipe["ts"]
+        in_ts = recipe["ts"]
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         assert in_ts.metadata['SLiM']['nucleotide_based'] is True
         assert out_ts.metadata['SLiM']['nucleotide_based'] is True

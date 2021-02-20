@@ -4,15 +4,26 @@
 Tutorial
 ========
 
+There are several very common uses of tree sequences in SLiM/pyslim. These are covered
+in this tutorial.
 
-Coalescent simulation is more limited in the degree of biological realism
-it can attain, but is much faster than
-forward simulation, so it can be helpful to run a "hybrid" simulation, by
-endowing a SLiM simulation with a history derived from an msprime coalescent simulation.
+******************************************
+Recapitation, simplification, and mutation
+******************************************
+
+Perhaps the most common pyslim operations involve :ref:`sec_tutorial_recapitation`,
+:ref:`sec_tutorial_simplification`,  and/or :ref:`sec_tutorial_adding_neutral_mutations`.
+Below we illustrate all three in the context of running a "hybrid" simulation, combining
+both forwards and backwards (coalescent) methods. This hybrid approach is a popular
+application of pyslim because coalescent algorithms, although more limited in the degree
+of biological realism they can attain, can be much faster than the forwards algorithms
+implemented in SLiM.
+
+A typical use-case is to take an existing SLiM simulation and endow
+it with a history derived from a coalescent simulation: this is known as *recapitation*.
 For instance, suppose we have a SLiM simulation of a population of 100,000 individuals
-that we have run for 10,000 generations without neutral mutations.
-Now, we wish to extract whole-genome genotype data for only 1,000 individuals.
-A typical way to do this would be to
+that we have run for 10,000 generations without neutral mutations. Now, we wish to
+extract whole-genome genotype data for only 1,000 individuals. Here's one way to do it:
 
 
 1. :meth:`.SlimTreeSequence.recapitate` :
@@ -27,25 +38,22 @@ A typical way to do this would be to
 
 3. :meth:`msprime.mutate` : Adds neutral mutations to the tree sequence.
 
-These steps are described below.
-First, to get something to work with,
-you can run this simple SLiM script
-of a single population of sexual organisms,
-fluctuating around 1000 individuals,
-for 1000 generations:
+
+These steps are described below. First, to get something to work with,
+you can run this simple SLiM script of a single population of sexual organisms,
+fluctuating around 1000 individuals, for 1000 generations:
 
 .. literalinclude:: example_sim.slim
 
 (Note: by setting the random seed in the simulation,
-you should get exactly the same results as me,
-when you run the code below.)
-
+you should get exactly the same results as the code below.)
 
 .. _sec_tutorial_recapitation:
 
-************
+++++++++++++
 Recapitation
-************
+++++++++++++
+
 
 .. figure:: _static/pedigree_recapitate.png
    :scale: 42%
@@ -91,9 +99,9 @@ you must set migration rates or else coalescence will never happen
 (see below for an example, and :meth:`.SlimTreeSequence.recapitate` for more).
 
 
-++++++++++++++++++++++++++++++++++++++++++++++++
+
 Recapitation with a nonuniform recombination map
-++++++++++++++++++++++++++++++++++++++++++++++++
+------------------------------------------------
 
 Above, we recapitated using a uniform genetic map.
 But, msprime - like SLiM - can simulate with recombination drawn from an arbitrary genetic map.
@@ -203,10 +211,11 @@ and making sure that no recombinations occurred in that region.
    the RecombinationMap class; setting ``discrete=True`` will more closely
    match the recombination model of SLiM.
 
+.. _sec_tutorial_simplification:
 
-**************
+++++++++++++++
 Simplification
-**************
+++++++++++++++
 
 .. figure:: _static/pedigree_simplify.png
    :scale: 42%
@@ -215,14 +224,18 @@ Simplification
 Probably, your simulations have produced many more fictitious genomes
 than you will be lucky enough to have in real life,
 so at some point you may want to reduce your dataset to a realistic sample size.
-We can get rid of the extra information using an operation called *simplification*.
-This is depicted in the figure at the right:
-we have only retained information relevant to the genealogies of the remaining samples,
-substantially simplifying the tree sequence.
-(Precisely, simplification retains only nodes of the tree sequence that are
-branching points of some marginal genealogy -- see
-`Kelleher et al 2018 <https://doi.org/10.1371/journal.pcbi.1006581>`_
-for details.)
+We can get rid of unneeded samples and any extra information from them by using
+an operation called *simplification* (this is the same basic approach that SLiM
+implements under the hood when outputting a tree sequence, as described in
+:ref:`the introduction <sec_left_in_tree_sequence>`).
+
+Depicted in the figure at the right is the result of applying an explicit call to
+``simplify()`` to our example tree sequence. In the call we asked to keep only 4
+genomes (contained in 2 of the individuals in the current generation). This has
+substantially simplified the tree sequence, because only information relevant to the
+genealogies of the 4 sample nodes has been kept. (Precisely, simplification retains only
+nodes of the tree sequence that are branching points of some marginal genealogy -- see
+`Kelleher et al 2018 <https://doi.org/10.1371/journal.pcbi.1006581>`_ for details.)
 While simplification sounds very appealing - it makes things simpler after all -
 it is often not necessary in practice, because tree sequences are very compact,
 and many operations with them are quite fast.
@@ -232,8 +245,8 @@ So, you should probably not make simplification a standard step in your workflow
 only using it if necessary.
 
 It is important that simplification - if it happens at all -
-either (a) comes after recapitation, or
-(b) is done with the ``keep_input_roots=True`` option (see :meth:`tskit.TreeSequence.simplify`).
+either (a) comes after recapitation, or (b) is done with the
+``keep_input_roots=True`` option (see :meth:`tskit.TreeSequence.simplify`).
 This is because simplification removes some of the
 ancestral genomes in the first generation,
 which are necessary for recapitation,
@@ -284,9 +297,11 @@ because they have nodes that are required to describe the genealogies of the sam
 parents and children can be both alive at the same time in the final generation.)
 
 
-*********************************************
+.. _sec_tutorial_adding_neutral_mutations:
+
++++++++++++++++++++++++++++++++++++++++++++++
 Adding neutral mutations to a SLiM simulation
-*********************************************
++++++++++++++++++++++++++++++++++++++++++++++
 
 .. figure:: _static/pedigree_mutate.png
    :scale: 42%
@@ -320,11 +335,15 @@ functions that return tree sequences may be converted back to
 :class:`pyslim.SlimTreeSequence` in the same way.
 
 
+********************************
+Obtaining and saving individuals
+********************************
+
 .. _sec_extracting_individuals:
 
-**************************************
+++++++++++++++++++++++++++++++++++++++
 Extracting particular SLiM individuals
-**************************************
+++++++++++++++++++++++++++++++++++++++
 
 To get another example with discrete subpopulations,
 let's run another SLiM simulation, similar to the above
@@ -417,11 +436,55 @@ that are alive at the end of the simulation.
    # the two populations, and a mean divergence of 9.135839855153494e-05 between them.
 
 
-Other information about individuals is available,
-for instance, spatial location, SLiM's internal pedigree ID,
-their age at time of death (or the end of the simulation, if they are still alive),
-their sex, and their birth time.
-For instance, we can create an age distribution by sex:
++++++++++++++++++++
+Individual metadata
++++++++++++++++++++
+
+Each ``Mutation``, ``Population``, ``Node``, and ``Individual``, as well as the tree 
+sequence as a whole, carries additional information stored by SLiM in its ``metadata``
+property. A fuller description of metadata in general is given in :ref:`sec_metadata`,
+but as a quick introduction, here is the information available
+about an individual in the previous example:
+
+.. code-block:: python
+
+    print(ts.individual(0))
+
+   # {'id': 0, 'flags': 65536,
+   #  'location': array([0., 0., 0.]),
+   #  'metadata': {
+   #               'pedigree_id': 1003551,
+   #               'age': 1,
+   #               'subpopulation': 1,
+   #               'sex': 0,
+   #               'flags': 0
+   #              },
+   #  'nodes': array([4000, 4001], dtype=int32),
+   #  'population': 1,
+   #  'time': 16.0}
+
+Some information is generic to individuals in tree sequences of any format:
+``id`` (the ID internal to the tree sequence),
+``flags`` (described :ref:`below <sec_individual_flags>`),
+``location`` (the [x,y,z] coordinates of the individual),
+``nodes`` (an array of the node IDs that represent the genomes of this individual),
+and ``time`` (the time, in units of "time ago" that the individual was born).
+
+Other information, contained in the ``metadata`` field, is specific to tree sequences
+produced by SLiM. This is described in more detail in the SLiM manual, but briefly:
+
+- the  ``pedigree_id`` is SLiM's internal ID for the individual,
+- ``age`` and ``subpopulation`` are their age and population at death, or at the time
+  the simulation stopped if they were still alive  (NB: SLiM uses the word
+  "subpopulation" for what is simply called a "population" in tree-sequence parlance)
+- ``sex`` is their sex (as an integer, one of :data:`.INDIVIDUAL_TYPE_FEMALE`,
+  :data:`.INDIVIDUAL_TYPE_MALE`, or :data:`.INDIVIDUAL_TYPE_HERMAPHRODITE`),
+
+.. todo::
+    Add description of ``metadata["flags"]``: how does this differ from ``individual.flags``?
+
+
+We can use this metadata in many ways, for example, to create an age distribution by sex:
 
 .. code-block:: python
 
@@ -462,44 +525,26 @@ For instance, we can create an age distribution by sex:
    # 20         0.0     0.0
    # 21         1.0     0.0
 
-We have looked up how to interpret the `sex` attribute
+We have looked up how to interpret the ``sex`` attribute
 by using the values of :data:`.INDIVIDUAL_TYPE_FEMALE` (which is 0)
 and :data:`.INDIVIDUAL_TYPE_MALE` (which is 1).
 In a simulation without separate sexes,
 all individuals would have sex equal to :data:`.INDIVIDUAL_TYPE_HERMAPHRODITE`
 (which is -1).
 
-The "flags" object also tells us the reasons that each individual
-was retained in the tree sequence: whether they were Remembered,
-or whether they were alive at the
-end of the simulation. (Note these are not mutually exclusive.)
-To count these up, we could do this (even though this simulation had
-no remembered individuals):
-
-.. code-block:: python
-
-   indiv_types = {"remembered" : 0,
-                  "alive" : 0}
-   for ind in ts.individuals():
-      if ind.flags & pyslim.INDIVIDUAL_REMEMBERED:
-         indiv_types['remembered'] += 1
-      if ind.flags & pyslim.INDIVIDUAL_ALIVE:
-         indiv_types['alive'] += 1
-
-   for k in indiv_types:
-      print(f"Number of individuals that are {k}: {indiv_types[k]}")
-
-   # Number of individuals that are remembered: 0
-   # Number of individuals that are alive: 2012
-
-
-As a final example,
+Several fields associated with individuals are also available as numpy arrays,
+across all individuals at once:
+:attr:`.SlimTreeSequence.individual_locations`,
+:attr:`.SlimTreeSequence.individual_populations`,
+:attr:`.SlimTreeSequence.individual_ages`,
+and :attr:`.SlimTreeSequence.individual_times` (also see
+:meth:`.SlimTreeSequence.individual_ages_at`). Using these can sometimes be easier than
+iterating over individuals as above. For example,
 suppose that we want to randomly sample 10 individuals alive and older than 2 time steps
 from each of the populations at the end of the simulation,
 and simplify the tree sequence to retain only those individuals.
-We could do this by iterating over individuals as above,
-but the numpy arrays :attr:`.SlimTreeSequence.individual_ages`
-and :attr:`.SlimTreeSequence.individual_populations` will make this easier:
+This can be done using the numpy arrays :attr:`.SlimTreeSequence.individual_ages`
+and :attr:`.SlimTreeSequence.individual_populations` as follows:
 
 .. code-block:: python
 
@@ -526,52 +571,137 @@ The resulting tree sequence does indeed have fewer individuals and fewer trees:
 
 
 
-*********************
-Reading SLiM metadata
-*********************
+++++++++++++++++++++++
+Historical individuals
+++++++++++++++++++++++
 
-Each ``Mutation``, ``Population``, ``Node``, and ``Individual`` carries additional information
-stored by SLiM in its ``metadata`` property. The precise metadata stored in each is detailed in the SLiM manual.
-For instance, here is the information available about an individual
-in the previous example:
+As we've seen, a basic tree sequence output by SLiM only contains the currently alive
+individuals and the ancestral nodes (genomes) required to reconstruct their genetic
+relationships. But you might want more than that. For example, there may be individuals
+who are not alive any more, but whose complete ancestry you would like to know. Or
+perhaps you'd like to know how the final generation relates to particular individuals in
+the past. Or it may be that you want to access the spatial location of historical genomes
+(which, for technical reasons is linked to individuals, not to genomes). The solution is
+to *remember* an individual during the simulation, using the SLiM function
+``treeSeqRememberIndividuals()``. Individuals can be Remembered in two ways, as
+described below.
+
+
+
+.. figure:: _static/pedigree_remember.png
+   :scale: 40%
+   :align: right
+
+
+.. _sec_remembering_individuals:
+
+Permanently remembering individuals
+-----------------------------------
+
+By default, a call to ``treeSeqRememberIndividuals()`` will permanently remember one or
+more individuals, by marking their nodes as actual samples: the simulated equivalent of
+ancient DNA dug out of permafrost, or stored
+in an old collecting tube. This means any tree sequence subsequently recorded will always
+contain this individual, its nodes (now marked as samples), and its full ancestry. As
+with any other sample nodes, any permanently remembered individuals can be removed from
+the tree sequence by :ref:`sec_tutorial_simplification`. The result of remembering an
+individual in the :ref:`introductory example <sec_left_in_tree_sequence>` is pictured on the right.
+
+.. _sec_retaining_individuals:
+
+Retaining individuals
+---------------------
+
+Alternatively, you may want to avoid treating historical individuals and their genomes as
+actual samples, but temporarily *retain* them as long as they are still relevant to
+reconstructing the genetic ancestry of the sample nodes. This can save some computational
+burden, as not only will nodes and individuals be removed once they are no longer
+ancestral, but also the full ancestry of the retained individuals does not need to be
+kept. You can retain individuals in this way by using
+``treeSeqRememberIndividuals(..., permanent=F)``.
+
+Since a retained individual's nodes are not marked as samples, they are subject to the
+:ref:`normal removal process <sec_left_in_tree_sequence>`, and it is possible to end up
+with an individual containing only one genome, as shown in the diagram. However, as soon
+as *both* nodes of a retained individual have been lost, the individual itself is deleted
+too.
+
+Note that by default, nodes are only kept if they mark a coalescent point (MRCA or branch
+point) in one or more of the trees in a tree sequence. This can be changed by
+initialising tree sequence recording in SLiM using 
+``treeSeqInitialize(retainCoalescentOnly=F)``. SLiM will then
+preserve all retained individuals while they remain in the genealogy, even if their nodes
+are not coalescent points in a tree (so-called "unary nodes"). Similarly, if you later
+decide to reduce the number of samples via :ref:`sec_tutorial_simplification`,
+retained individuals will be kept only if they are still MRCAs in the ancestry of the
+selected samples. To preserve them even if their nodes are not coalescent points, you
+can specify ``ts.simplify(selected_samples, keep_unary="individuals")``.
+
+.. todo::
+    Add SLiM code which includes retaining and remembering, and perhaps some python code
+    to show them.
+
+.. _sec_remembering_everyone:
+
+
+Remembering everyone
+--------------------
+
+Although not needed to reconstruct full genomic history, it is perfectly possible to
+apply ``treeSeqRememberIndividuals()`` to every individual in every generation of a
+simulation (i.e. everyone who has ever lived). If you simply mark everyone for temporary
+retention, it should not increase the memory burden of your simulation much: most
+individuals will be removed as the simulation progresses, since they will not contain
+coalescent nodes. However, if you use ``treeSeqInitialize(retainCoalescentOnly=F)``,
+the number of individuals in the resulting tree sequence is likely to become very large,
+and the efficiencies provided by tree sequence recording will be substantially reduced.
+Indeed in this case, retaining will be much the same as permanently remembering everyone
+who has ever lived. Nevertheless, if you are willing to sacrifice enough computer memory,
+either of these is (perhaps surprisingly) possible, even for medium-sized simulations. 
+
+
+.. _sec_individual_flags:
+
+Individual flags
+----------------
+
+We have seen that an individual can appear in the tree sequence because it was
+Remembered, Retained, or alive at the end of the simulation (note these
+are not mutually exclusive). The ``Individual.flags`` value stores this information.
+For example, to count up the different individual types, we could do this:
+
+.. todo::
+    Update this code with the simulation above so that we have some remembered and
+    retained individuals present
 
 .. code-block:: python
 
-    print(ts.individual(0))
+   indiv_types = {"remembered" : 0,
+                  "retained" : 0,
+                  "alive" : 0}
+   for ind in ts.individuals():
+      if ind.flags & pyslim.INDIVIDUAL_REMEMBERED:
+         indiv_types['remembered'] += 1
+      if ind.flags & pyslim.INDIVIDUAL_RETAINED:
+         indiv_types['retained'] += 1
+      if ind.flags & pyslim.INDIVIDUAL_ALIVE:
+         indiv_types['alive'] += 1
 
-   # {'id': 0, 'flags': 65536,
-   #  'location': array([0., 0., 0.]),
-   #  'metadata': {
-   #               'pedigree_id': 1003551,
-   #               'age': 1,
-   #               'subpopulation': 1,
-   #               'sex': 0,
-   #               'flags': 0
-   #              },
-   #  'nodes': array([4000, 4001], dtype=int32),
-   #  'population': 1,
-   #  'time': 16.0}
+   for k in indiv_types:
+      print(f"Number of individuals that are {k}: {indiv_types[k]}")
 
-For a precise description of the metadata fields, see the SLiM manual.
-Briefly,
-the ``id`` is the ID internal to the tree sequence;
-``location`` is the (x,y,z) coordinates of the individual,
-``pedigree_id`` is SLiM's internal ID for the individual,
-``age`` and ``population`` are their age and population at death
-(called a "subpopulation" in SLiM"),
-or at the time the simulation stopped if they were still alive,
-``sex`` is their sex
-(as an integer, one of :data:`.INDIVIDUAL_TYPE_FEMALE`,
-:data:`.INDIVIDUAL_TYPE_MALE`, or :data:`.INDIVIDUAL_TYPE_HERMAPHRODITE`),
-``nodes`` is an array of the node IDs that represent the genomes of this individual,
-and ``time`` is the time (in units of "time ago") that the individual was born.
-Several of these are available as numpy arrays,
-across all individuals at once:
-:attr:`.SlimTreeSequence.individual_locations`,
-:attr:`.SlimTreeSequence.individual_populations`,
-:attr:`.SlimTreeSequence.individual_ages`,
-and :attr:`.SlimTreeSequence.individual_times`.
-Also see :meth:`.SlimTreeSequence.individual_ages_at`.
+   # Number of individuals that are remembered: 0
+   # Number of individuals that are retained: 0
+   # Number of individuals that are alive: 2012
+
+
+.. note::
+
+    In previous versions of SLiM/pyslim, the first generation of individuals were
+    kept in the tree sequence, to allow :ref:`sec_tutorial_recapitation`. With the
+    addition of the ``keep_input_roots=True`` option to the
+    :ref:`sec_tutorial_simplification` process, this is no longer necessary,
+    so these are no longer present, unless you specifically Remember them.
 
 
 ******************************
@@ -939,10 +1069,17 @@ Also known as "gotchas".
 
 2. Make sure to distinguish *individuals* and *nodes*!
    ``tskit`` "nodes" correspond to SLiM "genomes".
-   Individuals in SLiM are diploid, so each has two nodes.
+   Individuals in SLiM are diploid, so normally, each has two nodes (but retained
+   individuals may have nodes removed by simplification: see below).
 
-3. Since in SLiM, all individual are diploid, every individual will be associated with two nodes.
-   As described above, the Individual table contains entries for 
+3. As described above, the Individual table contains entries for 
 
    a. the currently alive individuals, 
-   b. any individuals that have been remembered with ``treeSeqRememberIndividuals()``, and
+   b. any individuals that have been permanently remembered with
+      ``treeSeqRememberIndividuals()``
+   c. any individuals that have been temporarily retained with
+      ``treeSeqRememberIndividuals(permanent=F)``. Importantly, the nodes in these
+      individuals are *not* marked as sample nodes, so they can be lost during
+      simplification. This means that a retained individual may only have one node (but
+      if both nodes are lost due to simplification, the individual is removed too, and
+      will not appear in the Individual table).

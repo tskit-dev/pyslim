@@ -4,7 +4,7 @@ Install the dependencies using
 pip3 install -r requirements/CI/requirements.txt
 ```
 
-SLiM recipes used for testing are in `examples/`: the specifications for which
+SLiM recipes used for testing are in `test_recipes/`: the specifications for which
 tests to run on them are specified in `recipe_specs.py`
 
 To run the entire test suite: 
@@ -20,7 +20,7 @@ python3 -m pytest tests/test_tree_sequence.py::test_slim_generation
 ```
 
 
-To restrict to specific recipes in the examples dir, the syntax is:
+To restrict to specific recipes in the `test_recipes` dir, the syntax is:
 
 ```
 python3 -m pytest -k recipe_nonWF.slim

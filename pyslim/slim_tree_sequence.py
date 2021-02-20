@@ -16,8 +16,10 @@ from .slim_metadata import _decode_mutation_pre_nucleotides, _set_metadata_schem
 
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
-# no longer used but keep for a while
-INDIVIDUAL_FIRST_GEN = 2**18
+INDIVIDUAL_RETAINED = 2**18
+# deprecated but keep it around for backwards compatibility
+# (also, it means effectively the same thing as RETAINED)
+INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
 
 # A nucleotide k in mutation metadata actually means
 # something that in reference_sequence is NUCLEOTIDES[k]
@@ -612,8 +614,9 @@ class SlimTreeSequence(tskit.TreeSequence):
         then those individuals might not have survived until "late()" of that
         time step. Since SLiM does not record the stage at which individuals
         were Remembered, you can specify this by setting ``remembered_stages``:
-        it should be the stage during which *all* calls to sim.treeSeqRememberIndividuals,
-        as well as to sim.treeSeqOutput(), were made.
+        it should be the stage during which *all* calls to
+        ``sim.treeSeqRememberIndividuals()``,  as well as to ``sim.treeSeqOutput()``,
+        were made.
 
         Note also that in nonWF models, birth occurs before "early()", so the
         possible parents in a given time step are those that are alive in
@@ -627,7 +630,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param str stage: The stage in the SLiM life cycle that we are inquiring
             about (either "early" or "late"; defaults to "late").
         :param str remembered_stage: The stage in the SLiM life cycle
-            that individuals were Remembered during (defaults to the stage the
+            during which individuals were Remembered (defaults to the stage the
             tree sequence was recorded at, stored in metadata).
         :param int population: If given, return only individuals in the
             population(s) with these population ID(s).
@@ -714,8 +717,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param float time: The reference time ago.
         :param str stage: The stage in the SLiM life cycle used to determine who
             is alive (either "early" or "late"; defaults to "late").
-        :param str remembered_stage: The stage in the SLiM life cycle that
-            individuals were Remembered during.
+        :param str remembered_stage: The stage in the SLiM life cycle during which
+            individuals were Remembered.
         """
         ages = np.repeat(np.nan, self.num_individuals)
         alive = self.individuals_alive_at(time, stage=stage,
@@ -768,13 +771,16 @@ class SlimTreeSequence(tskit.TreeSequence):
             This method is deprecated, because from SLiM version 3.5
             the first generation individuals are no longer marked as such:
             only tree sequences from older versions of SLiM will have
-            these individuals.
+            these individuals. As part of this, the INDIVIDUAL_FIRST_GEN
+            flag does not exist, so this function returns individuals with
+            the INDIVIDUAL_RETAINED flag instead.
         """
         warnings.warn(
                 "This method is deprecated: SLiM no longer marks individuals as "
                 "'first generation' any longer - you must explicitly Remember them "
-                "to retain them in the tree sequence.", FutureWarning)
-        return np.where(self.tables.individuals.flags & INDIVIDUAL_FIRST_GEN > 0)[0]
+                "to keep them in the tree sequence. Returning *retained* individuals "
+                "instead.", FutureWarning)
+        return np.where(self.tables.individuals.flags & INDIVIDUAL_RETAINED > 0)[0]
 
     def _do_individual_parents_stuff(self, return_parents=False):
         # Helper for has_individual_parents and individual_parents,

@@ -22,8 +22,8 @@ class TestLegacyTypes(tests.PyslimTestCase):
         with pytest.warns(FutureWarning):
             warnings.warn('hi', FutureWarning)
 
-    def test_legacy_types(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_legacy_types(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         assert ts.legacy_metadata
         for pop in ts.populations():
             if pop.metadata is not None:
@@ -186,8 +186,8 @@ class TestAnnotate(tests.PyslimTestCase):
     Tests the table annotation methods.
     '''
 
-    def test_annotate_mutations(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_annotate_mutations(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         tables = ts.dump_tables()
         new_tables = ts.dump_tables()
         metadata = []
@@ -204,8 +204,8 @@ class TestAnnotate(tests.PyslimTestCase):
             pyslim.annotate_mutation_metadata(new_tables, metadata)
         self.assertTableCollectionsEqual(tables, new_tables)
 
-    def test_annotate_nodes(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_annotate_nodes(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         tables = ts.dump_tables()
         new_tables = ts.dump_tables()
         metadata = []
@@ -222,8 +222,8 @@ class TestAnnotate(tests.PyslimTestCase):
             pyslim.annotate_node_metadata(new_tables, metadata)
         self.assertTableCollectionsEqual(tables, new_tables)
 
-    def test_annotate_individuals(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_annotate_individuals(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         tables = ts.dump_tables()
         new_tables = ts.dump_tables()
         metadata = []
@@ -240,8 +240,8 @@ class TestAnnotate(tests.PyslimTestCase):
             pyslim.annotate_individual_metadata(new_tables, metadata)
         self.assertTableCollectionsEqual(tables, new_tables)
 
-    def test_annotate_populations(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_annotate_populations(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         tables = ts.dump_tables()
         new_tables = ts.dump_tables()
         metadata = []
@@ -274,8 +274,8 @@ class TestDumpLoad(tests.PyslimTestCase):
         for n1, n2 in zip(ts.nodes(), slim_ts.nodes()):
             assert n1.time == n2.time
 
-    def test_load_tables(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_load_tables(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         assert isinstance(ts, pyslim.SlimTreeSequence)
         tables = ts.tables
         new_ts = pyslim.load_tables(tables, legacy_metadata=True)
@@ -283,9 +283,9 @@ class TestDumpLoad(tests.PyslimTestCase):
         new_tables = new_ts.tables
         assert tables == new_tables
 
-    def test_load(self, basic_recipe):
-        assert basic_recipe["path"]["ts"] == basic_recipe["path"]["ts_legacy_metadata"]
-        fn = basic_recipe["path"]["ts"]
+    def test_load(self, recipe):
+        assert recipe["path"]["ts"] == recipe["path"]["ts_legacy_metadata"]
+        fn = recipe["path"]["ts"]
         # load in msprime then switch
         msp_ts = tskit.load(fn)
         assert isinstance(msp_ts, tskit.TreeSequence)
@@ -309,13 +309,13 @@ class TestDumpLoad(tests.PyslimTestCase):
         self.assertTableCollectionsEqual(msp_tables, slim_tables)
         assert slim_ts.slim_generation == new_ts.slim_generation
 
-    def test_dump_equality(self, basic_recipe, tmp_path):
+    def test_dump_equality(self, recipe, tmp_path):
         """
         Verifies that we can dump a copy of the specified tree sequence
         to the specified file, and load an identical copy.
         """
         tmp_file = os.path.join(tmp_path, "test_dump.trees")
-        ts = basic_recipe["ts_legacy_metadata"]
+        ts = recipe["ts_legacy_metadata"]
         ts.dump(tmp_file)
         ts2 = pyslim.load(tmp_file, legacy_metadata=True)
         assert ts.num_samples == ts2.num_samples
@@ -327,8 +327,8 @@ class TestDumpLoad(tests.PyslimTestCase):
 class TestIndividualMetadata(tests.PyslimTestCase):
     # Tests for extra stuff related to Individuals.
 
-    def test_individual_derived_info(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_individual_derived_info(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         for j, ind in enumerate(ts.individuals()):
             a = ts.tables.individuals.metadata_offset[j]
             b = ts.tables.individuals.metadata_offset[j+1]
@@ -347,8 +347,8 @@ class TestNodeMetadata(tests.PyslimTestCase):
     Tests for extra stuff related to Nodes.
     '''
 
-    def test_node_derived_info(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_node_derived_info(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         for j, node in enumerate(ts.nodes()):
             a = ts.tables.nodes.metadata_offset[j]
             b = ts.tables.nodes.metadata_offset[j+1]
@@ -364,8 +364,8 @@ class TestMutationMetadata(tests.PyslimTestCase):
     Tests for extra stuff related to Mutations.
     '''
 
-    def test_mutation_derived_info(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_mutation_derived_info(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         for j, mut in enumerate(ts.mutations()):
             a = ts.tables.mutations.metadata_offset[j]
             b = ts.tables.mutations.metadata_offset[j+1]
@@ -381,8 +381,8 @@ class TestPopulationMetadata(tests.PyslimTestCase):
     Tests for extra stuff related to Populations.
     '''
 
-    def test_population_derived_info(self, basic_recipe):
-        ts = basic_recipe["ts_legacy_metadata"]
+    def test_population_derived_info(self, recipe):
+        ts = recipe["ts_legacy_metadata"]
         for j, pop in enumerate(ts.populations()):
             a = ts.tables.populations.metadata_offset[j]
             b = ts.tables.populations.metadata_offset[j+1]
