@@ -1,0 +1,95 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+
+  test:
+    name: Python
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python: [ 3.6, 3.9 ]
+        os:  [ macos-latest, ubuntu-latest ]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Cache conda and dependancies
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            c:\Miniconda\envs\anaconda-client-env
+            /usr/share/miniconda/envs/anaconda-client-env
+            ~/osx-conda
+            ~/.profile
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v10-${{ hashFiles('requirements/CI/pip-requirements.txt') }}-${{ hashFiles('python/requirements/CI/conda-requirements.txt') }}
+
+      - name: Install Conda
+        uses: conda-incubator/setup-miniconda@v2
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          activate-environment: anaconda-client-env
+          python-version: ${{ matrix.python }}
+          channels: conda-forge
+          channel-priority: strict
+          auto-update-conda: true
+          use-only-tar-bz2: true
+
+      - name: Fix windows .profile
+        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+        run: |
+          cp ~/.bash_profile ~/.profile
+
+      - name: Install conda deps
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash -l {0} #We need a login shell to get conda
+        run: conda install --yes --file=python/requirements/CI-tests-conda/requirements.txt
+
+      - name: Install pip deps
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash -l {0}
+        run: pip install -r python/requirements/CI-tests-pip/requirements.txt
+
+      - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
+        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
+        run: |
+          cp -r /usr/local/miniconda/envs/anaconda-client-env ~/osx-conda
+
+      - name: Fix OSX Cache Restore
+        if: steps.cache.outputs.cache-hit == 'true' && matrix.os == 'macos-latest'
+        run: |
+          mkdir -p /usr/local/miniconda/envs
+          sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
+
+      - name: Build SLiM
+        run: |
+          git clone https://github.com/messerlab/SLiM.git
+          mkdir -p SLiM/Release
+          cd SLiM/Release
+          cmake -D CMAKE_BUILD_TYPE=Release ..
+          make -j 2
+
+      - name: Run tests
+        run: |
+          source ~/.profile
+          conda activate anaconda-client-env
+          export PATH=$PATH:$PWD/SLiM/Release
+          pytest -xv -n2
+
+
+
