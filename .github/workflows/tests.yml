@@ -37,7 +37,7 @@ jobs:
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v10-${{ hashFiles('requirements/CI/pip-requirements.txt') }}-${{ hashFiles('python/requirements/CI/conda-requirements.txt') }}
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v10-${{ hashFiles('requirements/CI/pip-requirements.txt') }}-${{ hashFiles('requirements/CI/conda-requirements.txt') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
@@ -58,12 +58,12 @@ jobs:
       - name: Install conda deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
-        run: conda install --yes --file=python/requirements/CI-tests-conda/requirements.txt
+        run: conda install --yes --file=requirements/CI/conda-requirements.txt
 
       - name: Install pip deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
-        run: pip install -r python/requirements/CI-tests-pip/requirements.txt
+        run: pip install -r requirements/CI/pip-requirements.txt
 
       - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'

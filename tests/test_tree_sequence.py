@@ -223,9 +223,7 @@ class TestMutationMetadata(tests.PyslimTestCase):
         offset = (ts.metadata["SLiM"]["model_type"] == "WF") and (ts.metadata["SLiM"]["stage"] == "early")
         for mut in ts.mutations():
             mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])
-            self.assertEqual(
-                    ts.slim_generation,
-                    mut_slim_time + mut.time + offset)
+            assert ts.slim_generation == mut_slim_time + mut.time + offset
 
 
 class TestIndividualAges(tests.PyslimTestCase):
