@@ -443,10 +443,11 @@ class SlimTreeSequence(tskit.TreeSequence):
             raise ValueError("The keep_first_generation argument is deprecated:"
                              "the FIRST_GEN flag is no longer used.")
 
-        recombination_map = msprime.RecombinationMap(
-                   positions = [0.0, self.sequence_length],
-                   rates = [recombination_rate, 0.0],
-                   num_loci = int(self.sequence_length))
+        if recombination_map is None:
+            recombination_map = msprime.RecombinationMap(
+                       positions = [0.0, self.sequence_length],
+                       rates = [recombination_rate, 0.0],
+                       num_loci = int(self.sequence_length))
 
         if population_configurations is None:
             population_configurations = [msprime.PopulationConfiguration()

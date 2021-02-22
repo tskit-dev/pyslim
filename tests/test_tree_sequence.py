@@ -164,15 +164,20 @@ class TestRecapitate(tests.PyslimTestCase):
             assert ts.num_sites == recap.num_sites
             assert list(ts.tables.sites.position) == list(recap.tables.sites.position)
             self.check_recap_consistency(ts, recap)
-            for t in recap.trees():
-                assert t.num_roots == 1
 
             recap = ts.recapitate(recombination_rate=recomb_rate, Ne=1e-6)
             self.check_recap_consistency(ts, recap)
             if ts.slim_generation < 200:
                 for t in recap.trees():
-                    assert t.num_roots == 1
                     assert abs(recap.node(t.root).time - recap.slim_generation) < 1e-4
+
+            # test with passing in a recombination map
+            recombination_map = msprime.RecombinationMap(
+                       positions = [0.0, ts.sequence_length],
+                       rates = [recomb_rate, 0.0],
+                       num_loci=int(ts.sequence_length))
+            recap = ts.recapitate(recombination_map=recombination_map, Ne=1e-6)
+            self.check_recap_consistency(ts, recap)
 
 
 class TestIndividualMetadata(tests.PyslimTestCase):
