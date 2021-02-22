@@ -36,6 +36,19 @@ git checkout $TAG
 mkdir -p build_$TAG && cd build_$TAG
 cmake .. && make
 cd ../..
-SLiM/build_${TAG}/slim recipe_nonWF.slim && mv recipe_nonWF.trees recipe_nonWF.${TAG}.trees
-SLiM/build_${TAG}/slim recipe_WF.slim && mv recipe_WF.trees recipe_WF.${TAG}.trees
+SLIMDIR=SLiM/build_${TAG}
+$SLIMDIR/slim recipe_nonWF.slim && mv recipe_nonWF.trees recipe_nonWF.${TAG}.trees
+$SLIMDIR/slim recipe_WF.slim && mv recipe_WF.trees recipe_WF.${TAG}.trees
+git add -f recipe_nonWF.${TAG}.trees recipe_WF.${TAG}.trees
+
+# To make the v3.5 files:
+
+TAG=v3.5
+git checkout $TAG
+mkdir -p build_$TAG && cd build_$TAG
+cmake .. && make
+SLIMDIR=$(pwd)
+cd ../..
+$SLIMDIR/slim recipe_nonWF.slim && mv out.trees recipe_nonWF.${TAG}.trees
+$SLIMDIR/slim recipe_WF.slim && mv out.trees recipe_WF.${TAG}.trees
 git add -f recipe_nonWF.${TAG}.trees recipe_WF.${TAG}.trees
