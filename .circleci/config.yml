@@ -1,0 +1,72 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.6-buster
+    working_directory: /home/circleci/pyslim
+    steps:
+      - checkout
+      - run: sudo chown -R circleci:circleci *
+      - restore_cache:
+          # It's sometimes necessary to nuke the cache, and the simplest
+          # way to do it is to change the key. We can increment this
+          # version number when we want to do this.
+          key: pyslim-{{ .Branch }}-v1
+      - run:
+          name: Install dependencies and set path
+          command: |
+            sudo apt-get install libgsl-dev
+            sudo apt-get install doxygen
+            pip install --user -r requirements/CI/pip-requirements.txt
+            pip install --user -r requirements/CI/conda-requirements.txt
+            pip install twine --user
+            echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+
+      - run:
+          name: Build and install SLiM
+          command: |
+            sudo apt-get install cmake
+            git clone https://github.com/MesserLab/SLiM.git
+            cd SLiM
+            mkdir build
+            cd build && cmake .. && make
+            cp slim /home/circleci/.local/bin/
+
+      - save_cache:
+          key: pyslim-{{ .Branch }}-v1
+          paths:
+            - "/home/circleci/.local"
+
+      - run:
+          name: Build docs
+          command: |
+            cd docs && make
+
+      - run:
+          name: Run Python tests
+          command: |
+            PYTHONPATH=python pytest --cov=pyslim --cov-report=xml --cov-branch \
+              -n 1 tests
+
+      - run:
+          name: Upload Python coverage
+          command: |
+            bash <(curl -s https://codecov.io/bash) -X gcov -n python_tests
+            # Clean up reports so we don't upload them twice.
+            rm -f coverage.xml
+
+      - run:
+          name: Build Python package
+          command: |
+            rm -fR build
+            python setup.py sdist
+            python setup.py check
+            python -m twine check dist/*.tar.gz
+            python -m venv venv
+            source venv/bin/activate
+            pip install --upgrade setuptools pip wheel
+            python setup.py build_ext
+            python setup.py egg_info
+            python setup.py bdist_wheel
+            pip install dist/*.tar.gz
+            python3 -c "import pyslim; print(pyslim.__version__)"

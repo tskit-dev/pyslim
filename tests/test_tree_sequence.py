@@ -218,14 +218,12 @@ class TestMutationMetadata(tests.PyslimTestCase):
     @pytest.mark.parametrize('recipe', recipe_eq(exclude="init_mutated"), indirect=True)
     def test_slim_time(self, recipe):
         ts = recipe["ts"]
-        # check that slim_times make sense
-        # Mutation's slim_times are one less than the corresponding node's slim times
-        # in WF models, but not in WF models, for some reason.
-        is_wf = (ts.metadata["SLiM"]["model_type"] == "WF")
+        # check that slim_times make sense, i.e., that
+        # slim_generation == (time + slim_time + (model_type == "WF" and stage="early"))
+        offset = (ts.metadata["SLiM"]["model_type"] == "WF") and (ts.metadata["SLiM"]["stage"] == "early")
         for mut in ts.mutations():
-            node_slim_time = ts.slim_generation - ts.node(mut.node).time
             mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])
-            assert node_slim_time >= mut_slim_time
+            assert ts.slim_generation == mut_slim_time + mut.time + offset
 
 
 class TestIndividualAges(tests.PyslimTestCase):
