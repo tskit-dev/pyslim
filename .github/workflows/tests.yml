@@ -14,6 +14,7 @@ jobs:
       matrix:
         python: [ 3.6, 3.9 ]
         os:  [ macos-latest, ubuntu-latest ]
+        slim-version: [ v3.5, master ]
     defaults:
       run:
         shell: bash
@@ -81,6 +82,7 @@ jobs:
           git clone https://github.com/messerlab/SLiM.git
           mkdir -p SLiM/Release
           cd SLiM/Release
+          git checkout ${{ matrix.slim-version }}
           cmake -D CMAKE_BUILD_TYPE=Release ..
           make -j 2
 
