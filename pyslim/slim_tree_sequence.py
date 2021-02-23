@@ -155,7 +155,7 @@ class SlimTreeSequence(tskit.TreeSequence):
     def __init__(self, ts, reference_sequence=None, legacy_metadata=False):
         self.legacy_metadata = legacy_metadata
         if not (isinstance(ts.metadata, dict) and 'SLiM' in ts.metadata
-                and ts.metadata['SLiM']['file_version'] == slim_file_version):
+                and ts.metadata['SLiM']['file_version'] in compatible_slim_file_versions):
             tables = ts.dump_tables()
             if not (isinstance(tables.metadata, dict) and 'SLiM' in tables.metadata):
                 _set_metadata_from_provenance(tables)
