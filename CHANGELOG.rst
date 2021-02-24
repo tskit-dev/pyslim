@@ -3,10 +3,21 @@
 ***************************
 
 
+********************
+[0.600] - 2021-02-24
+********************
+
 **New features**:
 
 - Added `ts.individual_parents()`, a way to get the IDs of individual's parents
-    when both of them are present in the tree sequence.
+    when both of them are present in the tree sequence. :user:@petrelharp
+
+- Added and documented `TSK_INDIVIDUAL_RETAINED` flag to reflect the additional
+    of "retained" individuals in SLiM v3.6. :user:@hyanwong, :user:@petrelharp
+
+**Bugfix**:
+
+- Modified `recaptiate` to not error with the current msprime 1.0 alpha release.
 
 ********************
 [0.501] - 2020-12-08
