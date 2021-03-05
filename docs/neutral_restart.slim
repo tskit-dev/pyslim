@@ -1,0 +1,33 @@
+initialize()
+{
+   initializeSLiMModelType("nonWF");
+   initializeTreeSeq();
+   initializeMutationRate(1e-8);
+   initializeMutationType("m0", 0.5, "f", 0.0);
+   initializeGenomicElementType("g1", m0, 1.0);
+   initializeGenomicElement(g1, 0, 1e6-1);
+   initializeRecombinationRate(1e-8);
+   defineConstant("K", 1000);
+}
+
+reproduction(p1) {
+   subpop.addCrossed(individual,
+                     subpop.sampleIndividuals(1));
+}
+
+1 early() { 
+   sim.readFromPopulationFile("initialize_nonWF.trees");
+   catn("Loaded " + length(sim.subpopulations)
+        + " populations from a file; now in generation " + sim.generation);
+   catn("Population sizes: " + paste(sim.subpopulations.individualCount));
+}
+
+2: early() {
+   p0.fitnessScaling = K / p0.individualCount;
+}
+
+10 {
+   sim.treeSeqOutput("nonWF_restart.trees");
+   catn("Done.");
+   sim.simulationFinished();
+}

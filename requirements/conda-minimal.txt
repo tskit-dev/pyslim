@@ -1,5 +1,5 @@
 tskit
-msprime
+msprime>=1.0
 kastore
 attrs
 numpy

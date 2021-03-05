@@ -1,0 +1,48 @@
+# Book settings
+# Learn more at https://jupyterbook.org/customize/config.html
+
+title: PySLiM manual
+author: Tskit Developers
+copyright: "2021"
+only_build_toc_files: true
+# logo: logo.png
+
+execute:
+  execute_notebooks: cache
+
+repository:
+  url: https://github.com/tskit-dev/pyslim
+  branch: main
+  path_to_book: docs
+
+html:
+  use_issues_button: true
+  use_repository_button: true
+  use_edit_page_button: true
+  # Do not edit this - the version placeholder is replaced by the
+  # current version during a distribution build in the Makefile
+  extra_navbar: pyslim __PYSLIM_VERSION__
+  extra_footer: pyslim __PYSLIM_VERSION__
+
+sphinx:
+    extra_extensions:
+    - sphinx.ext.autodoc
+    - sphinx.ext.autosummary
+    - sphinx.ext.todo
+    - sphinx.ext.viewcode
+    - sphinx.ext.intersphinx
+    - sphinx_issues
+    - sphinxarg.ext
+
+    config:
+      issues_github_path: tskit-dev/pyslim
+      todo_include_todos: true
+      intersphinx_mapping:
+        python: ["https://docs.python.org/3/", null]
+        tskit: ["https://tskit.readthedocs.io/en/stable", null]
+        msprime: ["https://msprime.readthedocs.io/en/stable", null]
+        tutorials: ["https://tskit.dev/tutorials/", null]
+        stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
+      myst_enable_extensions:
+      - colon_fence
+      - deflist

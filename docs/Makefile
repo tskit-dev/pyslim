@@ -1,18 +1,18 @@
-# Minimal makefile for Sphinx documentation
-#
 
-# You can set these variables from the command line.
-SPHINXOPTS    = -W
-SPHINXBUILD   = python3 -m sphinx
-SOURCEDIR     = .
-BUILDDIR      = _build
+# Need to set PYTHONPATH so that we pick up the local pyslim
+PYPATH=${PWD}/..
+PYSLIM_VERSION:=$(shell PYTHONPATH=${PYPATH} \
+   python3 -c 'import pyslim; print(pyslim.__version__.split("+")[0])')
 
-html :
-	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+dev:
+	$(MAKE) -C _static
+	PYTHONPATH=${PYPATH} ./build.sh
 
-.PHONY: html
+dist:
+	@echo Building distribution for pyslim version ${PYSLIM_VERSION}
+	sed -i s/__PYSLIM_VERSION__/${PYSLIM_VERSION}/g _config.yml
+	$(MAKE) -C _static
+	PYTHONPATH=${PYPATH} ./build.sh
 
-# # Catch-all target: route all unknown targets to Sphinx using the new
-# # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-# %: Makefile
-# 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+clean:
+	rm -fR _build

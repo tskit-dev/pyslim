@@ -287,6 +287,20 @@ class TestAnnotate(tests.PyslimTestCase):
                 md = x.metadata
                 assert md['mutation_list'][0]["selection_coeff"] == selcoefs[j]
 
+    def test_dont_annotate_mutations(self, helper_functions):
+        # Test the option to not overwrite mutation annotations
+        for ts in helper_functions.get_msprime_examples():
+            ts = msprime.mutate(ts, rate=5, random_seed=3)
+            self.assertGreater(ts.num_mutations, 0)
+            tables = ts.tables
+            pre_mutations = tables.mutations.copy()
+            pyslim.annotate_defaults_tables(tables, model_type="WF",
+                    slim_generation=1, annotate_mutations=False)
+            # this is necessary because b'' actually is decoded to
+            # an empty mutation_list by the schema
+            pre_mutations.metadata_schema = tables.mutations.metadata_schema
+            assert tables.mutations == pre_mutations
+
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
     def test_reload_recapitate(
