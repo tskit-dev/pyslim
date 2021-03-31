@@ -109,7 +109,7 @@ def run_slim(recipe, out_dir, recipe_dir="test_recipes", **kwargs):
                 x = 'T' if x else 'F'
             slim_vars += ["-d", f"{k}={x}"]
     cmd = ["slim", "-s", "23"] + slim_vars + [full_recipe]
-    print(f"Running {cmd}, outputting errors etc. to '{out_dir}/SLiM_run_output.log'")
+    print(f"Running {' '.join(cmd)}, outputting errors etc. to '{out_dir}/SLiM_run_output.log'")
     with open(os.path.join(out_dir, "SLiM_run_output.log"), "w") as out:
         retval = subprocess.call(cmd, stderr=subprocess.STDOUT, stdout=out)
         if retval != 0:

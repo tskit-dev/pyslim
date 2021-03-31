@@ -23,8 +23,8 @@ class TestAnnotate(tests.PyslimTestCase):
         Verify that the tables returned after annotation are equal, up to the
         expected forgetting of metadata.
         '''
-        tables1 = ts1.tables
-        tables2 = ts2.tables
+        tables1 = ts1.dump_tables()
+        tables2 = ts2.dump_tables()
         # compare nodes
         assert np.array_equal(tables1.nodes.flags, tables2.nodes.flags)
         assert np.array_equal(tables1.nodes.time, tables2.nodes.time)
@@ -81,7 +81,7 @@ class TestAnnotate(tests.PyslimTestCase):
             assert md["selfing_fraction"] == 0.0
             assert md["female_cloning_fraction"] == 0.0
             assert md["male_cloning_fraction"] == 0.0
-            assert md["sex_ratio"] == 0.5
+            assert md["sex_ratio"] == 0.0
             assert md["bounds_x0"] == 0.0
             assert md["bounds_x1"] == 0.0
             assert md["bounds_y0"] == 0.0
@@ -99,9 +99,9 @@ class TestAnnotate(tests.PyslimTestCase):
         Check for equality, in everything but the last provenance.
         """
         assert in_ts.num_provenances + 1 == out_ts.num_provenances
-        in_tables = in_ts.tables
+        in_tables = in_ts.dump_tables()
         in_tables.sort()
-        out_tables = out_ts.tables
+        out_tables = out_ts.dump_tables()
         out_tables.sort()
         self.assertTableCollectionsEqual(in_tables, out_tables, skip_provenance=-1)
 
@@ -171,7 +171,7 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_individuals(self, helper_functions, tmp_path):
         for ts in helper_functions.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-            tables = slim_ts.tables
+            tables = slim_ts.dump_tables()
             top_md = tables.metadata
             top_md['SLiM']['separate_sexes'] = True
             tables.metadata = top_md
@@ -206,7 +206,7 @@ class TestAnnotate(tests.PyslimTestCase):
         for ts in helper_functions.get_msprime_examples():
             for genome_type in ["X", "Y"]:
                 slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-                tables = slim_ts.tables
+                tables = slim_ts.dump_tables()
                 top_md = tables.metadata
                 top_md['SLiM']['separate_sexes'] = True
                 tables.metadata = top_md
@@ -255,7 +255,7 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_nodes(self, helper_functions):
         for ts in helper_functions.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-            tables = slim_ts.tables
+            tables = slim_ts.dump_tables()
             metadata = [n.metadata for n in tables.nodes]
             gtypes = [random.choice([pyslim.GENOME_TYPE_X, pyslim.GENOME_TYPE_Y])
                       for _ in metadata]
@@ -274,7 +274,7 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_mutations(self, helper_functions):
         for ts in helper_functions.get_msprime_examples():
             slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-            tables = slim_ts.tables
+            tables = slim_ts.dump_tables()
             metadata = [m.metadata for m in tables.mutations]
             selcoefs = [random.uniform(0, 1) for _ in metadata]
             for j in range(len(metadata)):
@@ -291,8 +291,8 @@ class TestAnnotate(tests.PyslimTestCase):
         # Test the option to not overwrite mutation annotations
         for ts in helper_functions.get_msprime_examples():
             ts = msprime.mutate(ts, rate=5, random_seed=3)
-            self.assertGreater(ts.num_mutations, 0)
-            tables = ts.tables
+            assert ts.num_mutations > 0
+            tables = ts.dump_tables()
             pre_mutations = tables.mutations.copy()
             pyslim.annotate_defaults_tables(tables, model_type="WF",
                     slim_generation=1, annotate_mutations=False)
@@ -309,13 +309,14 @@ class TestAnnotate(tests.PyslimTestCase):
         # Test the ability of SLiM to load our files after recapitation.
         ts = recipe["ts"]
         # recapitate, reload
-        in_ts = ts.recapitate(recombination_rate=1e-2, Ne=10, random_seed=25)
+        in_ts = pyslim.recapitate(ts, recombination_rate=1e-2, ancestral_Ne=10, random_seed=25)
         # put it through SLiM (which just reads in and writes out)
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         # check for equality, in everything but the last provenance
+        in_ts.dump("in_ts.trees")
+        out_ts.dump("out_ts.trees")
         self.verify_slim_restart_equality(in_ts, out_ts)
 
-    
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
     def test_reload_annotate(
@@ -323,7 +324,7 @@ class TestAnnotate(tests.PyslimTestCase):
     ):
         # Test the ability of SLiM to load our files after annotation.
         ts = recipe["ts"]
-        tables = ts.tables
+        tables = ts.dump_tables()
         metadata = [m.metadata for m in tables.mutations]
         has_nucleotides = tables.metadata['SLiM']['nucleotide_based']
         if has_nucleotides:
@@ -359,14 +360,14 @@ class TestReload(tests.PyslimTestCase):
     ):
         in_ts = recipe["ts"]
         # with 0.5, SLiM should read info from metadata, not provenances
-        in_tables = in_ts.tables
+        in_tables = in_ts.dump_tables()
         in_tables.provenances.clear()
         cleared_ts = pyslim.SlimTreeSequence(
                 in_tables.tree_sequence(),
                 reference_sequence=in_ts.reference_sequence
                 )
         out_ts = helper_functions.run_slim_restart(cleared_ts, restart_name, tmp_path)
-        out_tables = out_ts.tables
+        out_tables = out_ts.dump_tables()
         out_tables.provenances.clear()
         assert in_tables == out_tables
 

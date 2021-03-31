@@ -62,6 +62,7 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
             _ = pyslim.SlimTreeSequence(ts)
 
     # tmp_path is a pytest fixture, and is a pathlib.Path object
+    @pytest.mark.skip(reason="deprecating this feature")
     @pytest.mark.parametrize("recipe", ["recipe_nonWF.slim"], indirect=True)    
     def test_slim_generation(self, recipe, tmp_path):
         # tests around awkward backwards-compatible patch for setting slim_generation
@@ -77,7 +78,7 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
         assert loaded_ts.slim_generation == new_sg
         assert loaded_ts.metadata['SLiM']['generation'] == new_sg
         # check persists through recapitate
-        recap = ts.recapitate(recombination_rate=1e-8)
+        recap = pyslim.recapitate(ts, recombination_rate=1e-8, ancestral_Ne=10)
         assert recap.slim_generation == new_sg
         # check persists through simplify
         simp = ts.simplify(ts.samples())
@@ -148,12 +149,46 @@ class TestRecapitate(tests.PyslimTestCase):
     @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
     def test_recapitate_errors(self, recipe):
         ts = recipe["ts"]
+        with pytest.raises(ValueError, match="cannot specify both `demography` and `ancestral_Ne`"):
+            _ = pyslim.recapitate(
+                        ts,
+                        recombination_rate=0.0,
+                        demography=msprime.Demography.from_tree_sequence(ts),
+                        ancestral_Ne=10)
+
+    def test_recapitation(self, recipe):
+        ts = recipe["ts"]
+        recomb_rate = 1.0 / ts.sequence_length
+        recap = pyslim.recapitate(ts, recombination_rate=recomb_rate, ancestral_Ne=10)
+        # there should be no new mutations
+        assert ts.num_mutations == recap.num_mutations
+        assert ts.num_sites == recap.num_sites
+        assert list(ts.tables.sites.position) == list(recap.tables.sites.position)
+        self.check_recap_consistency(ts, recap)
+
+        if ts.slim_generation < 200:
+            old_root_time = np.max(ts.tables.nodes.time)
+            for t in recap.trees():
+                assert t.num_roots == 1
+                assert recap.node(t.root).time >= old_root_time
+
+        # test with passing in a recombination map
+        recombination_map = msprime.RateMap(
+                   position = [0.0, ts.sequence_length],
+                   rate = [recomb_rate])
+        recap = pyslim.recapitate(ts, recombination_rate=recombination_map, ancestral_Ne=1e-6)
+        self.check_recap_consistency(ts, recap)
+
+    # Just test on the first recipe
+    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
+    def test_old_recapitate_errors(self, recipe):
+        ts = recipe["ts"]
         with pytest.raises(ValueError):
             _ = ts.recapitate(
                         recombination_rate=0.0,
                         keep_first_generation=True)
 
-    def test_recapitation(self, recipe):
+    def test_old_recapitation(self, recipe):
         ts = recipe["ts"]
         if ts.num_populations <= 2:
             # if not we need migration rates
@@ -276,7 +311,7 @@ class TestIndividualAges(tests.PyslimTestCase):
         sub_inds = np.random.choice(all_inds, size=min(len(all_inds), 4), replace=False)
         flags = np.array([n.flags & (tskit.NODE_IS_SAMPLE * n.individual in sub_inds)
                           for n in ts.nodes()], dtype=np.uint32)
-        tables = ts.tables
+        tables = ts.dump_tables()
         tables.nodes.flags = flags
         new_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
         assert set(sub_inds) == set(new_ts.individuals_alive_at(0, samples_only=True))
@@ -365,7 +400,7 @@ class TestIndividualAges(tests.PyslimTestCase):
         sub_inds = np.random.choice(all_inds, size=min(len(all_inds), 4), replace=False)
         flags = np.array([n.flags & (tskit.NODE_IS_SAMPLE * n.individual in sub_inds)
                           for n in ts.nodes()], dtype=np.uint32)
-        tables = ts.tables
+        tables = ts.dump_tables()
         tables.nodes.flags = flags
         new_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
         assert set(sub_inds) == set(new_ts.individuals_alive_at(0, samples_only=True))
@@ -515,7 +550,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         first_gen = self.get_first_gen(ts)
         right_answer[first_gen] = False
         assert(ts.num_populations <= 2)
-        ts = ts.recapitate(recombination_rate=0.01)
+        ts = pyslim.recapitate(ts, recombination_rate=0.01, ancestral_Ne=10)
         assert(ts.num_individuals == ts.num_individuals)
         has_parents = ts.has_individual_parents()
         assert np.array_equal(right_answer, has_parents)
@@ -530,9 +565,9 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         keep_nodes = []
         for i in keep_indivs:
             keep_nodes.extend(ts.individual(i).nodes)
-        ts = ts.simplify(samples=keep_nodes, filter_individuals=True)
+        ts = ts.simplify(samples=keep_nodes, filter_individuals=True, keep_input_roots=True)
         assert(ts.num_populations <= 2)
-        ts = ts.recapitate(recombination_rate=0.01)
+        ts = pyslim.recapitate(ts, recombination_rate=0.01, ancestral_Ne=10)
         has_parents = ts.has_individual_parents()
         assert sum(has_parents) > 0
         self.verify_has_parents(ts)

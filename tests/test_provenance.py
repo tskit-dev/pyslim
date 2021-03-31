@@ -220,7 +220,7 @@ class TestProvenance(tests.PyslimTestCase):
         ts = msprime.simulate(10)
         for record_text in old_provenance_examples:
             record = json.loads(record_text)
-            prov = tskit.Provenance(timestamp='2018-08-25T14:59:13', record=json.dumps(record))
+            prov = tskit.Provenance(id=0, timestamp='2018-08-25T14:59:13', record=json.dumps(record))
             is_slim, version = pyslim.slim_provenance_version(prov)
             assert is_slim
             if 'file_version' in record:

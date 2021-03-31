@@ -253,7 +253,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         # temporary until we remove support for setting slim_generation
         if self.slim_generation != self.metadata['SLiM']['generation']:
-            tables = self.tables
+            tables = self.dump_tables()
             md = tables.metadata
             md['SLiM']['generation'] = self.slim_generation
             tables.metadata = md
@@ -281,7 +281,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         '''
         # temporary until we remove support for setting slim_generation
         if self.slim_generation != self.metadata['SLiM']['generation']:
-            tables = self.tables
+            tables = self.dump_tables()
             md = tables.metadata
             md['SLiM']['generation'] = self.slim_generation
             tables.metadata = md
@@ -404,6 +404,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         these are not removed, which you do by passing the argument
         ``keep_input_roots=True`` to :meth:`.simplify()`.
 
+        TODO: UPDATE THIS:
+
         Note that ``Ne`` is not set automatically, so defaults to ``1.0``; you probably
         want to set it explicitly.  Similarly, migration is not set up
         automatically, so that if there are uncoalesced lineages in more than
@@ -432,7 +434,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param dict kwargs: Any other arguments to :meth:`msprime.simulate`.
         '''
         if "keep_first_generation" in kwargs:
-            raise ValueError("The keep_first_generation argument is deprecated:"
+            raise ValueError("The keep_first_generation argument is deprecated: "
                              "the FIRST_GEN flag is no longer used.")
 
         if recombination_map is None:
@@ -446,7 +448,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                                          for _ in range(self.num_populations)]
         # temporary until we remove support for setting slim_generation
         if self.slim_generation != self.metadata['SLiM']['generation']:
-            tables = self.tables
+            tables = self.dump_tables()
             md = tables.metadata
             md['SLiM']['generation'] = self.slim_generation
             tables.metadata = md
@@ -454,16 +456,18 @@ class SlimTreeSequence(tskit.TreeSequence):
         else:
             ts = self
 
-        recap = msprime.simulate(
-                    from_ts = ts,
-                    population_configurations = population_configurations,
-                    recombination_map = recombination_map,
-                    start_time = self.slim_generation,
-                    **kwargs)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", msprime.IncompletePopulationMetadataWarning)
+            recap = msprime.simulate(
+                        from_ts = ts,
+                        population_configurations = population_configurations,
+                        recombination_map = recombination_map,
+                        start_time = self.slim_generation,
+                        **kwargs)
         # HACK to deal with older msprime that doesn't retain metadata
         # by copying over the metadata
         if recap.metadata == b'':
-            tables = recap.tables
+            tables = recap.dump_tables()
             tables.metadata = self._ll_tree_sequence.get_metadata()
             tables.metadata_schema = self.metadata_schema
             if self.slim_generation != tables.metadata['SLiM']['generation']:
@@ -1044,7 +1048,7 @@ def _set_sites_mutations(tables):
     '''
     num_mutations = tables.mutations.num_rows
     default_mut = default_slim_metadata("mutation")
-    dsb, dso = tskit.pack_bytes([str(j) for j in range(num_mutations)])
+    dsb, dso = tskit.pack_bytes([str(j).encode() for j in range(num_mutations)])
     slim_time = tables.metadata["SLiM"]["generation"] - tables.mutations.time
     mms = tables.mutations.metadata_schema
     mutation_metadata = [

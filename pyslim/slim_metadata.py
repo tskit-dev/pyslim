@@ -403,7 +403,7 @@ def default_slim_metadata(name):
             "selfing_fraction": 0.0,
             "female_cloning_fraction": 0.0,
             "male_cloning_fraction": 0.0,
-            "sex_ratio": 0.5,
+            "sex_ratio": 0.0,
             "bounds_x0": 0.0,
             "bounds_x1": 0.0,
             "bounds_y0": 0.0,
