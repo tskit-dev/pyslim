@@ -99,7 +99,7 @@ def get_provenance(ts, only_last=True):
     :rtype ProvenanceMetadata:
     '''
     if isinstance(ts, tskit.TreeSequence):
-        ts = ts.tables
+        ts = ts.dump_tables()
     provenances = []
     for p in ts.provenances:
         is_slim, _ = slim_provenance_version(p) 

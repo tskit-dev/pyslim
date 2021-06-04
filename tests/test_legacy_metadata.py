@@ -277,10 +277,10 @@ class TestDumpLoad(tests.PyslimTestCase):
     def test_load_tables(self, recipe):
         ts = recipe["ts_legacy_metadata"]
         assert isinstance(ts, pyslim.SlimTreeSequence)
-        tables = ts.tables
+        tables = ts.dump_tables()
         new_ts = pyslim.load_tables(tables, legacy_metadata=True)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
-        new_tables = new_ts.tables
+        new_tables = new_ts.dump_tables()
         assert tables == new_tables
 
     def test_load(self, recipe):
@@ -290,22 +290,22 @@ class TestDumpLoad(tests.PyslimTestCase):
         msp_ts = tskit.load(fn)
         assert isinstance(msp_ts, tskit.TreeSequence)
         # transfer tables
-        msp_tables = msp_ts.tables
+        msp_tables = msp_ts.dump_tables()
         new_ts = pyslim.load_tables(msp_tables, legacy_metadata=True)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
         self.verify_times(msp_ts, new_ts)
-        new_tables = new_ts.tables
+        new_tables = new_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, new_tables)
         # convert directly
         new_ts = pyslim.SlimTreeSequence(msp_ts)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
         self.verify_times(msp_ts, new_ts)
-        new_tables = new_ts.tables
+        new_tables = new_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, new_tables)
         # load to pyslim from file
         slim_ts = pyslim.load(fn, legacy_metadata=True)
         assert isinstance(slim_ts, pyslim.SlimTreeSequence)
-        slim_tables = slim_ts.tables
+        slim_tables = slim_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, slim_tables)
         assert slim_ts.slim_generation == new_ts.slim_generation
 
@@ -320,7 +320,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         ts2 = pyslim.load(tmp_file, legacy_metadata=True)
         assert ts.num_samples == ts2.num_samples
         assert ts.sequence_length == ts2.sequence_length
-        assert ts.tables == ts2.tables
+        assert ts.tables == ts2.dump_tables()
         assert ts.reference_sequence == ts2.reference_sequence
 
 

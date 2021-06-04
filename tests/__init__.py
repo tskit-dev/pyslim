@@ -98,9 +98,9 @@ class PyslimTestCase:
             skip_provenance=False, check_metadata_schema=True,
             reordered_individuals=False):
         if isinstance(t1, tskit.TreeSequence):
-            t1 = t1.tables
+            t1 = t1.dump_tables()
         if isinstance(t2, tskit.TreeSequence):
-            t2 = t2.tables
+            t2 = t2.dump_tables()
         t1_samples = [(n.metadata['slim_id'], j) for j, n in enumerate(t1.nodes) if (n.flags & tskit.NODE_IS_SAMPLE)]
         t1_samples.sort()
         t2_samples = [(n.metadata['slim_id'], j) for j, n in enumerate(t2.nodes) if (n.flags & tskit.NODE_IS_SAMPLE)]

@@ -26,7 +26,7 @@ class TestMetadataSchemas(tests.PyslimTestCase):
             assert bytes(raw_md) == enc_md
 
     def test_slim_metadata(self, recipe):
-        tables = recipe["ts"].tables
+        tables = recipe["ts"].dump_tables()
         for t in (tables.populations, tables.individuals, tables.nodes, tables.edges,
                   tables.sites, tables.mutations, tables.migrations):
             self.validate_table_metadata(t)
@@ -43,7 +43,7 @@ class TestMetadataSchemas(tests.PyslimTestCase):
                 assert entry == decoded
 
     def test_slim_metadata_schema_equality(self, recipe):
-        t = recipe["ts"].tables
+        t = recipe["ts"].dump_tables()
         assert t.metadata_schema == pyslim.slim_metadata_schemas['tree_sequence']
         assert t.edges.metadata_schema == pyslim.slim_metadata_schemas['edge']
         assert t.sites.metadata_schema == pyslim.slim_metadata_schemas['site']
@@ -74,7 +74,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
 
     @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)    
     def test_set_tree_sequence_metadata_errors(self, recipe):
-        tables = recipe["ts"].tables
+        tables = recipe["ts"].dump_tables()
         tables.metadata_schema = tskit.MetadataSchema(None)
         assert len(tables.metadata) > 0
         with pytest.raises(ValueError):
@@ -89,7 +89,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                 'properties': { 'abc': { 'type': 'string' } }
                 })
         dummy_metadata = { 'abc': 'foo' }
-        tables = recipe["ts"].tables
+        tables = recipe["ts"].dump_tables()
         tables.metadata_schema = dummy_schema
         tables.metadata = dummy_metadata
         pyslim.set_tree_sequence_metadata(tables, "nonWF", 0)
@@ -104,7 +104,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
 
     @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)    
     def test_set_tree_sequence_metadata(self, recipe):
-        tables = recipe["ts"].tables
+        tables = recipe["ts"].dump_tables()
         pyslim.set_tree_sequence_metadata(
                 tables, "WF", 99,
                 spatial_dimensionality='xy',
@@ -134,7 +134,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
     def test_recover_metadata(self, recipe):
         # msprime <=0.7.5 discards metadata, but we can recover it from provenance
         ts = recipe["ts"]
-        tables = ts.tables
+        tables = ts.dump_tables()
         tables.metadata_schema = tskit.MetadataSchema(None)
         tables.metadata = b''
         new_ts = pyslim.load_tables(tables)
@@ -170,10 +170,10 @@ class TestDumpLoad(tests.PyslimTestCase):
     def test_load_tables(self, recipe):
         ts = recipe["ts"]
         assert isinstance(ts, pyslim.SlimTreeSequence)
-        tables = ts.tables
+        tables = ts.dump_tables()
         new_ts = pyslim.load_tables(tables)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
-        new_tables = new_ts.tables
+        new_tables = new_ts.dump_tables()
         assert tables == new_tables
 
     def test_load(self, recipe):
@@ -182,22 +182,22 @@ class TestDumpLoad(tests.PyslimTestCase):
         msp_ts = tskit.load(fn)
         assert isinstance(msp_ts, tskit.TreeSequence)
         # transfer tables
-        msp_tables = msp_ts.tables
+        msp_tables = msp_ts.dump_tables()
         new_ts = pyslim.load_tables(msp_tables)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
         self.verify_times(msp_ts, new_ts)
-        new_tables = new_ts.tables
+        new_tables = new_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, new_tables)
         # convert directly
         new_ts = pyslim.SlimTreeSequence(msp_ts)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
         self.verify_times(msp_ts, new_ts)
-        new_tables = new_ts.tables
+        new_tables = new_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, new_tables)
         # load to pyslim from file
         slim_ts = pyslim.load(fn)
         assert isinstance(slim_ts, pyslim.SlimTreeSequence)
-        slim_tables = slim_ts.tables
+        slim_tables = slim_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, slim_tables)
         assert slim_ts.slim_generation == new_ts.slim_generation
 
@@ -212,7 +212,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         ts2 = pyslim.load(tmp_file)
         assert ts.num_samples == ts2.num_samples
         assert ts.sequence_length == ts2.sequence_length
-        assert ts.tables == ts2.tables
+        assert ts.tables == ts2.dump_tables()
         assert ts.reference_sequence == ts2.reference_sequence
 
 
@@ -223,7 +223,7 @@ class TestAlleles(tests.PyslimTestCase):
 
     def test_haplotypes(self, recipe):
         slim_ts = recipe["ts"]
-        tables = slim_ts.tables
+        tables = slim_ts.dump_tables()
         ts = tables.tree_sequence()
         self.verify_haplotype_equality(ts, slim_ts)
 
@@ -275,7 +275,7 @@ class TestDecoding(tests.PyslimTestCase):
             assert md == {"mutation_list": [u.asdict() for u in omd]}
 
     def test_decoding(self, recipe):
-        tables = recipe["ts"].tables
+        tables = recipe["ts"].dump_tables()
         self.verify_decoding(tables.populations, pyslim.decode_population)
         self.verify_decoding(tables.individuals, pyslim.decode_individual)
         self.verify_decoding(tables.nodes, pyslim.decode_node)

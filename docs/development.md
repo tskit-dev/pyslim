@@ -1,22 +1,35 @@
-.. _sec_development:
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.12
+    jupytext_version: 1.9.1
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 
-===========
-Development
-===========
+(sec_development)=
+
+# Development
 
 
-To install a particular version of ``pyslim`` from source, e.g., to obtain a recent update::
+To install a particular version of ``pyslim`` from source, e.g., to obtain a recent update:
+
+```bash
+git clone https://github.com/tskit-dev/pyslim.git
+cd pyslim
+python setup.py install --user
+```
 
 
-   $ git clone https://github.com/tskit-dev/pyslim.git
-   $ cd pyslim
-   $ python setup.py install --user
+Then, to run the tests to make sure everything is working, do:
 
-
-Then, to run the tests to make sure everything is working, do::
-
-
-   $ python -m pytest tests
+```bash
+python -m pytest tests
+```
 
 *Note:* if you use ``python3`` you may need to replace ``python`` with ``python3`` above.
 
@@ -25,14 +38,14 @@ following. If you think there is anything missing,
 please open an `issue <http://github.com/tskit-dev/pyslim/issues>`_ or
 `pull request <http://github.com/tskit-dev/pyslim/pulls>`_ on GitHub!
 
-**********
-Quickstart
-**********
+## Quickstart
 
 - Make a fork of the pyslim repo on `GitHub <http://github.com/tskit-dev/pyslim>`_
-- Clone your fork into a local directory::
+- Clone your fork into a local directory:
 
-  $ git clone git@github.com:YOUR_GITHUB/pyslim.git
+```bash
+git clone git@github.com:YOUR_GITHUB/pyslim.git
+```
 
 - Install the development requirements using
   ``python3 -m pip install -r requirements/development.txt``.

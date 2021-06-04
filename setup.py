@@ -29,10 +29,9 @@ setup(name='pyslim',
       include_package_data=True,
       zip_safe=False,
       install_requires=[
-          'msprime>=0.7.0',
+          'msprime>=1.0.1',
           'tskit',
           'kastore',
-          'attrs',
           'numpy'],
       extras_require={
           'dev': [],
