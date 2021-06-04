@@ -39,8 +39,8 @@ sphinx:
       todo_include_todos: true
       intersphinx_mapping:
         python: ["https://docs.python.org/3/", null]
-        tskit: ["https://tskit.readthedocs.io/en/stable", null]
-        msprime: ["https://msprime.readthedocs.io/en/stable", null]
+        tskit: ["https://tskit.dev/tskit/docs/stable", null]
+        msprime: ["https://tskit.dev/msprime/docs/stable", null]
         tutorials: ["https://tskit.dev/tutorials/", null]
         stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
       myst_enable_extensions:

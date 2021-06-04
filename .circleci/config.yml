@@ -15,8 +15,7 @@ jobs:
       - run:
           name: Install dependencies and set path
           command: |
-            sudo apt-get install libgsl-dev
-            sudo apt-get install doxygen
+            sudo apt-get install libgsl-dev doxygen
             pip install --user -r requirements/CI/pip-requirements.txt
             pip install --user -r requirements/CI/conda-requirements.txt
             pip install twine --user
@@ -28,9 +27,20 @@ jobs:
             sudo apt-get install cmake
             git clone https://github.com/MesserLab/SLiM.git
             cd SLiM
-            mkdir build
-            cd build && cmake .. && make
-            cp slim /home/circleci/.local/bin/
+            if [ ! -e /home/circleci/.local/SLiM.hash ]; then
+              git rev-parse HEAD > /home/circleci/.local/SLiM.hash
+            fi
+            if [ $(git rev-list HEAD...$(cat /home/circleci/.local/SLiM.hash) --count) -gt 0 ]; then
+              mkdir build
+              cd build
+              cmake ..
+              make
+              cp slim /home/circleci/.local/bin/
+            else
+              echo "Restoring SLiM from cache:"
+              slim -v
+            fi
+            git rev-parse HEAD > /home/circleci/.local/SLiM.hash
 
       - save_cache:
           key: pyslim-{{ .Branch }}-v1
@@ -40,6 +50,9 @@ jobs:
       - run:
           name: Build docs
           command: |
+            # don't re-generate these which require tricky prerequisites (inkscape, xmlstarlet)
+            touch docs/_static/{pedigree0.svg,pedigree1.svg,pedigree2.svg,pedigree_recapitate.svg,pedigree_simplify.svg,pedigree_mutate.svg}
+            touch docs/_static/{pedigree01.png,pedigree0.png,pedigree1.png,pedigree2.png,pedigree_recapitate.png,pedigree_simplify.png,pedigree_mutate.png}
             cd docs && make
 
       - run:
