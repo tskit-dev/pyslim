@@ -63,7 +63,7 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
 
     # tmp_path is a pytest fixture, and is a pathlib.Path object
     @pytest.mark.skip(reason="deprecating this feature")
-    @pytest.mark.parametrize("recipe", ["recipe_nonWF.slim"], indirect=True)    
+    @pytest.mark.parametrize("recipe", ["recipe_nonWF.slim"], indirect=True)
     def test_slim_generation(self, recipe, tmp_path):
         # tests around awkward backwards-compatible patch for setting slim_generation
         ts = recipe["ts"]
@@ -379,7 +379,7 @@ class TestIndividualAges(tests.PyslimTestCase):
                 with pytest.warns(UserWarning):
                     ts.individuals_alive_at(0, remembered_stage="early")
 
-    
+
     @pytest.mark.parametrize('recipe', recipe_eq("multipop", exclude="remembered_early"), indirect=True)
     def test_population(self, recipe):
         ts = recipe["ts"]
@@ -750,6 +750,213 @@ class TestReferenceSequence(tests.PyslimTestCase):
                                 b = mut.metadata["mutation_list"][0]["nucleotide"]
                         assert a == b
 
+
+class TestConvertNucleotides(tests.PyslimTestCase):
+    '''
+    Test for operations involving the converting and generating nucleotides
+    '''
+
+    def last_slim_mutations(self, ts):
+        # iterator over mutations, returning for each mutation in ts a tuple
+        # (slim id, slim mutation metadata) of the slim mutation that is the
+        # *most recent* one of any possibly stacked mutations. Note that it
+        # is possible that this is ambiguous.
+        for mut in ts.mutations():
+            slim_muts = {
+                    k : v for k, v in zip(
+                        mut.derived_state.split(","),
+                        mut.metadata['mutation_list']
+                    )
+            }
+            if mut.parent == tskit.NULL:
+                parent_slim_ids = []
+            else:
+                parent_mut = ts.mutation(mut.parent)
+                parent_slim_ids = parent_mut.derived_state.split(",")
+            max_time = max([md['slim_time'] for md in slim_muts.values()])
+            any_new = any([k not in parent_slim_ids for k in slim_muts.keys()
+                           if slim_muts[k]['slim_time'] == max_time])
+            maybe_these = [k for k in slim_muts.keys()
+                           if slim_muts[k]["slim_time"] == max_time
+                           and ((k not in parent_slim_ids)
+                                or (not any_new))
+                           ]
+            k = max(maybe_these)
+            yield k, slim_muts[k]
+
+    def verify_converted_nucleotides(self, ts, cts):
+        assert ts.reference_sequence == cts.reference_sequence
+        assert ts.num_sites == cts.num_sites
+        for k, (s, ns) in enumerate(zip(ts.sites(), cts.sites())):
+            assert s.position == ns.position
+            assert s.metadata == ns.metadata
+            assert ns.ancestral_state == ts.reference_sequence[int(s.position)]
+        for m, cm, (_, sm) in zip(ts.mutations(), cts.mutations(), self.last_slim_mutations(ts)):
+            assert m.site == cm.site
+            assert m.node == cm.node
+            assert m.parent == cm.parent
+            assert m.time == cm.time
+            assert m.metadata == cm.metadata
+            nuc = sm['nucleotide']
+            assert nuc in [0, 1, 2, 3]
+            assert cm.derived_state == pyslim.NUCLEOTIDES[nuc]
+        # should not have changed anything else
+        tc = ts.dump_tables()
+        ntc = cts.dump_tables()
+        tc.sites.clear()
+        ntc.sites.clear()
+        tc.mutations.clear()
+        ntc.mutations.clear()
+        tc.provenances.clear()
+        ntc.provenances.clear()
+        assert tc == ntc
+
+    def test_convert_alleles_errors(self):
+        ts = msprime.sim_ancestry(4, sequence_length=10, population_size=10)
+        with pytest.raises(ValueError, match="must have a valid reference sequence"):
+            _ = pyslim.convert_alleles(ts)
+        ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+        with pytest.raises(ValueError, match="must have a valid reference sequence"):
+            _ = pyslim.convert_alleles(ts)
+        mts = msprime.sim_mutations(ts,
+                model=msprime.SLiMMutationModel(type=1),
+                rate=0.1,
+                random_seed=23)
+        assert mts.num_mutations > 0
+        mts.reference_sequence = 'A' * int(mts.sequence_length)
+        with pytest.raises(ValueError, match="must be nucleotide mutations"):
+            _ = pyslim.convert_alleles(mts)
+
+    @pytest.mark.parametrize(
+            'recipe', recipe_eq("nucleotides", exclude="non-nucleotides"), indirect=True
+    )
+    def test_convert_alleles(self, recipe):
+        ts = recipe["ts"]
+        cts = pyslim.convert_alleles(ts)
+        self.verify_converted_nucleotides(ts, cts)
+
+    def test_generate_nucleotides_errors(self):
+        ts = msprime.sim_ancestry(4, sequence_length=10, population_size=10)
+        with pytest.raises(ValueError, match="must have length equal"):
+            _ = pyslim.generate_nucleotides(ts, reference_sequence="AAA")
+        with pytest.raises(ValueError, match="must have length equal"):
+            _ = pyslim.generate_nucleotides(ts, reference_sequence=[1, 2, 3])
+        with pytest.raises(ValueError, match="must be a string of"):
+            _ = pyslim.generate_nucleotides(
+                    ts,
+                    reference_sequence="X" * int(ts.sequence_length)
+            )
+        with pytest.raises(ValueError, match="must be a string of"):
+            _ = pyslim.generate_nucleotides(
+                    ts,
+                    reference_sequence=np.arange(int(ts.sequence_length)),
+            )
+
+    def verify_generate_nucleotides(self, ts, check_transitions=False):
+        # if check_transitions is True, verify that derived states differ
+        # from parental states - which we try to do but is not guaranteed,
+        # for instance, if keep=True or in other weird situations.
+        assert hasattr(ts, 'reference_sequence')
+        assert len(ts.reference_sequence) == ts.sequence_length
+        muts = {}
+        ts_muts = {
+            j : v['nucleotide']
+            for j, (_, v) in enumerate(self.last_slim_mutations(ts))
+        }
+        for mut in ts.mutations():
+            aa = ts.reference_sequence[int(ts.site(mut.site).position)]
+            for i, md in zip(
+                    mut.derived_state.split(","),
+                    mut.metadata['mutation_list']
+                 ):
+                nuc = md['nucleotide']
+                assert nuc in [0, 1, 2, 3]
+                if i in muts:
+                    assert muts[i] == nuc
+                muts[i] = nuc
+            if check_transitions:
+                if mut.parent == tskit.NULL:
+                    assert pyslim.NUCLEOTIDES[nuc] != aa
+                else:
+                    if ts.mutation(mut.parent).derived_state != mut.derived_state:
+                        assert ts_muts[mut.parent] != ts_muts[mut.id]
+
+    def test_generate_nucleotides(self, recipe):
+        ts = recipe["ts"]
+        nts = pyslim.generate_nucleotides(ts, keep=False, seed=5)
+        self.verify_generate_nucleotides(
+                nts,
+                check_transitions=("adds_mutations" not in recipe),
+        )
+
+    def test_generate_nucleotides_refseq(self):
+        ts = msprime.sim_ancestry(
+                4,
+                sequence_length=10,
+                population_size=10,
+                random_seed=10,
+        )
+        ts = pyslim.annotate_defaults(ts, model_type='nonWF', slim_generation=1)
+        mts = msprime.sim_mutations(ts,
+                model=msprime.SLiMMutationModel(type=1),
+                rate=0.5,
+                random_seed=23)
+        refseq = "A" * int(mts.sequence_length)
+        nts = pyslim.generate_nucleotides(mts, reference_sequence=refseq, seed=6)
+        self.verify_generate_nucleotides(nts, check_transitions=True)
+        assert nts.reference_sequence == refseq
+
+    def test_generate_nucleotides_keep(self):
+        ts = msprime.sim_ancestry(4, sequence_length=10, population_size=10)
+        ts = pyslim.annotate_defaults(ts, model_type='nonWF', slim_generation=1)
+        mts1 = msprime.sim_mutations(ts,
+                model=msprime.SLiMMutationModel(type=1),
+                rate=0.1,
+                random_seed=23)
+        mts1.dump("out.trees")
+        nts1 = pyslim.generate_nucleotides(mts1, seed=10, keep=False)
+        assert nts1.num_mutations > 0
+        self.verify_generate_nucleotides(nts1, check_transitions=False)
+        mts2 = msprime.sim_mutations(nts1,
+                model=msprime.SLiMMutationModel(
+                    type=2,
+                    next_id=nts1.num_mutations,
+                ),
+                rate=0.1,
+                random_seed=24,
+        )
+        # keep defaults to True
+        nts2 = pyslim.generate_nucleotides(mts2, seed=12)
+        assert nts2.num_mutations > nts1.num_mutations
+        muts1 = {}
+        for mut in nts1.mutations():
+            for i, md in zip(mut.derived_state.split(","), mut.metadata['mutation_list']):
+                muts1[i] = md['nucleotide']
+        for mut in nts2.mutations():
+            for i, md in zip(mut.derived_state.split(","), mut.metadata['mutation_list']):
+                if md['mutation_type'] == 1:
+                    assert i in muts1
+                    assert muts1[i] == md['nucleotide']
+                else:
+                    assert md['nucleotide'] in [0, 1, 2, 3]
+        nts3 = pyslim.generate_nucleotides(mts2, keep=False, seed=15)
+        self.verify_generate_nucleotides(nts3, check_transitions=False)
+
+    @pytest.mark.parametrize(
+            'recipe', ["recipe_long_nonWF.slim"], indirect=True
+    )
+    def test_generate_and_convert(self, recipe, helper_functions, tmp_path):
+        ts = recipe["ts"]
+        nts = pyslim.generate_nucleotides(ts, seed=123)
+        cts = pyslim.convert_alleles(nts)
+        self.verify_converted_nucleotides(nts, cts)
+        helper_functions.run_slim_restart(
+                nts,
+                "restart_nucleotides_nonWF.slim",
+                tmp_path,
+                WF=False,
+        )
+
 class TestDeprecations(tests.PyslimTestCase):
     # test on one arbitrary recipe
     @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
@@ -757,3 +964,4 @@ class TestDeprecations(tests.PyslimTestCase):
         ts = recipe["ts"]
         with pytest.warns(FutureWarning):
             _ = ts.first_generation_individuals()
+

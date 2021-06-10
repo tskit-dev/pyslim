@@ -362,6 +362,7 @@ class TestReload(tests.PyslimTestCase):
         # with 0.5, SLiM should read info from metadata, not provenances
         in_tables = in_ts.dump_tables()
         in_tables.provenances.clear()
+        in_tables.sort()
         cleared_ts = pyslim.SlimTreeSequence(
                 in_tables.tree_sequence(),
                 reference_sequence=in_ts.reference_sequence
@@ -369,7 +370,8 @@ class TestReload(tests.PyslimTestCase):
         out_ts = helper_functions.run_slim_restart(cleared_ts, restart_name, tmp_path)
         out_tables = out_ts.dump_tables()
         out_tables.provenances.clear()
-        assert in_tables == out_tables
+        out_tables.sort()
+        in_tables.assert_equals(out_tables)
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op", "nucleotides"), indirect=["recipe"])

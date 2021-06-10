@@ -18,10 +18,13 @@ recipe_specs = {
     "recipe_WF_migration.slim":                {"WF": True, "pedigree": True, "multipop": True},
     "recipe_nonWF_early.slim":                 {"nonWF": True, "pedigree": True, "remembered_early": True},
     "recipe_WF_early.slim":                    {"WF": True, "pedigree": True, "remembered_early": True},
-    "recipe_nucleotides.slim":                 {"WF": True, "pedigree": True, "nucleotides": True},
+    "recipe_nucleotides_WF.slim":              {"WF": True, "pedigree": True, "nucleotides": True},
+    "recipe_nucleotides_nonWF.slim":           {"nonWF": True, "pedigree": True, "nucleotides": True},
+    "recipe_nucleotides_plus_others.slim":     {"WF": True, "pedigree": True, "nucleotides": True, "non-nucleotides": True, "adds_mutations": True},
     "recipe_long_nucleotides.slim":            {"WF": True, "nucleotides": True},
     "recipe_roots.slim":                       {"WF": True, "pedigree": True},
     "recipe_nonWF_selfing.slim":               {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_nonstacked.slim":            {"nonWF": True, "nonstacked": True},
     "recipe_init_mutated_WF.slim":             {"WF": True, "init_mutated": True},
     "recipe_init_mutated_nonWF.slim":          {"nonWF": True, "init_mutated": True},
     "recipe_with_metadata.slim":               {"user_metadata": True},
@@ -42,20 +45,24 @@ def recipe_eq(*keys, exclude=None):
     """
     Return an iterator over those recipes whose spec contains the specified keys.
     If key is empty, return all of them.
-    If exclude_key is given exclude recipes with the specified key
+    If exclude is given exclude recipes with the specified keys.
     """
     if exclude is None:
-        return (k for k, v in recipe_specs.items() if all(kk in v for kk in keys))
+        return (
+            k for k, v in recipe_specs.items()
+            if all(kk in v for kk in keys)
+        )
     else:
         return (
             k for k, v in recipe_specs.items()
-            if exclude not in v and all(kk in v for kk in keys)
+            if (exclude not in v and all(kk in v for kk in keys))
         )
 
 # These SLiM scripts read in an existing trees file; the "input" gives a key in the
 # recipe_specs array that will produce a "ts" file suitable for input
 restarted_recipe_specs = {
-    "restart_nucleotides.slim":   {"WF": True, "nucleotides": True, "no_op": True, "input": "recipe_nucleotides.slim"},
+    "restart_nucleotides_WF.slim":   {"WF": True, "nucleotides": True, "no_op": True, "input": "recipe_nucleotides_WF.slim"},
+    "restart_nucleotides_nonWF.slim":   {"nonWF": True, "nucleotides": True, "no_op": True, "input": "recipe_nucleotides_nonWF.slim"},
     #"restart_and_run_WF.slim":    {"WF": True, "input": "recipe_init_mutated.slim"},
     #"restart_and_run_nonWF.slim": {"nonWF": True, "input": "recipe_init_mutated.slim"},
 }
