@@ -30,16 +30,16 @@ jobs:
             if [ ! -e /home/circleci/.local/SLiM.hash ]; then
               git rev-parse HEAD > /home/circleci/.local/SLiM.hash
             fi
-            if [ $(git rev-list HEAD...$(cat /home/circleci/.local/SLiM.hash) --count) -gt 0 ]; then
-              mkdir build
+            if [ $(git rev-list HEAD...$(cat /home/circleci/.local/SLiM.hash) --count) -gt 0 -o ! -e /home/circleci/.local/bin/slim ]; then
+              mkdir -p build
               cd build
               cmake ..
               make
               cp slim /home/circleci/.local/bin/
             else
               echo "Restoring SLiM from cache:"
-              slim -v
             fi
+            slim -v
             git rev-parse HEAD > /home/circleci/.local/SLiM.hash
 
       - save_cache:
