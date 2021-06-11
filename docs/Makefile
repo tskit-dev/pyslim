@@ -4,11 +4,11 @@ PYPATH=${PWD}/..
 PYSLIM_VERSION:=$(shell PYTHONPATH=${PYPATH} \
    python3 -c 'import pyslim; print(pyslim.__version__.split("+")[0])')
 
-dev:
+dev: prereqs
 	$(MAKE) -C _static
 	PYTHONPATH=${PYPATH} ./build.sh
 
-dist:
+dist: prereqs
 	@echo Building distribution for pyslim version ${PYSLIM_VERSION}
 	sed -i s/__PYSLIM_VERSION__/${PYSLIM_VERSION}/g _config.yml
 	$(MAKE) -C _static
@@ -16,3 +16,6 @@ dist:
 
 clean:
 	rm -fR _build
+
+prereqs:
+	slim -s 23 example_sim.slim
