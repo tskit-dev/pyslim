@@ -1,0 +1,34 @@
+initialize()
+{
+    setSeed(24);
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+    if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
+    initializeSLiMModelType("nonWF");
+    initializeSLiMOptions(keepPedigrees=T);
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    m1.mutationStackPolicy = "l";
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+    defineConstant("K", 10);
+}
+
+reproduction() {
+    subpop.addCrossed(individual, subpop.sampleIndividuals(1));
+}
+
+1 early() {
+    sim.addSubpop("p1", 10);
+}
+
+early() {
+    p1.fitnessScaling = K / p1.individualCount;
+}
+
+10 late() {
+    sim.treeSeqOutput(TREES_FILE);
+    catn("Done.");
+    sim.simulationFinished();
+}

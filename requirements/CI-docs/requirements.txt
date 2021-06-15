@@ -6,5 +6,6 @@ jupyter-book==0.10.0
 kastore==0.3.1
 tskit==0.3.6
 msprime==1.0.1
+kastore==0.3.1
 PyGithub==1.53
 matplotlib==3.3.0

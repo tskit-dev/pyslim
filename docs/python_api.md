@@ -22,6 +22,10 @@ kernelspec:
     tables = ts.tables
 ```
 
+```{eval-rst}
+.. currentmodule:: pyslim
+```
+
 
 (sec_python_api)=
 
@@ -29,6 +33,21 @@ kernelspec:
 
 This page provides detailed documentation for the methods and classes
 available in pyslim.
+
+## Methods
+
+pyslim provides tools for transforming tree sequences:
+
+
+```{eval-rst}
+.. autosummary::
+
+  recapitate
+  convert_alleles
+  generate_nucleotides
+```
+
+
 
 ## Additions to the tree sequence
 

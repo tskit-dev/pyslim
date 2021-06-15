@@ -1,0 +1,26 @@
+initialize()
+{
+    setSeed(25);
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+    // as well as any bespoke TREES_FILE for output, you need to define:
+    //  TREES_IN = path to trees to initialise
+	defineConstant("L", 1e2);
+	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
+    initializeTreeSeq();
+	initializeAncestralNucleotides(paste0(rep("A", L)));
+	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
+	initializeGenomicElement(g1, 0, L-1);
+	initializeRecombinationRate(1e-2);
+}
+
+1 late() { 
+    // output immediately! Nothing should have changed.
+    sim.readFromPopulationFile(TREES_IN);
+    sim.treeSeqOutput(TREES_FILE, simplify=F);
+}
+
+2 {
+    catn("Done.");
+    sim.simulationFinished();
+}
