@@ -1,6 +1,7 @@
 """
 Test cases for tree sequences.
 """
+import pickle
 import random
 import os
 
@@ -83,6 +84,15 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
         # check persists through simplify
         simp = ts.simplify(ts.samples())
         assert simp.slim_generation == new_sg
+
+    def test_pickle(self):
+        ts = self.clean_example().tree_sequence()
+        ts = pyslim.SlimTreeSequence(ts)
+        roundtripped = pickle.loads(pickle.dumps(ts))
+        assert roundtripped == ts
+        # __eq__ doesn't check pyslim properties:
+        assert roundtripped.reference_sequence == ts.reference_sequence
+        assert roundtripped.legacy_metadata == ts.legacy_metadata
 
 
 class TestSlimTime(tests.PyslimTestCase):
