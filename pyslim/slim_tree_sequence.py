@@ -196,6 +196,20 @@ class SlimTreeSequence(tskit.TreeSequence):
         self.individual_populations[which_indiv] = ts.tables.nodes.population[has_indiv]
         self.individual_times[which_indiv] = ts.tables.nodes.time[has_indiv]
 
+    def __getstate__(self):
+        return {
+            'tables':self.dump_tables(),
+            'legacy_metadata': self.legacy_metadata,
+            'reference_sequence': self.reference_sequence
+        }
+
+    def __setstate__(self, state):
+        self.__init__(
+            state['tables'].tree_sequence(),
+            state['reference_sequence'],
+            state['legacy_metadata']
+        )
+
     @property
     def slim_generation(self):
         # return self.metadata['SLiM']['generation']
