@@ -8,7 +8,11 @@
 # Notes:
 #  - doesn't deal with spaces in object names
 
-type xmlstarlet >/dev/null 2>&1 || { echo >&2 "can't find xmlstarlet"; exit 1; }
+if ! command -v "xmlstarlet" &>/dev/null || ! command -v 'inkscape' &>/dev/null;
+then
+    echo >&2 "can't find xmlstarlet and/or inkscape, not regenerating SVG-derived figures"
+    exit 0
+fi
 
 TMPFILE=$(mktemp /tmp/output.XXXXXXXXX).svg
 cp $1 $TMPFILE

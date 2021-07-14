@@ -166,7 +166,7 @@ Such mutations would *not* be legal, on the other hand, if we set the tskit sequ
 since the position 99 would be outside of the interval from 0 to 99.
 Said another way, if SLiM's final position is 99, the total sequence length is 100,
 and so we need to set the end of the genome to 100.
-The upshot is that we need to use SLiM's last position plus one - i.e., 
+The upshot is that we need to use SLiM's last position plus one - i.e.,
 the length of the genome - as the rightmost coordinate.
 
 For instance, suppose that we have a recombination map file in the following (tab-separated) format:
@@ -216,8 +216,8 @@ with open('_static/recomb_rates.tsv', 'r') as file:
      positions.append(float(components[0]))
      rates.append(1e-8 * float(components[1]))
 
-# step 1   
-positions.insert(0, 0) 
+# step 1
+positions.insert(0, 0)
 # step 2
 positions[-1] += 1
 assert positions[-1] == orig_ts.sequence_length
@@ -376,7 +376,7 @@ What's going on here? Let's step through the code.
 
 2. We're passing ``type=0`` to the mutation model.
     This is because SLiM mutations need a "mutation type",
-    and it makes the most sense if we add a type that was unused in the simulation. 
+    and it makes the most sense if we add a type that was unused in the simulation.
     In this example we don't have any existing mutation types, so we can safely use ``type=0``.
 
 3. We also add ``keep = True``, to keep any existing mutations.
@@ -394,46 +394,128 @@ What's going on here? Let's step through the code.
 
 (sec_extracting_individuals)=
 
-## Extracting particular SLiM individuals
+## Extracting SLiM individuals
 
-Another important thing to be able to do is to extract particular
+Another important thing to be able to do is to extract
 individuals from a simulation,
 for analysis or for outputting their genotypes, for instance.
 This section demonstrates some basic manipulations of individuals.
 
+### Extracting a sample of individuals
+
+The first, most common method to extract individuals is simply to get all
+those that were alive at a particular time,
+using {meth}`.SlimTreeSequence.individuals_alive_at`. For instance, to get
+the list of individual IDs of all those alive at the end of the
+simulation (i.e., zero time units ago), we could do:
+
+```{code-cell}
+orig_ts = pyslim.load("example_sim.trees")
+alive = orig_ts.individuals_alive_at(0)
+
+print(f"There are {len(alive)} individuals alive in the final generation.")
+```
+
+Here, ``alive`` is a vector of *individual* IDs,
+so one way to take a sample of living individuals
+and write their SNPs to a VCF is:
+
+```{code-cell}
+np.random.seed(1)
+keep_indivs = np.random.choice(alive, 100, replace=False)
+ts = pyslim.SlimTreeSequence(msprime.mutate(orig_ts, rate=1e-8, random_seed=1))
+with open("example_snps.vcf", "w") as vcffile:
+    ts.write_vcf(vcffile, individuals=keep_indivs)
+```
+
+If you've done nothing else to the output from SLiM,
+then this code will work,
+but it does requires all alive individuals to be *samples*.
+A situation in which this isn't the case is shown in the next section.
+
+
+### Extracting individuals after simplification
+
+If the tree sequence has been simplified to retain only information
+about a set of focal individuals,
+then knowing an individual is alive at the end of the simulation
+isn't enough to guarantee we have their entire genome sequence:
+there are often individuals retained after simplification with
+one or more non-sample nodes.
+So, to output genotypes after simplification, we need to also check
+that the individuals' nodes are also *samples*.
+As mentioned earlier, {meth}`.SlimTreeSequence.simplify` takes a list
+of nodes as input:
+
+```{code-cell}
+keep_nodes = []
+for i in keep_indivs:
+    keep_nodes.extend(orig_ts.individual(i).nodes)
+sts = rts.simplify(keep_nodes)
+ts = pyslim.SlimTreeSequence(msprime.mutate(sts, rate=1e-8, random_seed=1))
+```
+Individuals are retained by simplify if any of their nodes are,
+so we would get an alive individual without sample nodes if, for instance,
+a parent and two offspring are all alive, and we happen to keep the offspring
+but not the parent.
+For this reason, if at this point we try to extract genotypes for all of the
+alive individuals, we encounter a (somewhat confusing) error:
+
+```{code-cell}
+try:
+    alive = ts.individuals_alive_at(0)
+    with open("example_snps.vcf", "w") as vcffile:
+        ts.write_vcf(vcffile, individuals=alive)
+except Exception as e:
+    print ("Error:")
+    print (e)
+```
+
+This is just telling us that some of the individuals we're trying
+to write to the VCF have nodes that are not samples.
+The reference to "missing" is a red herring:
+see {ref}`the tskit documentation <tskit:sec_data_model_missing_data>`
+for what it's talking about.
+So, instead of writing out genotypes of everyone alive,
+we need to get the list of alive individuals *whose nodes are samples*,
+using {meth}`is_sample() <tskit.Node.is_sample>`:
+
+```{code-cell}
+indivlist = []
+for i in ts.individuals_alive_at(0):
+    ind = ts.individual(i)
+    if ts.node(ind.nodes[0]).is_sample():
+       indivlist.append(i)
+       # if one node is a sample, the other should be also:
+       assert ts.node(ind.nodes[1]).is_sample()
+with open("example_snps.vcf", "w") as vcffile:
+    ts.write_vcf(vcffile, individuals=indivlist)
+```
+
+
+### Extracting particular individuals
+
+Now let's see how to examine other attributes of individuals,
+e.g., which subpopulation they're in.
 To get another example with discrete subpopulations,
 let's run another SLiM simulation, similar to the above
 but with two populations exchanging migrants:
 
 ```{literalinclude} migrants.slim
 ```
+
 Let's run it:
 ```{code-cell}
 %%bash
 slim -s 32 migrants.slim
 ```
 
-The first, most common method to extract individuals is simply to
-get all those that were alive at a particular time, using
-{meth}`.SlimTreeSequence.individuals_alive_at()`.
-For instance, to get the list of individual IDs of
-all those alive at the end of the simulation
-(i.e., zero time units ago), we could do:
+To count up how many individuals are in each population,
+we could do:
 
 ```{code-cell}
 orig_ts = pyslim.load("migrants.trees")
 alive = orig_ts.individuals_alive_at(0)
-
-print(f"There are {len(alive)} individuals alive in the final generation.")
-```
-
-These are individual IDs, and we can use ``ts.individual( )`` to get information
-about each of these individuals from their ID.
-For instance,
-to count up how many of these individuals are in each population,
-we could do:
-
-```{code-cell}
 num_alive = [0 for _ in range(orig_ts.num_populations)]
 for i in alive:
   ind = orig_ts.individual(i)
@@ -503,7 +585,7 @@ print(f"There are {ts.num_mutations} mutations across {ts.num_trees} distinct\n"
 
 ## Individual metadata
 
-Each ``Mutation``, ``Population``, ``Node``, and ``Individual``, as well as the tree 
+Each ``Mutation``, ``Population``, ``Node``, and ``Individual``, as well as the tree
 sequence as a whole, carries additional information stored by SLiM in its ``metadata``
 property. A fuller description of metadata in general is given in {ref}`sec_metadata`,
 but as a quick introduction, here is the information available
@@ -660,7 +742,7 @@ too.
 
 Note that by default, nodes are only kept if they mark a coalescent point (MRCA or branch
 point) in one or more of the trees in a tree sequence. This can be changed by
-initialising tree sequence recording in SLiM using 
+initialising tree sequence recording in SLiM using
 ``treeSeqInitialize(retainCoalescentOnly=F)``. SLiM will then
 preserve all retained individuals while they remain in the genealogy, even if their nodes
 are not coalescent points in a tree (so-called "unary nodes"). Similarly, if you later
@@ -689,7 +771,7 @@ the number of individuals in the resulting tree sequence is likely to become ver
 and the efficiencies provided by tree sequence recording will be substantially reduced.
 Indeed in this case, retaining will be much the same as permanently remembering everyone
 who has ever lived. Nevertheless, if you are willing to sacrifice enough computer memory,
-either of these is (perhaps surprisingly) possible, even for medium-sized simulations. 
+either of these is (perhaps surprisingly) possible, even for medium-sized simulations.
 
 
 
@@ -864,7 +946,7 @@ print(m)
 :tags: ["remove-input"]
 util.pp(m)
 ```
-Here, `m.site` tells us the ID of the *site* on the genome that the mutation occurred at, 
+Here, `m.site` tells us the ID of the *site* on the genome that the mutation occurred at,
 and we can pull up information about that with the `ts.site( )` method:
 ```{code-cell}
 :tags: ["remove-output"]
@@ -877,7 +959,7 @@ util.pp(ts.site(m.site))
 This mutation occurred at position 54 along the genome (from `site.position`)
 which previously had no mutations (since `site.ancestral_state` is the empty string, `''`)
 and was given SLiM mutation ID 1653896 (`m.derived_state`).
-The metadata (`m.metadata`, a dict) tells us that 
+The metadata (`m.metadata`, a dict) tells us that
 the mutation has selection coefficient 1.5597 and occurred in population 1 in generation 827,
 which was 172 generations ago.
 This is not a nucleotide model, so the nucleotide entry is `-1`.
@@ -958,7 +1040,7 @@ so we'll use the following snippet:
 ```{code-cell}
 def allele_counts(ts, sample_sets=None):
    if sample_sets is None:
-      sample_sets = [ts.samples()] 
+      sample_sets = [ts.samples()]
    def f(x):
       return x
    return ts.sample_count_stat(sample_sets, f, len(sample_sets),
@@ -1059,9 +1141,9 @@ Also known as "gotchas".
    Individuals in SLiM are diploid, so normally, each has two nodes (but retained
    individuals may have nodes removed by simplification: see below).
 
-3. As described above, the Individual table contains entries for 
+3. As described above, the Individual table contains entries for
 
-   1. the currently alive individuals, 
+   1. the currently alive individuals,
    2. any individuals that have been permanently remembered with
       ``treeSeqRememberIndividuals()``, and
    3. any individuals that have been temporarily retained with
