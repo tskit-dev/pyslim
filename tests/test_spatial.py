@@ -13,7 +13,10 @@ import pyslim
 
 import tests
 
+from .recipe_specs import recipe_eq
+
 class TestPopulationSize(tests.PyslimTestCase):
+
     def population_size_simple(self, ts, x_bins, y_bins, time_bins):
         '''
         Calculates population size in each location bin averaged over each time_bin.   
@@ -67,22 +70,26 @@ class TestPopulationSize(tests.PyslimTestCase):
                 for nt in np.arange(1, 60, 30):
                     yield [np.linspace(0, round(max(ts.individual_locations[:,0])), nx + 1), 
                            np.linspace(0, round(max(ts.individual_locations[:,1])), ny + 1),
-                           np.round(np.linspace(0, max(ts.individual_times), nt + 1))]  
+                           np.round(np.linspace(0, max(nt, max(ts.individual_times)), nt + 1))]  
 
     def verify(self, ts):
-        for bins in make_bins(ts):
+        for bins in self.make_bins(ts):
             x_bins, y_bins, time_bins = bins
             # as computed by pyslim
-            popsize0 = population_size(ts, x_bins, y_bins, time_bins)
+            popsize0 = pyslim.population_size(ts, x_bins, y_bins, time_bins)
             # as computed in a simple way
-            popsize1 = population_size_simple(ts, x_bins, y_bins, time_bins)
+            popsize1 = self.population_size_simple(ts, x_bins, y_bins, time_bins)
+            print(bins)
+            for t in range(10):
+                print(len(ts.individuals_alive_at(t)))
             assert(np.allclose(popsize1, popsize0))
 
     def test_population_size_errors(self):
         # test that it fails appropriately on bad input
+        pass
 
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
-    def test_population_size(self):
+    def test_population_size(self, recipe):
         # compare output to the right answer
         ts = recipe["ts"]
         self.verify(ts)

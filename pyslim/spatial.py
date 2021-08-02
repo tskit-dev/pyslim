@@ -26,10 +26,11 @@ def average_time_alive(birth_times, death_times, t0, t1):
     Finds average population size in [t0, t1) using time alive
     '''
     # # time steps each individual is alive in [t0, t1)
-    a = np.maximum(0, np.minimum(t1, birth_times) -  np.maximum(t0, death_times))
+    a = np.maximum(0, np.minimum(t1, 1 + birth_times) -  np.maximum(t0, death_times))
     # Average population size
     return(sum(a)/(t1-t0))
-def population_size(ts, x_bins, y_bins, time_bins):
+
+def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stage=None):
     '''
     Calculates population size in each location bin averaged over each time_bin.   
     '''
@@ -41,9 +42,41 @@ def population_size(ts, x_bins, y_bins, time_bins):
     # where pxiyjtk is the population size in [x_breaks[i], x_breaks[i + 1]) and [y_breaks[j], x_breaks[j + 1]),
     # averaged over each time point in [t[k], t[k + 1])
     # different offsets for different stages, from pyslim.individuals_alive_at code
+
+    # TODO: make a helper function to do this
+    if stage not in ("late", "early"):
+        raise ValueError(f"Unknown stage '{stage}': "
+                          "should be either 'early' or 'late'.")
+
+    if remembered_stage is None:
+        remembered_stage = ts.metadata['SLiM']['stage']
+
+    if remembered_stage not in ("late", "early"):
+        raise ValueError(f"Unknown remembered_stage '{remembered_stage}': "
+                          "should be either 'early' or 'late'.")
+    if remembered_stage != ts.metadata['SLiM']['stage']:
+        warnings.warn(f"Provided remembered_stage '{remembered_stage}' does not"
+                      " match the stage at which the tree sequence was saved"
+                      f" ('{ts.metadata['SLiM']['stage']}'). This is not necessarily"
+                      " an error, but mismatched stages will lead to inconsistencies:"
+                      " make sure you know what you're doing.")
     
-    birth_times = ts.individual_times + 1
-    ages = ts.individual_ages
+    # see individuals_alive_at for explanation
+    if stage == "early" and ts.metadata['SLiM']['model_type'] == "WF":
+        birth_offset = 1
+    else:
+        birth_offset = 0
+    birth_times = ts.individual_times - birth_offset
+    if (ts.metadata['SLiM']['model_type'] == "WF"
+            or stage == remembered_stage):
+        age_offset = 0
+    else:
+        if (remembered_stage == "early"
+                and stage == "late"):
+            age_offset = -1
+        else:
+            age_offset = 1
+    ages = ts.individual_ages + age_offset
     death_times = ts.individual_times - ages
         
     time_breaks = time_bins
