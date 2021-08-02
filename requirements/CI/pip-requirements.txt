@@ -14,3 +14,4 @@ xmlunittest==0.5.0
 numpy
 filelock
 kastore
+pandas
