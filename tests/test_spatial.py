@@ -84,9 +84,17 @@ class TestPopulationSize(tests.PyslimTestCase):
                 print(len(ts.individuals_alive_at(t)))
             assert(np.allclose(popsize1, popsize0))
 
-    def test_population_size_errors(self):
-        # test that it fails appropriately on bad input
-        pass
+    @pytest.mark.parametrize('recipe', [next(recipe_eq("everyone"))], indirect=True)
+    def test_errors(self, recipe):
+        ts = recipe["ts"]
+        x_bins = [0, 1.0]
+        y_bins = [0, 1.0]
+        time_bins = [0, 10.0]
+        for stage in ['abcd', 10, []]:
+            with pytest.raises(ValueError):
+                pyslim.population_size(ts, x_bins, y_bins, time_bins, stage=stage)
+            with pytest.raises(ValueError):
+                pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage=stage)
 
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_population_size(self, recipe):
