@@ -77,7 +77,7 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
         else:
             age_offset = 1
     ages = ts.individual_ages + age_offset
-    death_times = ts.individual_times - ages
+    death_times = birth_times - ages
         
     time_breaks = time_bins
     x_breaks = x_bins

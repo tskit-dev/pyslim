@@ -17,7 +17,7 @@ from .recipe_specs import recipe_eq
 
 class TestPopulationSize(tests.PyslimTestCase):
 
-    def population_size_simple(self, ts, x_bins, y_bins, time_bins):
+    def population_size_simple(self, ts, x_bins, y_bins, time_bins, **kwargs):
         '''
         Calculates population size in each location bin averaged over each time_bin.   
         '''
@@ -57,7 +57,7 @@ class TestPopulationSize(tests.PyslimTestCase):
                     t0, t1 = time_breaks[k], time_breaks[k + 1]
                     alive = 0
                     for t in np.arange(np.ceil(t0), t1):
-                        for ind_id in ts.individuals_alive_at(t):
+                        for ind_id in ts.individuals_alive_at(t, **kwargs):
                             ind = ts.individual(ind_id)
                             if (ind.location[0] < x1 and ind.location[0] >= x0 and ind.location[1] < y1 and ind.location[1] >= y0):
                                 alive += 1/(t1-t0)
@@ -72,17 +72,15 @@ class TestPopulationSize(tests.PyslimTestCase):
                            np.linspace(0, round(max(ts.individual_locations[:,1])), ny + 1),
                            np.round(np.linspace(0, max(nt, max(ts.individual_times)), nt + 1))]  
 
-    def verify(self, ts):
+    def verify(self, ts, remembered_stage):
         for bins in self.make_bins(ts):
-            x_bins, y_bins, time_bins = bins
-            # as computed by pyslim
-            popsize0 = pyslim.population_size(ts, x_bins, y_bins, time_bins)
-            # as computed in a simple way
-            popsize1 = self.population_size_simple(ts, x_bins, y_bins, time_bins)
-            print(bins)
-            for t in range(10):
-                print(len(ts.individuals_alive_at(t)))
-            assert(np.allclose(popsize1, popsize0))
+            for stage in ('early', 'late'):
+                x_bins, y_bins, time_bins = bins
+                # as computed by pyslim
+                popsize0 = pyslim.population_size(ts, x_bins, y_bins, time_bins, stage=stage, remembered_stage=remembered_stage)
+                # as computed in a simple way
+                popsize1 = self.population_size_simple(ts, x_bins, y_bins, time_bins, stage=stage, remembered_stage=remembered_stage)
+                assert(np.allclose(popsize1, popsize0))
 
     @pytest.mark.parametrize('recipe', [next(recipe_eq("everyone"))], indirect=True)
     def test_errors(self, recipe):
@@ -96,8 +94,23 @@ class TestPopulationSize(tests.PyslimTestCase):
             with pytest.raises(ValueError):
                 pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage=stage)
 
+    @pytest.mark.parametrize('recipe', [next(recipe_eq("pedigree", "WF"))], indirect=True)
+    def test_mismatched_remembered_stage(self, recipe):
+        ts = recipe["ts"]
+        x_bins = [0, 1.0]
+        y_bins = [0, 1.0]
+        time_bins = [0, 10.0]
+        info = recipe["info"]
+        if "remembered_early" in recipe:
+            with pytest.warns(UserWarning):
+                pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="late")
+        else:
+            with pytest.warns(UserWarning):
+                pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="early")
+
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_population_size(self, recipe):
         # compare output to the right answer
         ts = recipe["ts"]
-        self.verify(ts)
+        remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
+        self.verify(ts, remembered_stage=remembered_stage)
