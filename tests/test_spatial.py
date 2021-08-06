@@ -114,3 +114,96 @@ class TestPopulationSize(tests.PyslimTestCase):
         ts = recipe["ts"]
         remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
         self.verify(ts, remembered_stage=remembered_stage)
+
+    def test_known_answer(self):
+        # a simple example to make sure we've got the edge cases right
+        tables = tskit.TableCollection(sequence_length=1)
+        pyslim.set_tree_sequence_metadata(tables,  model_type='nonWF', generation=0)
+        locs = [[0, 0], # alive at 0, 1
+                [0, 1], # alive at 0, 1, 2
+                [2, 0], # alive at 0, 1, 2
+                [1, 1], # alive at 0, 1, 2
+                [0, 0], # alive at 1
+                [0.5, 1], # alive at 1
+                [2, 2], # alive at 1
+                [3, 2] # alive at 0, 1, 2, 3
+        ]
+        births = [1, 2, 2, 2, 1, 1, 1, 3]
+        ages = [1, 2, 2, 2, 0, 0, 0, 3]
+        x_bins = [0, 1, 3]
+        for xy, a in zip(locs, ages):
+            md = pyslim.default_slim_metadata('individual')
+            md['age'] = a
+            tables.individuals.add_row(
+                    location=xy + [np.nan],
+                    metadata=md,
+            )
+
+        for j, b in enumerate(births):
+            tables.nodes.add_row(time=b, individual=j)
+
+        ts = pyslim.SlimTreeSequence(
+                tables.tree_sequence()
+        )
+
+        # check we've got this right
+        for k, n in enumerate([
+                [0, 1, 2, 3, 7],
+                [0, 1, 2, 3, 4, 5, 6, 7],
+                [1, 2, 3, 7],
+                [7]]):
+            np.testing.assert_array_equal(
+                    n,
+                    ts.individuals_alive_at(k)
+            )
+
+        # no-one
+        counts = pyslim.population_size(
+                ts,
+                x_bins=np.arange(10),
+                y_bins=np.arange(10),
+                time_bins=[100, 200, 300],
+        )
+        np.testing.assert_array_equal(
+                counts,
+                np.zeros((9, 9, 2)),
+        )
+
+        # everyone at the start
+        counts = pyslim.population_size(
+                ts,
+                x_bins=[0, 10],
+                y_bins=[0, 10],
+                time_bins=[0, 1],
+        )
+        np.testing.assert_array_equal(
+                counts,
+                [[[5]]]
+        )
+
+        # should omit the last one
+        counts = pyslim.population_size(
+                ts,
+                x_bins=[0, 3],
+                y_bins=[0, 3],
+                time_bins=[0, 1]
+        )
+        np.testing.assert_array_equal(
+                counts,
+                [[[4]]]
+        )
+
+        # now should omit the ones at the boundaries
+        counts = pyslim.population_size(
+                ts,
+                x_bins=[0, 1, 2],
+                y_bins=[0, 1, 2],
+                time_bins=[0, 1, 2, 5]
+        )
+        np.testing.assert_array_equal(
+                counts,
+                [[[1, 2, 0],
+                  [1, 2, 1/3]],
+                 [[0, 0, 0],
+                  [1, 1, 1/3]]]
+        )
