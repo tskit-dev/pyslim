@@ -838,8 +838,6 @@ class SlimTreeSequence(tskit.TreeSequence):
         See :meth:`.individuals_alive_at` for further discussion about how
         this is determined based on when the individuals were Remembered.
 
-        :param array individuals: The IDs of individuals that parents should be found
-            for (defaults to all individuals).
         :return: An array of individual IDs, with row [i, j] if individual i is
             a parent of individual j.
         '''
