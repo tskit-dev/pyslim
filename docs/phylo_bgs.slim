@@ -1,0 +1,34 @@
+// The following constants need to be defined:
+// - outfile: path to save the tree sequence of the simulation.
+// - popsize: population size.
+// - num_gens: run simulation for num_gens generations.
+// - infile: a string with path to tree sequence to start from; optional.
+initialize()
+{
+    initializeSLiMModelType("WF");
+    initializeTreeSeq();
+    initializeMutationRate(1e-8);
+    initializeMutationType("m1", 0.5, "f", -0.01);
+    initializeGenomicElementType("g1", m1, 0.1);
+    initializeGenomicElement(g1, 0, 1e6-1);
+    initializeRecombinationRate(1e-9);
+}
+
+1 early() {
+    // if no input tree sequence is provided, then start a subpopulation
+    if (infile == "") {
+        sim.addSubpop("p1", popsize);
+    } else {
+        sim.readFromPopulationFile(infile);
+        p1.setSubpopulationSize(popsize);
+    }
+    finalgen = num_gens + sim.generation - 1;
+    // scheduling the end of the simulation
+    sim.rescheduleScriptBlock(s0, generations=finalgen);
+}
+
+// event that saves the tree sequence
+s0 1000 late() {
+    sim.treeSeqRememberIndividuals(sim.subpopulations.individuals);
+    sim.treeSeqOutput(outfile);
+}

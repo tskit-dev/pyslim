@@ -9,6 +9,7 @@
     - file: vignette_space
     - file: vignette_continuing
     - file: vignette_coalescent_diversity
+    - file: vignette_parallel_phylo
     - file: metadata
 
 - part: pyslim reference

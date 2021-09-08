@@ -4,7 +4,7 @@ INKSCAPE := $(shell command -v inkscape 2> /dev/null)
 
 # NOTE: all layers must be visible in pedigrees.ink.svg for this to work.
 
-all: pedigree01.png pedigree2.png pedigree_recapitate.png pedigree_simplify.png pedigree_mutate.png annotated_p_vs_s.png annotate_genome.png
+all: pedigree01.png pedigree2.png pedigree_recapitate.png pedigree_simplify.png pedigree_mutate.png annotated_p_vs_s.png annotate_genome.png phylo.png
 
 pedigree01.png : pedigree0.png pedigree1.png
 	convert +append $^ $@
