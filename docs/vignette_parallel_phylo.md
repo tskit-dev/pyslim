@@ -100,7 +100,7 @@ Here is python code that will write out a makefile from the information in ``df`
 f = open("sims.make", "w")
 print(f"all: {' '.join(df.outfile.to_list())}\n", file=f)
 for i, row in df.iterrows():
-    print(f"{row.outfile}: {row.infile}", file=f)
+    print(f"{row.outfile}: {row.infile} phylo_bgs.slim\n", file=f)
     print(f"\tslim -d \"infile='{row.infile}'\" -d popsize={row.popsize} -d num_gens={row.edgelen} -d \"outfile='{row.child}.trees'\" phylo_bgs.slim\n", file=f)
 f.close()
 ```
@@ -117,13 +117,15 @@ cat sims.make
 With the makefile in hand,
 we can now run make, specifying the maximum number of simulations
 to be run simultaneously the ``-j``.
-
-```python
+(Click on the "+" icon to see SLiM's output.)
+```{code-cell}
+:tags: ["hide-output"]
 %%bash
 make -f sims.make -j 3
 ```
 
-```{dropdown} Alternative to using make
+
+```{dropdown} Click here for how to use python instead of make
 
 You would have to write a recursion over the branches in your tree (starting 
 from the root) and then parallelize the runs of sister branches somehow.
@@ -199,42 +201,46 @@ recursive function that goes through our data frame with the phylogeny and
 returns a dictionary with the merged tree sequences from the tip to the root.
 
 ```{code-cell}
-def union_recursion(df, focal="root", merged=None):
-    if merged is None:
-        merged = {
-            row.child : (
-                tskit.load(row.outfile),
-                row.edgelen,
-                [row.child]
-            ) for i, row in df[df.is_leaf].iterrows()
-        }
-    print(f"Going in: {focal}")
-    childs = df[df.parent == focal]
-    assert (len(childs) == 2) or (len(childs) == 0)
-    if len(childs) == 2:
-        for i, row in childs.iterrows():
-            merged = union_recursion(df, row.child, merged)
-        cname1 = childs.iloc[0,]["child"]
-        cname2 = childs.iloc[1,]["child"]
-        split_time = merged[cname1][1]
-        assert split_time == merged[cname2][1] # ultrametric
-        print(f'Unioning: {childs["child"].to_list()}, Split time: {split_time}')
-        ts1 = merged[cname1][0]
-        ts2 = merged[cname2][0]
-        node_map = match_nodes(ts2, ts1, split_time)
-        tsu = ts1.union(ts2, node_map, check_shared_equality=True)
+merged = {
+    row.child : {
+        "ts": tskit.load(row.outfile),
+        "depth": row.edgelen,
+        "children": [row.child]
+    }
+    for i, row in df[df.is_leaf].iterrows()
+}
+
+def union_children(parent, df, merged):
+    print(f"Going in: {parent}")
+    child_rows = df[df.parent == parent]
+    assert (len(child_rows) == 2) or (len(childs) == 0)
+    if len(child_rows) == 2:
+        children = [row.child for _, row in child_rows.iterrows()]
+        for child in children:
+            if child not in merged:
+                union_children(child, df, merged)
+        split_time = merged[children[0]]["depth"]
+        assert split_time == merged[children[1]]["depth"] # ultrametric
+        print(f'Unioning: {children}, Split time: {split_time}')
+        ts0 = merged[children[0]]["ts"]
+        ts1 = merged[children[1]]["ts"]
+        node_map = match_nodes(ts1, ts0, split_time)
+        tsu = pyslim.SlimTreeSequence(
+            ts0.union(ts1, node_map, check_shared_equality=True)
+        )
         # the time from tip to start of simulation is split_time plus the
         # length of the edge
-        merged[focal] = (
-            tsu,
-            split_time + df[df.child==focal].edgelen.item(),
-            merged[cname1][2] + merged[cname2][2]
-        )
-    return merged
+        parent_edgelength = df[df.child==parent].edgelen.item()
+        merged[parent] = {
+            "ts": tsu,
+            "depth": split_time + parent_edgelength,
+            "children": merged[children[0]]["children"] + merged[children[1]]["children"]
+        }
 
-merged = union_recursion(df)
+union_children("root", df, merged)
 # union of all three species tree sequences is in the root.
-tsu, _, pops = merged["root"]
+tsu = merged["root"]["ts"]
+pops = merged["root"]["children"]
 ```
 
 A slightly tricky thing we had to do there was to make sure we kept track of
@@ -245,19 +251,25 @@ contains the names of the populations
 in the order in which they are indexed in the resulting tree sequence ``tsu``.
 (Since the population in SLiM is ``p1``, the zero-th population will be unused.)
 
-Let's make sure we have the right number of samples in each of the populations
-we specified.
+Let's make sure we have the right number of present-day samples
+in each of the populations. To do this we need to make sure to get
+"alive" samples, because recall that we have saved the state of the
+population at each species split time.
 
 ```{code-cell}
+alive = np.where(np.isclose(tsu.tables.nodes.time, 0))[0]
 for i, name in enumerate(pops):
-    n_samples = len(tsu.samples(i + 1)) // 2
+    pop_samples = tsu.samples(i + 1)
+    n_samples = sum(np.isin(pop_samples, alive)) // 2
     print(f"Union-ed tree sequence has {n_samples} samples in population {name},\n"
           f"\tand we specified {df[df.child==name].popsize.item()} individuals in our simulations.")
+    assert n_samples == df[df.child==name].popsize.item()
 ```
 
 Finally, we should recapitate the result,
 in case some trees on the root branch haven't coalesced,
 and write out the result:
+
 ```{code-cell}
 tsu = pyslim.SlimTreeSequence(tsu)
 tsu = tsu.recapitate(recombination_rate=1e-8)

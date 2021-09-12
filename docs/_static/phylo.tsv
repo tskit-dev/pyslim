@@ -1,6 +1,6 @@
 child	parent	popsize	edgelen
-root		5000	20000
-C	root	500	2500
-I	root	1000	2000
-B	I	700	500
-A	I	400	500
+root		500	2000
+C	root	50	250
+I	root	100	200
+B	I	70	50
+A	I	40	50
