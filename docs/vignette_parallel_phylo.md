@@ -118,10 +118,11 @@ With the makefile in hand,
 we can now run make, specifying the maximum number of simulations
 to be run simultaneously the ``-j``.
 
-```python
+```{code-cell}
 %%bash
 make -f sims.make -j 3
 ```
+
 
 ```{dropdown} Alternative to using make
 
@@ -222,7 +223,9 @@ def union_recursion(df, focal="root", merged=None):
         ts1 = merged[cname1][0]
         ts2 = merged[cname2][0]
         node_map = match_nodes(ts2, ts1, split_time)
-        tsu = ts1.union(ts2, node_map, check_shared_equality=True)
+        tsu = pyslim.SlimTreeSequence(
+            ts1.union(ts2, node_map, check_shared_equality=True)
+        )
         # the time from tip to start of simulation is split_time plus the
         # length of the edge
         merged[focal] = (
@@ -245,14 +248,19 @@ contains the names of the populations
 in the order in which they are indexed in the resulting tree sequence ``tsu``.
 (Since the population in SLiM is ``p1``, the zero-th population will be unused.)
 
-Let's make sure we have the right number of samples in each of the populations
-we specified.
+Let's make sure we have the right number of present-day samples
+in each of the populations. To do this we need to make sure to get
+"alive" samples, because recall that we have saved the state of the
+population at each species split time.
 
 ```{code-cell}
+alive = tsu.individuals_alive_at(0)
 for i, name in enumerate(pops):
-    n_samples = len(tsu.samples(i + 1)) // 2
+    pop_samples = tsu.samples(i + 1)
+    n_samples = sum(np.isin(pop_samples, alive)) // 2
     print(f"Union-ed tree sequence has {n_samples} samples in population {name},\n"
           f"\tand we specified {df[df.child==name].popsize.item()} individuals in our simulations.")
+    # assert n_samples == df[df.child==name].popsize.item()
 ```
 
 Finally, we should recapitate the result,
