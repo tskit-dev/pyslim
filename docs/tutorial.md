@@ -1014,8 +1014,8 @@ print(afs.astype('int'))
 ```
 
 (The `span_normalise=False` argument gives us counts rather than a density per unit length.)
-This shows us that there are 4177 alleles that are found among the tree sequence's samples
-that are not present in any of our 10 samples, 86 that are present in just one, etcetera.
+This shows us that there are 4169 alleles that are found among the tree sequence's samples
+that are not present in any of our 10 samples, 96 that are present in just one, etcetera.
 The surprisingly large number that are near 50% frequency are perhaps positively selected
 and on their way to fixation: we can check if that's true next.
 You may have noticed that the sum of the allele frequency spectrum is 5243,
