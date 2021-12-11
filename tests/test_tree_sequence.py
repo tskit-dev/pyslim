@@ -91,7 +91,6 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
         roundtripped = pickle.loads(pickle.dumps(ts))
         assert roundtripped == ts
         # __eq__ doesn't check pyslim properties:
-        assert roundtripped.reference_sequence == ts.reference_sequence
         assert roundtripped.legacy_metadata == ts.legacy_metadata
 
 
@@ -130,7 +129,7 @@ class TestRecapitate(tests.PyslimTestCase):
     '''
 
     def check_recap_consistency(self, ts, recap):
-        assert ts.slim_generation == recap.slim_generation
+        assert ts.metadata['SLiM']['generation'] == recap.metadata['SLiM']['generation']
         assert all(tree.num_roots == 1 for tree in recap.trees())
 
         ts_samples = list(ts.samples())
@@ -176,7 +175,7 @@ class TestRecapitate(tests.PyslimTestCase):
         assert list(ts.tables.sites.position) == list(recap.tables.sites.position)
         self.check_recap_consistency(ts, recap)
 
-        if ts.slim_generation < 200:
+        if ts.metadata['SLiM']['generation'] < 200:
             old_root_time = np.max(ts.tables.nodes.time)
             for t in recap.trees():
                 assert t.num_roots == 1
@@ -212,9 +211,9 @@ class TestRecapitate(tests.PyslimTestCase):
 
             recap = ts.recapitate(recombination_rate=recomb_rate, Ne=1e-6)
             self.check_recap_consistency(ts, recap)
-            if ts.slim_generation < 200:
+            if ts.metadata['SLiM']['generation'] < 200:
                 for t in recap.trees():
-                    assert abs(recap.node(t.root).time - recap.slim_generation) < 1e-4
+                    assert abs(recap.node(t.root).time - recap.metadata['SLiM']['generation']) < 1e-4
 
             # test with passing in a recombination map
             recombination_map = msprime.RecombinationMap(
@@ -251,7 +250,7 @@ class TestIndividualMetadata(tests.PyslimTestCase):
     def test_first_gen_nodes(self, recipe):
         # check that all the roots of the trees are present
         ts = recipe["ts"]
-        root_time = ts.slim_generation
+        root_time = ts.metadata['SLiM']['generation']
         if (ts.metadata['SLiM']['stage'] == 'early'
                 or ts.metadata['SLiM']['model_type'] == 'nonWF'):
             root_time -= 1
@@ -273,7 +272,7 @@ class TestMutationMetadata(tests.PyslimTestCase):
         offset = (ts.metadata["SLiM"]["model_type"] == "WF") and (ts.metadata["SLiM"]["stage"] == "early")
         for mut in ts.mutations():
             mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])
-            assert ts.slim_generation == mut_slim_time + mut.time + offset
+            assert ts.metadata['SLiM']['generation'] == mut_slim_time + mut.time + offset
 
 
 class TestIndividualAges(tests.PyslimTestCase):
@@ -347,102 +346,13 @@ class TestIndividualAges(tests.PyslimTestCase):
         info = recipe["info"]
         remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
         assert remembered_stage == ts.metadata['SLiM']['stage']
-        max_time_ago = ts.slim_generation
+        max_time_ago = ts.metadata['SLiM']['generation']
         if remembered_stage == 'early':
             max_time_ago -= 1
         for time in range(0, max_time_ago):
             # if written out during 'early' in a WF model,
             # tskit time 0 will be the SLiM time step *before* slim_generation
-            slim_time = ts.slim_generation - time
-            if remembered_stage == 'early' and ts.metadata["SLiM"]["model_type"] == "WF":
-                slim_time -= 1
-            if remembered_stage == 'early' and time == 0:
-                # if we remember in early we don't know who's still there
-                # in late of the last time step
-                check_stages = ('early',)
-            else:
-                check_stages = ('early', 'late')
-            for stage in check_stages:
-                alive = ts.individuals_alive_at(
-                            time,
-                            stage=stage,
-                            remembered_stage=remembered_stage)
-                ages = ts.individual_ages_at(
-                            time,
-                            stage=stage,
-                            remembered_stage=remembered_stage)
-                for ind in ts.individuals():
-                    if 'everyone' in recipe or ind.time == 0:
-                        slim_id = ind.metadata["pedigree_id"]
-                        assert slim_id in info
-                        slim_alive = (slim_time, stage) in info[slim_id]['age']
-                        pyslim_alive = ind.id in alive
-                        assert slim_alive == pyslim_alive
-                        if slim_alive:
-                            slim_age = info[slim_id]['age'][(slim_time, stage)]
-                            if ts.metadata["SLiM"]["model_type"] == "WF":
-                                # SLiM records -1 but we return 0 in late and 1 in early
-                                slim_age = 0 + (stage == 'early')
-                            assert ages[ind.id] == slim_age
-                        else:
-                            assert np.isnan(ages[ind.id])
-                with pytest.warns(UserWarning):
-                    ts.individuals_alive_at(0, remembered_stage="early")
-
-
-    @pytest.mark.parametrize('recipe', recipe_eq("multipop", exclude="remembered_early"), indirect=True)
-    def test_population(self, recipe):
-        ts = recipe["ts"]
-        all_inds = ts.individuals_alive_at(0)
-        for p in range(ts.num_populations):
-            sub_inds = ts.individuals_alive_at(0, population=p)
-            assert set(sub_inds) == set(all_inds[ts.individual_populations == p])
-            sub_inds = ts.individuals_alive_at(0, population=[p])
-            assert set(sub_inds) == set(all_inds[ts.individual_populations == p])
-        sub_inds = ts.individuals_alive_at(0, population=np.arange(p))
-        assert set(sub_inds) == set(all_inds[ts.individual_populations != p])
-
-    @pytest.mark.parametrize('recipe', recipe_eq("nonWF", exclude="remembered_early"), indirect=True)
-    def test_samples_only(self, recipe):
-        ts = recipe["ts"]
-        all_inds = ts.individuals_alive_at(0)
-        assert set(all_inds) == set(ts.individuals_alive_at(0, samples_only=False))
-        sub_inds = np.random.choice(all_inds, size=min(len(all_inds), 4), replace=False)
-        flags = np.array([n.flags & (tskit.NODE_IS_SAMPLE * n.individual in sub_inds)
-                          for n in ts.nodes()], dtype=np.uint32)
-        tables = ts.dump_tables()
-        tables.nodes.flags = flags
-        new_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
-        assert set(sub_inds) == set(new_ts.individuals_alive_at(0, samples_only=True))
-
-    @pytest.mark.parametrize('recipe', recipe_eq(exclude="remembered_early"), indirect=True)
-    def test_after_simplify(self, recipe):
-        ts = recipe["ts"]
-        sts = ts.simplify()
-        orig_inds = ts.individuals_alive_at(0)
-        simp_inds = sts.individuals_alive_at(0)
-        odict = {ts.individual(i).metadata["pedigree_id"]: i for i in orig_inds}
-        sdict = {sts.individual(i).metadata["pedigree_id"]: i for i in simp_inds}
-        for slim_id in odict:
-            i = odict[slim_id]
-            ind = ts.individual(i)
-            n = ts.node(ind.nodes[0])
-            if n.flags & tskit.NODE_IS_SAMPLE:
-                assert slim_id in sdict
-
-    @pytest.mark.parametrize('recipe', recipe_eq("pedigree"), indirect=True)
-    def test_ages(self, recipe):
-        ts = recipe["ts"]
-        info = recipe["info"]
-        remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
-        assert remembered_stage == ts.metadata['SLiM']['stage']
-        max_time_ago = ts.slim_generation
-        if remembered_stage == 'early':
-            max_time_ago -= 1
-        for time in range(0, max_time_ago):
-            # if written out during 'early' in a WF model,
-            # tskit time 0 will be the SLiM time step *before* slim_generation
-            slim_time = ts.slim_generation - time
+            slim_time = ts.metadata['SLiM']['generation'] - time
             if remembered_stage == 'early' and ts.metadata["SLiM"]["model_type"] == "WF":
                 slim_time -= 1
             if remembered_stage == 'early' and time == 0:
@@ -570,7 +480,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
     def test_post_simplify(self, recipe):
         ts = recipe["ts"]
         keep_indivs = np.random.choice(
-                np.where(ts.individual_times < ts.slim_generation - 1)[0],
+                np.where(ts.individual_times < ts.metadata['SLiM']['generation'] - 1)[0],
                 size=30, replace=False)
         keep_nodes = []
         for i in keep_indivs:
@@ -682,14 +592,16 @@ class TestReferenceSequence(tests.PyslimTestCase):
             mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md["mutation_list"][0]["nucleotide"] >= 0)
             if not has_nucleotides:
-                assert ts.reference_sequence == None
+                assert not ts.has_reference_sequence()
             else:
-                assert type(ts.reference_sequence) == type('')
-                assert len(ts.reference_sequence) == ts.sequence_length
-                for u in ts.reference_sequence:
+                assert type(ts.reference_sequence.data) == type('')
+                assert len(ts.reference_sequence.data) == ts.sequence_length
+                for u in ts.reference_sequence.data:
                     assert u in pyslim.NUCLEOTIDES
             sts = ts.simplify(ts.samples()[:2])
-            assert sts.reference_sequence == ts.reference_sequence
+            assert sts.has_reference_sequence() == ts.has_reference_sequence()
+            if sts.has_reference_sequence():
+                assert sts.reference_sequence.data == ts.reference_sequence.data
 
     def test_mutation_at_errors(self, recipe):
         ts = recipe["ts"]
@@ -741,6 +653,8 @@ class TestReferenceSequence(tests.PyslimTestCase):
             mut_md = ts.mutation(0).metadata
             has_nucleotides = (mut_md["mutation_list"][0]["nucleotide"] >= 0)
             if has_nucleotides:
+                assert ts.has_reference_sequence()
+                assert len(ts.reference_sequence.data) == ts.sequence_length
                 for _ in range(100):
                     node = random.randint(0, ts.num_nodes - 1)
                     pos = random.randint(0, ts.sequence_length - 1)
@@ -748,7 +662,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     parent = tree.parent(node)
                     a = ts.nucleotide_at(node, pos)
                     if parent == tskit.NULL:
-                        nuc = ts.reference_sequence[int(pos)]
+                        nuc = ts.reference_sequence.data[int(pos)]
                         assert a == pyslim.NUCLEOTIDES.index(nuc)
                     else:
                         b = ts.nucleotide_at(parent, pos)
@@ -795,12 +709,12 @@ class TestConvertNucleotides(tests.PyslimTestCase):
             yield k, slim_muts[k]
 
     def verify_converted_nucleotides(self, ts, cts):
-        assert ts.reference_sequence == cts.reference_sequence
+        assert ts.reference_sequence.data == cts.reference_sequence.data
         assert ts.num_sites == cts.num_sites
         for k, (s, ns) in enumerate(zip(ts.sites(), cts.sites())):
             assert s.position == ns.position
             assert s.metadata == ns.metadata
-            assert ns.ancestral_state == ts.reference_sequence[int(s.position)]
+            assert ns.ancestral_state == ts.reference_sequence.data[int(s.position)]
         for m, cm, (_, sm) in zip(ts.mutations(), cts.mutations(), self.last_slim_mutations(ts)):
             assert m.site == cm.site
             assert m.node == cm.node
@@ -833,7 +747,9 @@ class TestConvertNucleotides(tests.PyslimTestCase):
                 rate=0.1,
                 random_seed=23)
         assert mts.num_mutations > 0
-        mts.reference_sequence = 'A' * int(mts.sequence_length)
+        mtt = mts.dump_tables()
+        mtt.reference_sequence.data = 'A' * int(mts.sequence_length)
+        mts = mtt.tree_sequence()
         with pytest.raises(ValueError, match="must be nucleotide mutations"):
             _ = pyslim.convert_alleles(mts)
 
@@ -866,15 +782,14 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         # if check_transitions is True, verify that derived states differ
         # from parental states - which we try to do but is not guaranteed,
         # for instance, if keep=True or in other weird situations.
-        assert hasattr(ts, 'reference_sequence')
-        assert len(ts.reference_sequence) == ts.sequence_length
+        assert len(ts.reference_sequence.data) == ts.sequence_length
         muts = {}
         ts_muts = {
             j : v['nucleotide']
             for j, (_, v) in enumerate(self.last_slim_mutations(ts))
         }
         for mut in ts.mutations():
-            aa = ts.reference_sequence[int(ts.site(mut.site).position)]
+            aa = ts.reference_sequence.data[int(ts.site(mut.site).position)]
             for i, md in zip(
                     mut.derived_state.split(","),
                     mut.metadata['mutation_list']
@@ -914,7 +829,7 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         refseq = "A" * int(mts.sequence_length)
         nts = pyslim.generate_nucleotides(mts, reference_sequence=refseq, seed=6)
         self.verify_generate_nucleotides(nts, check_transitions=True)
-        assert nts.reference_sequence == refseq
+        assert nts.reference_sequence.data == refseq
 
     def test_generate_nucleotides_keep(self):
         ts = msprime.sim_ancestry(4, sequence_length=10, population_size=10)

@@ -23,7 +23,7 @@ _raw_slim_metadata_schemas = {
             "type": "object",
             "properties": {
                 "SLiM" : {
-                    "description": "Top-level metadata for a SLiM tree sequence, file format version 0.5",
+                    "description": "Top-level metadata for a SLiM tree sequence, file format version 0.7",
                     "type": "object",
                     "properties": {
                         "model_type" : {
@@ -71,7 +71,7 @@ _raw_slim_metadata_schemas = {
                  "SLiM" : {
                      "model_type" : "WF",
                      "generation" : 123,
-                     "file_version" : "0.5",
+                     "file_version" : "0.7",
                      "spatial_dimensionality" : "xy",
                      "spatial_periodicity" : "x",
                      "separate_sexes" : True,
@@ -181,171 +181,91 @@ _raw_slim_metadata_schemas = {
         },
         "individual" :
         {
-            "$schema": "http://json-schema.org/schema#",
-            "description": "SLiM schema for individual metadata.",
-            "codec": "struct",
-            "type": "object",
-            "properties": {
-                "pedigree_id": {
-                    "type": "integer",
-                    "description": "The 'pedigree ID' of this individual in SLiM.",
-                    "binaryFormat": "q",
-                    "index": 1
-                },
-                "age": {
-                    "type": "integer",
-                    "description": "The age of this individual, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
-                    "binaryFormat": "i",
-                    "index": 2
-                },
-                "subpopulation": {
-                    "type": "integer",
-                    "description": "The ID of the subpopulation the individual was part of, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
-                    "binaryFormat": "i",
-                    "index": 3
-                },
-                "sex": {
-                    "type": "integer",
-                    "description": "The sex of the individual (0 for female, 1 for male, -1 for hermaphrodite).",
-                    "binaryFormat": "i",
-                    "index": 4
-                },
+                "$schema": "http://json-schema.org/schema#",
+                "additionalProperties": False,
+                "codec": "struct",
+                "description": "SLiM schema for individual metadata.",
+                "examples": [
+                    {
+                        "age": -1,
+                        "flags": 0,
+                        "pedigree_id": 123,
+                        "pedigree_p1": 12,
+                        "pedigree_p2": 23,
+                        "sex": 0,
+                        "subpopulation": 0
+                    },
+                ],
                 "flags": {
-                    "type": "integer",
-                    "description": "Other information about the individual: see 'flags'.",
-                    "binaryFormat": "I",
-                    "index": 5
-                }
-            },
-            "required": ["pedigree_id", "age", "subpopulation", "sex", "flags"],
-            "additionalProperties": False,
-            "flags": {
-                 "SLIM_INDIVIDUAL_METADATA_MIGRATED": {
-                     "value": 1,
-                     "description": "Whether this individual was a migrant, either in the generation when the tree sequence was written out (if the individual was alive then), or in the generation of the last time they were Remembered (if not)."
-                 }
-            },
-            "examples": [
-                {
-                "pedigree_id" : 123,
-                "age" : -1,
-                "subpopulation" : 0,
-                "sex" : 0,
-                "flags" : 0
-                }
-            ]
-        },
-        "population" :
-        {
-            "$schema": "http://json-schema.org/schema#",
-            "description": "SLiM schema for population metadata.",
-            "codec": "struct",
-            "type": ["object", "null"],
-            "properties": {
-                "slim_id": {
-                    "type": "integer",
-                    "description": "The ID of this population in SLiM. Note that this is called a 'subpopulation' in SLiM.",
-                    "binaryFormat": "i",
-                    "index": 1},
-                "selfing_fraction": {
-                    "type": "number",
-                    "description": "The frequency with which individuals in this subpopulation self (for WF models).",
-                    "binaryFormat": "d",
-                    "index": 2},
-                "female_cloning_fraction": {
-                    "type": "number",
-                    "description": "The frequency with which females in this subpopulation reproduce clonally (for WF models).",
-                    "binaryFormat": "d",
-                    "index": 3},
-                "male_cloning_fraction": {
-                    "type": "number",
-                    "description": "The frequency with which males in this subpopulation reproduce clonally (for WF models).",
-                    "binaryFormat": "d",
-                    "index": 4},
-                "sex_ratio": {
-                    "type": "number",
-                    "description": "This subpopulation's sex ratio (for WF models).",
-                    "binaryFormat": "d",
-                    "index": 5},
-                "bounds_x0": {
-                    "type": "number",
-                    "description": "The minimum x-coordinate in this subpopulation.",
-                    "binaryFormat": "d",
-                    "index": 6},
-                "bounds_x1": {
-                    "type": "number",
-                    "description": "The maximum x-coordinate in this subpopulation.",
-                    "binaryFormat": "d",
-                    "index": 7},
-                "bounds_y0": {
-                    "type": "number",
-                    "description": "The minimum y-coordinate in this subpopulation.",
-                    "binaryFormat": "d",
-                    "index": 8},
-                "bounds_y1": {
-                    "type": "number",
-                    "description": "The maximum y-coordinate in this subpopulation.",
-                    "binaryFormat": "d",
-                    "index": 9},
-                "bounds_z0": {
-                    "type": "number",
-                    "description": "The minimum z-coordinate in this subpopulation.",
-                    "binaryFormat": "d",
-                    "index": 10},
-                "bounds_z1": {
-                    "type": "number",
-                    "description": "The maximum z-coordinate in this subpopulation.",
-                    "binaryFormat": "d",
-                    "index": 11},
-                "migration_records": {
-                    "type": "array",
-                    "index": 13,
-                    "arrayLengthFormat": "I",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "source_subpop": {
-                                "type": "integer",
-                                "description": "The ID of the subpopulation migrants come from (in WF models).",
-                                "binaryFormat": "i",
-                                "index": 1},
-                            "migration_rate": {
-                                "type": "number",
-                                "description": "The fraction of children in this subpopulation that are composed of 'migrants' from the source subpopulation (in WF models).",
-                                "binaryFormat": "d",
-                                "index": 2}
-                        },
-                        "required": ["source_subpop", "migration_rate"],
-                        "additionalProperties": False
+                    "SLIM_INDIVIDUAL_METADATA_MIGRATED": {
+                        "description": "Whether this individual was a migrant, either in the generation when the tree sequence was written out "
+                                       "(if the individual was alive then), or in the generation of the last time they were Remembered (if not).",
+                        "value": 1
                     }
-                }
-            },
-            "required": ["slim_id", "selfing_fraction", "female_cloning_fraction",
-                         "male_cloning_fraction", "sex_ratio", "bounds_x0", "bounds_x1",
-                         "bounds_y0", "bounds_y1", "bounds_z0", "bounds_z1", "migration_records"],
-            "additionalProperties": False,
-            "examples": [
-                {
-                   "slim_id": 2,
-                   "selfing_fraction": 0.5,
-                   "female_cloning_fraction": 0.25,
-                   "male_cloning_fraction": 0.0,
-                   "sex_ratio": 0.5,
-                   "bounds_x0": 0.0,
-                   "bounds_x1": 100.0,
-                   "bounds_y0": 0.0,
-                   "bounds_y1": 100.0,
-                   "bounds_z0": 0.0,
-                   "bounds_z1": 100.0,
-                   "migration_records": [
-                       {"source_subpop": 1,
-                        "migration_rate": 0.9 },
-                       {"source_subpop": 2,
-                        "migration_rate": 0.1 }
-                   ]
-                }
-            ]
+                },
+                "properties": {
+                    "age": {
+                        "binaryFormat": "i",
+                        "description": "The age of this individual, either when the tree sequence "
+                                       "was written out (if the individual was alive then), or the "
+                                       "last time they were Remembered (if not).",
+                        "index": 4,
+                        "type": "integer"
+                    },
+                    "flags": {
+                        "binaryFormat": "I",
+                        "description": "Other information about the individual: see 'flags'.",
+                        "index": 7,
+                        "type": "integer"
+                    },
+                    "pedigree_id": {
+                        "binaryFormat": "q",
+                        "description": "The 'pedigree ID' of this individual in SLiM.",
+                        "index": 1,
+                        "type": "integer"
+                    },
+                    "pedigree_p1": {
+                        "binaryFormat": "q",
+                        "description": "The 'pedigree ID' of this individual's first parent in SLiM.",
+                        "index": 2,
+                        "type": "integer"
+                    },
+                    "pedigree_p2": {
+                        "binaryFormat": "q",
+                        "description": "The 'pedigree ID' of this individual's second parent in SLiM.",
+                        "index": 3,
+                        "type": "integer"
+                    },
+                    "sex": {
+                        "binaryFormat": "i",
+                        "description": "The sex of the individual (0 for female, 1 for male, "
+                                       "-1 for hermaphrodite).",
+                        "index": 6,
+                        "type": "integer"
+                    },
+                    "subpopulation": {
+                        "binaryFormat": "i",
+                        "description": "The ID of the subpopulation the individual was part of, "
+                                       "either when the tree sequence was written out (if the "
+                                       "individual was alive then), or the last time they were "
+                                       "Remembered (if not).",
+                        "index": 5,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                        "pedigree_id",
+                        "pedigree_p1",
+                        "pedigree_p2",
+                        "age",
+                        "subpopulation",
+                        "sex",
+                        "flags"
+                ],
+                "type": "object",
         },
+        "population": 
+            {"$schema":"http://json-schema.org/schema#","additionalProperties":True,"codec":"json","description":"SLiM schema for population metadata.","examples":[{"bounds_x0":0.0,"bounds_x1":100.0,"bounds_y0":0.0,"bounds_y1":100.0,"female_cloning_fraction":0.25,"male_cloning_fraction":0.0,"migration_records":[{"migration_rate":0.9,"source_subpop":1},{"migration_rate":0.1,"source_subpop":2}],"selfing_fraction":0.5,"sex_ratio":0.5,"slim_id":2,"name":"p2"}],"properties":{"bounds_x0":{"description":"The minimum x-coordinate in this subpopulation.","type":"number"},"bounds_x1":{"description":"The maximum x-coordinate in this subpopulation.","type":"number"},"bounds_y0":{"description":"The minimum y-coordinate in this subpopulation.","type":"number"},"bounds_y1":{"description":"The maximum y-coordinate in this subpopulation.","type":"number"},"bounds_z0":{"description":"The minimum z-coordinate in this subpopulation.","type":"number"},"bounds_z1":{"description":"The maximum z-coordinate in this subpopulation.","type":"number"},"description":{"description":"A description of this subpopulation.","type":"string"},"female_cloning_fraction":{"description":"The frequency with which females in this subpopulation reproduce clonally (for WF models).","type":"number"},"male_cloning_fraction":{"description":"The frequency with which males in this subpopulation reproduce clonally (for WF models).","type":"number"},"migration_records":{"items":{"properties":{"migration_rate":{"description":"The fraction of children in this subpopulation that are composed of 'migrants' from the source subpopulation (in WF models).","type":"number"},"source_subpop":{"description":"The ID of the subpopulation migrants come from (in WF models).","type":"integer"}},"required":["source_subpop","migration_rate"],"type":"object"},"type":"array"},"name":{"description":"A human-readable name for this subpopulation.","type":"string"},"selfing_fraction":{"description":"The frequency with which individuals in this subpopulation self (for WF models).","type":"number"},"sex_ratio":{"description":"This subpopulation's sex ratio (for WF models).","type":"number"},"slim_id":{"description":"The ID of this population in SLiM. Note that this is called a 'subpopulation' in SLiM.","type":"integer"}},"required":["slim_id"],"type":["object","null"]}
     }
 
 
@@ -396,6 +316,8 @@ def default_slim_metadata(name):
             "subpopulation": tskit.NULL,
             "sex": -1,
             "flags": 0,
+            "pedigree_p1": tskit.NULL,
+            "pedigree_p2": tskit.NULL,
         }
     elif name == "population":
         out = {
@@ -405,11 +327,11 @@ def default_slim_metadata(name):
             "male_cloning_fraction": 0.0,
             "sex_ratio": 0.0,
             "bounds_x0": 0.0,
-            "bounds_x1": 0.0,
+            "bounds_x1": 1.0,
             "bounds_y0": 0.0,
-            "bounds_y1": 0.0,
+            "bounds_y1": 1.0,
             "bounds_z0": 0.0,
-            "bounds_z1": 0.0,
+            "bounds_z1": 1.0,
             "migration_records": []
         }
     else:
@@ -431,7 +353,8 @@ def set_tree_sequence_metadata(tables,
         separate_sexes=False,
         nucleotide_based=False,
         stage='late',
-        file_version=None):
+        file_version=None,
+        set_table_schemas=True):
     if file_version is None:
         file_version = slim_file_version
     if isinstance(tables.metadata, bytes):
@@ -461,10 +384,9 @@ def set_tree_sequence_metadata(tables,
             "stage": stage,
             }
     tables.metadata = metadata_dict
-    _set_metadata_schemas(tables)
 
 
-def _set_metadata_schemas(tables):
+def set_metadata_schemas(tables):
     tables.edges.metadata_schema = slim_metadata_schemas['edge']
     tables.sites.metadata_schema = slim_metadata_schemas['site']
     tables.mutations.metadata_schema = slim_metadata_schemas['mutation']
@@ -472,6 +394,117 @@ def _set_metadata_schemas(tables):
     tables.individuals.metadata_schema = slim_metadata_schemas['individual']
     tables.populations.metadata_schema = slim_metadata_schemas['population']
 
+
+################################
+# Previous versions of metadata schema:
+
+def _old_metadata_schema(name, file_version):
+    # Returns a metadata schema *if the format has changed*,
+    # and None otherwise.
+    ms = None
+    if (name == "individual"
+        and file_version in ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6"]):
+        pre_0_7_individual = {
+            "$schema": "http://json-schema.org/schema#",
+            "description": "SLiM schema for individual metadata.",
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "pedigree_id": {
+                    "type": "integer",
+                    "description": "The 'pedigree ID' of this individual in SLiM.",
+                    "binaryFormat": "q",
+                    "index": 1
+                },
+                "age": {
+                    "type": "integer",
+                    "description": "The age of this individual, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
+                    "binaryFormat": "i",
+                    "index": 2
+                },
+                "subpopulation": {
+                    "type": "integer",
+                    "description": "The ID of the subpopulation the individual was part of, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
+                    "binaryFormat": "i",
+                    "index": 3
+                },
+                "sex": {
+                    "type": "integer",
+                    "description": "The sex of the individual (0 for female, 1 for male, -1 for hermaphrodite).",
+                    "binaryFormat": "i",
+                    "index": 4
+                },
+                "flags": {
+                    "type": "integer",
+                    "description": "Other information about the individual: see 'flags'.",
+                    "binaryFormat": "I",
+                    "index": 5
+                }
+            },
+            "required": ["pedigree_id", "age", "subpopulation", "sex", "flags"],
+            "additionalProperties": False,
+            "flags": {
+                 "SLIM_INDIVIDUAL_METADATA_MIGRATED": {
+                     "value": 1,
+                     "description": "Whether this individual was a migrant, either in the generation when the tree sequence was written out (if the individual was alive then), or in the generation of the last time they were Remembered (if not)."
+                 }
+            },
+        }
+        ms = pre_0_7_individual 
+
+    if name == "mutation" and file_version in ["0.1", "0.2"]:
+        mutation_pre_0_3 = {
+            "$schema": "http://json-schema.org/schema#",
+            "description": "SLiM schema for mutation metadata.",
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "mutation_list": {
+                    "type": "array",
+                    "noLengthEncodingExhaustBuffer": True,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "mutation_type": {
+                                "type": "integer",
+                                "description": "The index of this mutation's mutationType.",
+                                "binaryFormat": "i",
+                                "index": 1
+                            },
+                            "selection_coeff": {
+                                "type": "number",
+                                "description": "This mutation's selection coefficient.",
+                                "binaryFormat": "f",
+                                "index": 2
+                            },
+                            "subpopulation": {
+                                "type": "integer",
+                                "description": "The ID of the subpopulation this mutation occurred in.",
+                                "binaryFormat": "i",
+                                "index": 3
+                            },
+                            "slim_time": {
+                                "type": "integer",
+                                "description": "The SLiM generation counter when this mutation occurred.",
+                                "binaryFormat": "i",
+                                "index": 4
+                            },
+                        },
+                        "required": ["mutation_type", "selection_coeff", "subpopulation",
+                                     "slim_time"],
+                        "additionalProperties": False
+                    }
+                }
+            },
+            "required": ["mutation_list"],
+            "additionalProperties": False,
+        }
+        ms = mutation_pre_0_3
+
+    # everything else's format has remained unchanged
+    if ms is not None:
+        ms = tskit.MetadataSchema(ms)
+    return ms
 
 
 ################################
@@ -1090,10 +1123,31 @@ class PopulationMetadata(object):
         if md is None:
             return None
         else:
-            md['migration_records'] = [
+            defaults = default_slim_metadata("population")
+            x = {}
+            for n in [
+                    "slim_id",
+                    "selfing_fraction",
+                    "female_cloning_fraction",
+                    "male_cloning_fraction",
+                    "sex_ratio",
+                    "bounds_x0",
+                    "bounds_x1",
+                    "bounds_y0",
+                    "bounds_y1",
+                    "bounds_z0",
+                    "bounds_z1",
+                    "migration_records",
+                    ]:
+                if n in md:
+                    x[n] = md[n]
+                else:
+                    x[n] = defaults[n]
+            if 'migration_records' in md:
+                x['migration_records'] = [
                     PopulationMigrationMetadata.fromdict(u) for u in md['migration_records']
-                    ]
-            return cls(**md)
+                ]
+            return cls(**x)
 
 
 def decode_population(buff):

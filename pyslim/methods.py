@@ -57,21 +57,21 @@ def recapitate(ts,
         derived_names = [pop.name for pop in demography.populations]
         while ancestral_name in derived_names:
             ancestral_name = (ancestral_name + "_ancestral")
-        ancestral_metadata = default_slim_metadata('population')
+        ancestral_metadata = {}
         ancestral_metadata['slim_id'] = ts.num_populations
         demography.add_population(
                 name=ancestral_name,
                 description="ancestral population simulated by msprime",
                 initial_size=ancestral_Ne,
                 extra_metadata=ancestral_metadata,
-                )
+        )
         # the split has to come slightly longer ago than slim_generation,
         # since that's when all the linages are at, and otherwise the event
         # won't apply to them
         demography.add_population_split(
                 np.nextafter(
-                    ts.slim_generation,
-                    2 * ts.slim_generation,
+                    ts.metadata['SLiM']['generation'],
+                    2 * ts.metadata['SLiM']['generation'],
                 ),
                 derived=derived_names,
                 ancestral=ancestral_name,
@@ -83,7 +83,13 @@ def recapitate(ts,
                     initial_state = ts,
                     demography = demography,
                     **kwargs)
-    return SlimTreeSequence(recap, reference_sequence=ts.reference_sequence)
+    # msprime does not maintain reference sequence yet:
+    # https://github.com/tskit-dev/msprime/issues/1951
+    if ts.has_reference_sequence() and len(ts.reference_sequence.data) > 0:
+        t = recap.dump_tables()
+        t.reference_sequence = ts.reference_sequence
+        recap = t.tree_sequence()
+    return SlimTreeSequence(recap)
 
 
 def convert_alleles(ts):
@@ -113,8 +119,8 @@ def convert_alleles(ts):
     """
     tables = ts.dump_tables()
     has_refseq = (
-            hasattr(ts, 'reference_sequence')
-            and (ts.reference_sequence is not None)
+            ts.has_reference_sequence()
+            and len(ts.reference_sequence.data) > 0
     )
     # unfortunately, nucleotide mutations may be stacked (e.g., substitutions
     # will appear this way) and they don't appear in any particular order;
@@ -152,19 +158,17 @@ def convert_alleles(ts):
         raise ValueError("All mutations must be nucleotide mutations.")
     if not has_refseq:
         raise ValueError("Tree sequence must have a valid reference sequence.")
-    aa = [ts.reference_sequence[k] for k in tables.sites.position.astype('int')]
+    aa = [ts.reference_sequence.data[k] for k in tables.sites.position.astype('int')]
     da = np.array(NUCLEOTIDES)[nuc_inds]
     tables.sites.packset_ancestral_state(aa)
     tables.mutations.packset_derived_state(da)
 
     out = SlimTreeSequence(tables.tree_sequence())
-    out.reference_sequence = ts.reference_sequence
     return out
 
 
 def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     """
-    
     Returns a modified tree sequence in which mutations have been randomly assigned nucleotides
     and (optionally) a reference sequence has been randomly generated.
 
@@ -206,6 +210,7 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
         raise ValueError("Reference sequence must be a string of A, C, G, and T only.")
 
     tables = ts.dump_tables()
+    tables.reference_sequence.data = reference_sequence
     tables.mutations.clear()
     sets = [[k for k in range(4) if k != i] for i in range(4)]
     states = np.full((ts.num_mutations,), -1)
@@ -242,5 +247,4 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
 
     return SlimTreeSequence(
             tables.tree_sequence(),
-            reference_sequence=reference_sequence
     )

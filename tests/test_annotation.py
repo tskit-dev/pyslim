@@ -83,11 +83,11 @@ class TestAnnotate(tests.PyslimTestCase):
             assert md["male_cloning_fraction"] == 0.0
             assert md["sex_ratio"] == 0.0
             assert md["bounds_x0"] == 0.0
-            assert md["bounds_x1"] == 0.0
+            assert md["bounds_x1"] == 1.0
             assert md["bounds_y0"] == 0.0
-            assert md["bounds_y1"] == 0.0
+            assert md["bounds_y1"] == 1.0
             assert md["bounds_z0"] == 0.0
-            assert md["bounds_z1"] == 0.0
+            assert md["bounds_z1"] == 1.0
             assert len(md["migration_records"]) == 0
 
     def verify_provenance(self, ts):
@@ -334,15 +334,14 @@ class TestAnnotate(tests.PyslimTestCase):
             for n, md in zip(nucs, metadata):
                 for m in md['mutation_list']:
                     m["nucleotide"] = n
-        else:
-            refseq = None
+            tables.reference_sequence.data = refseq
         for md in metadata:
             for m in md['mutation_list']:
                 m["selection_coeff"] = random.random()
         ms = tables.mutations.metadata_schema
         tables.mutations.packset_metadata(
                 [ms.validate_and_encode_row(r) for r in metadata])
-        in_ts = pyslim.load_tables(tables, reference_sequence=refseq)
+        in_ts = pyslim.load_tables(tables)
         # put it through SLiM (which just reads in and writes out)
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         # check for equality, in everything but the last provenance
@@ -365,7 +364,6 @@ class TestReload(tests.PyslimTestCase):
         in_tables.sort()
         cleared_ts = pyslim.SlimTreeSequence(
                 in_tables.tree_sequence(),
-                reference_sequence=in_ts.reference_sequence
                 )
         out_ts = helper_functions.run_slim_restart(cleared_ts, restart_name, tmp_path)
         out_tables = out_ts.dump_tables()
@@ -382,4 +380,6 @@ class TestReload(tests.PyslimTestCase):
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         assert in_ts.metadata['SLiM']['nucleotide_based'] is True
         assert out_ts.metadata['SLiM']['nucleotide_based'] is True
-        assert in_ts.reference_sequence == out_ts.reference_sequence
+        assert in_ts.has_reference_sequence() == out_ts.has_reference_sequence()
+        if in_ts.has_reference_sequence():
+            assert in_ts.reference_sequence.data == out_ts.reference_sequence.data

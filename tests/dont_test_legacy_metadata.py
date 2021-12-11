@@ -265,7 +265,7 @@ class TestDumpLoad(tests.PyslimTestCase):
     '''
 
     def verify_times(self, ts, slim_ts):
-        gen = slim_ts.slim_generation
+        gen = slim_ts.metadata['SLiM']['generation']
         assert ts.num_nodes == slim_ts.num_nodes
         # verify internal consistency
         for j in range(slim_ts.num_nodes):
@@ -307,7 +307,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         assert isinstance(slim_ts, pyslim.SlimTreeSequence)
         slim_tables = slim_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, slim_tables)
-        assert slim_ts.slim_generation == new_ts.slim_generation
+        assert slim_ts.metadata['SLiM']['generation'] == new_ts.metadata['SLiM']['generation']
 
     def test_dump_equality(self, recipe, tmp_path):
         """
@@ -321,7 +321,9 @@ class TestDumpLoad(tests.PyslimTestCase):
         assert ts.num_samples == ts2.num_samples
         assert ts.sequence_length == ts2.sequence_length
         assert ts.tables == ts2.dump_tables()
-        assert ts.reference_sequence == ts2.reference_sequence
+        if ts.has_reference_sequence():
+            assert ts2.has_reference_sequence()
+            assert ts.reference_sequence.data == ts2.reference_sequence.data
 
 
 class TestIndividualMetadata(tests.PyslimTestCase):
