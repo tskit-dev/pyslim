@@ -85,6 +85,9 @@ class PyslimTestCase:
             assert n1.metadata == n2.metadata
             i1 = ts1.individual(n1.individual)
             i2 = ts2.individual(n2.individual)
+            if i1.metadata != i2.metadata:
+                print("i1: ", i1.metadata)
+                print("i2: ", i2.metadata)
             assert i1.metadata == i2.metadata
         for _ in range(10):
             pos = random.uniform(0, ts1.sequence_length)
@@ -169,4 +172,11 @@ class PyslimTestCase:
         self.assertTablesEqual(t1.provenances, t2.provenances, "provenances")
         self.assertMetadataEqual(t1, t2)
         assert t1.sequence_length == t2.sequence_length
-        assert t1 == t2
+        if t1.reference_sequence.data != t2.reference_sequence.data:
+            print(t1.reference_sequence.data, " != ", t2.reference_sequence.data)
+        assert t1.reference_sequence.data == t2.reference_sequence.data
+        # time units are not passed on: https://github.com/tskit-dev/msprime/issues/1951
+        # if t1.time_units != t2.time_units:
+        #     print(t1.time_units, " != ", t2.time_units)
+        # assert t1.time_units == t2.time_units
+        # assert t1 == t2

@@ -158,7 +158,7 @@ class TestDumpLoad(tests.PyslimTestCase):
     '''
 
     def verify_times(self, ts, slim_ts):
-        gen = slim_ts.slim_generation
+        gen = slim_ts.metadata['SLiM']['generation']
         assert ts.num_nodes == slim_ts.num_nodes
         # verify internal consistency
         for j in range(slim_ts.num_nodes):
@@ -199,7 +199,7 @@ class TestDumpLoad(tests.PyslimTestCase):
         assert isinstance(slim_ts, pyslim.SlimTreeSequence)
         slim_tables = slim_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, slim_tables)
-        assert slim_ts.slim_generation == new_ts.slim_generation
+        assert slim_ts.metadata['SLiM']['generation'] == new_ts.metadata['SLiM']['generation']
 
     def test_dump_equality(self, recipe, tmp_path):
         """
@@ -213,7 +213,9 @@ class TestDumpLoad(tests.PyslimTestCase):
         assert ts.num_samples == ts2.num_samples
         assert ts.sequence_length == ts2.sequence_length
         assert ts.tables == ts2.dump_tables()
-        assert ts.reference_sequence == ts2.reference_sequence
+        assert ts.has_reference_sequence() == ts2.has_reference_sequence()
+        if ts.has_reference_sequence():
+            assert ts.reference_sequence.data == ts2.reference_sequence.data
 
 
 class TestAlleles(tests.PyslimTestCase):
@@ -244,42 +246,6 @@ class TestNucleotides(tests.PyslimTestCase):
             for u in mut.metadata['mutation_list']:
                 assert u["nucleotide"] >= -1
                 assert u["nucleotide"] <= 3
-
-
-class TestDecoding(tests.PyslimTestCase):
-    '''
-    Test by comparing decoding to our previous direct implementation of struct decoding.
-    '''
-
-    def verify_decoding(self, t, decoder):
-        ms = tskit.MetadataSchema(None)
-        nt = t.copy()
-        nt.metadata_schema = ms
-        for a, b in zip(t, nt):
-            md = a.metadata
-            with pytest.warns(FutureWarning):
-                omd = decoder(b.metadata)
-            if md is None:
-                assert omd is None
-            else:
-                assert md == omd.asdict()
-
-    def verify_mutation_decoding(self, t):
-        ms = tskit.MetadataSchema(None)
-        nt = t.copy()
-        nt.metadata_schema = ms
-        for a, b in zip(t, nt):
-            md = a.metadata
-            with pytest.warns(FutureWarning):
-                omd = pyslim.decode_mutation(b.metadata)
-            assert md == {"mutation_list": [u.asdict() for u in omd]}
-
-    def test_decoding(self, recipe):
-        tables = recipe["ts"].dump_tables()
-        self.verify_decoding(tables.populations, pyslim.decode_population)
-        self.verify_decoding(tables.individuals, pyslim.decode_individual)
-        self.verify_decoding(tables.nodes, pyslim.decode_node)
-        self.verify_mutation_decoding(tables.mutations)
 
 
 @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)    

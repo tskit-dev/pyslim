@@ -119,6 +119,7 @@ class TestPopulationSize(tests.PyslimTestCase):
         # a simple example to make sure we've got the edge cases right
         tables = tskit.TableCollection(sequence_length=1)
         pyslim.set_tree_sequence_metadata(tables,  model_type='nonWF', generation=0)
+        pyslim.set_metadata_schemas(tables)
         locs = [[0, 0], # alive at 0, 1
                 [0, 1], # alive at 0, 1, 2
                 [2, 0], # alive at 0, 1, 2

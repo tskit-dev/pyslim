@@ -161,8 +161,16 @@ class TestProvenance(tests.PyslimTestCase):
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.5.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.5.trees'),
         ]:
-            # no warning: current file version!
-            yield tskit.load(filename)
+            with pytest.warns(Warning):
+                yield tskit.load(filename)
+
+    def get_0_6_slim_examples(self):
+        for filename in [
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.6.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.6.trees'),
+        ]:
+            with pytest.warns(Warning):
+                yield tskit.load(filename)
 
     @pytest.mark.parametrize("recipe", recipe_eq("WF"), indirect=True)    
     def test_get_WF_provenance(self, recipe):
@@ -334,11 +342,10 @@ class TestProvenance(tests.PyslimTestCase):
                     assert t.branch_length(u) == pt.branch_length(u)
 
     def test_convert_0_5_files(self):
-        # current file version!
         for ts in self.get_0_5_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
             assert ts.num_provenances == 1
-            assert pts.num_provenances == 1
+            assert pts.num_provenances == 2
             assert ts.provenance(0).record == pts.provenance(0).record
             record = json.loads(ts.provenance(0).record)
             assert isinstance(pts.metadata, dict)
@@ -356,7 +363,24 @@ class TestProvenance(tests.PyslimTestCase):
                 if t.parent(u) != tskit.NULL:
                     assert t.branch_length(u) == pt.branch_length(u)
 
-
-
-
-
+    def test_convert_0_6_files(self):
+        for ts in self.get_0_6_slim_examples():
+            pts = pyslim.SlimTreeSequence(ts)
+            assert ts.num_provenances == 1
+            assert pts.num_provenances == 2
+            assert ts.provenance(0).record == pts.provenance(0).record
+            record = json.loads(ts.provenance(0).record)
+            assert isinstance(pts.metadata, dict)
+            assert 'SLiM' in pts.metadata
+            assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
+            assert record['slim']['generation'] == pts.metadata['SLiM']['generation']
+            assert list(ts.samples()) == list(pts.samples())
+            assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
+            samples = list(ts.samples())
+            t = ts.first()
+            pt = pts.first()
+            for _ in range(20):
+                u = random.sample(samples, 1)[0]
+                assert t.parent(u) == pt.parent(u)
+                if t.parent(u) != tskit.NULL:
+                    assert t.branch_length(u) == pt.branch_length(u)
