@@ -2,6 +2,14 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**Breaking changes**:
+
+- 
+
+**New features**:
+
+- Added `pyslim.population_size( )` to compute an array giving numbers of
+    individuals across a grid of space and time bins. ({user}giliapatterson)
 
 ********************
 [0.600] - 2021-02-24

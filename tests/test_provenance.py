@@ -172,6 +172,11 @@ class TestProvenance(tests.PyslimTestCase):
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
+    def test_get_provenance_errors(self):
+        ts = msprime.sim_ancestry(2, sequence_length=10, random_seed=144)
+        with pytest.raises(ValueError, match="not a SLiM tree sequence"):
+            _ = pyslim.get_provenance(ts)
+
     @pytest.mark.parametrize("recipe", recipe_eq("WF"), indirect=True)    
     def test_get_WF_provenance(self, recipe):
         ts = recipe["ts"]
@@ -219,13 +224,13 @@ class TestProvenance(tests.PyslimTestCase):
         tskit.provenance.validate_provenance(record)
 
     def test_upgrade_provenance_errors(self):
-        ts = msprime.simulate(10)
+        ts = msprime.sim_ancestry(10)
         # test bad input
         with pytest.raises(ValueError):
             pyslim.upgrade_slim_provenance(ts.tables)
 
     def test_upgrade_provenance(self):
-        ts = msprime.simulate(10)
+        ts = msprime.sim_ancestry(10)
         for record_text in old_provenance_examples:
             record = json.loads(record_text)
             prov = tskit.Provenance(id=0, timestamp='2018-08-25T14:59:13', record=json.dumps(record))
@@ -251,9 +256,24 @@ class TestProvenance(tests.PyslimTestCase):
                 assert record['parameters']['model_type'] == new_record['parameters']['model_type']
                 assert record['slim']['generation'] == new_record['slim']["generation"]
 
+    def verify_upgrade(self, ts):
+        # check that we have successfully got read-able metadata
+        # (since this isn't tested on load)
+        tables = ts.tables
+        for t in [
+                tables.populations,
+                tables.individuals,
+                tables.nodes,
+                tables.mutations
+            ]:
+            ms = t.metadata_schema
+            for x in t:
+                _ = ms.validate_and_encode_row(x.metadata)
+
     def test_convert_0_1_files(self):
         for ts in self.get_0_1_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
+            self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
             assert ts.provenance(0).record == pts.provenance(0).record
@@ -276,6 +296,7 @@ class TestProvenance(tests.PyslimTestCase):
     def test_convert_0_2_files(self):
         for ts in self.get_0_2_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
+            self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
             assert ts.provenance(0).record == pts.provenance(0).record
@@ -298,6 +319,7 @@ class TestProvenance(tests.PyslimTestCase):
     def test_convert_0_3_files(self):
         for ts in self.get_0_3_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
+            self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
             assert ts.provenance(0).record == pts.provenance(0).record
@@ -322,6 +344,7 @@ class TestProvenance(tests.PyslimTestCase):
         # provenance, we get it from top-level metadata
         for ts in self.get_0_4_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
+            self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
             assert ts.provenance(0).record == pts.provenance(0).record
@@ -344,6 +367,7 @@ class TestProvenance(tests.PyslimTestCase):
     def test_convert_0_5_files(self):
         for ts in self.get_0_5_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
+            self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
             assert ts.provenance(0).record == pts.provenance(0).record
@@ -366,6 +390,7 @@ class TestProvenance(tests.PyslimTestCase):
     def test_convert_0_6_files(self):
         for ts in self.get_0_6_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
+            self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
             assert ts.provenance(0).record == pts.provenance(0).record

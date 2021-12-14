@@ -14,16 +14,23 @@ initialize()
     initializeRecombinationRate(1e-9);
 }
 
-1 early() {
+1 late() {
     // if no input tree sequence is provided, then start a subpopulation
     if (infile == "") {
-        sim.addSubpop("p1", popsize);
+        p = sim.addSubpop("p1", popsize);
     } else {
+        // relaoding must happen in late()
         sim.readFromPopulationFile(infile);
-        p1.setSubpopulationSize(popsize);
+        parent = sim.subpopulations[0];
+        p = sim.addSubpopSplit(max(sim.subpopulations.id) + 1, popsize, parent);
+        parent.setSubpopulationSize(0);
     }
-    finalgen = num_gens + sim.generation - 1;
-    // scheduling the end of the simulation
+    p.name = popname;
+}
+
+// schedule the end of the simulation
+1 late() {
+    finalgen = num_gens + sim.generation;
     sim.rescheduleScriptBlock(s0, generations=finalgen);
 }
 

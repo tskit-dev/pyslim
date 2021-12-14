@@ -31,16 +31,38 @@ class TestMetadataSchemas(tests.PyslimTestCase):
                   tables.sites, tables.mutations, tables.migrations):
             self.validate_table_metadata(t)
 
+    def test_default_metadata_errors(self):
+        with pytest.raises(ValueError, match="Unknown metadata request"):
+            _ = pyslim.default_slim_metadata("xxx")
+
     def test_default_metadata(self):
         for k in pyslim.slim_metadata_schemas:
             schema = pyslim.slim_metadata_schemas[k]
             entry = pyslim.default_slim_metadata(k)
+            sd = schema.asdict()
+            if sd is not None:
+                for p in sd['properties']:
+                    assert p in entry
             encoded = schema.validate_and_encode_row(entry)
             decoded = schema.decode_row(encoded)
             if entry is None:
                 assert decoded is None
             else:
                 assert entry == decoded
+        schema = pyslim.slim_metadata_schemas["mutation"]
+        entry = pyslim.default_slim_metadata("mutation")
+        entry['mutation_list'].append(
+            pyslim.default_slim_metadata("mutation_list_entry")
+        )
+        encoded = schema.validate_and_encode_row(entry)
+        decoded = schema.decode_row(encoded)
+        assert entry == decoded
+        entry['mutation_list'].append(
+            pyslim.default_slim_metadata("mutation_list_entry")
+        )
+        encoded = schema.validate_and_encode_row(entry)
+        decoded = schema.decode_row(encoded)
+        assert entry == decoded
 
     def test_slim_metadata_schema_equality(self, recipe):
         t = recipe["ts"].dump_tables()
@@ -83,24 +105,27 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
     @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)    
     def test_set_tree_sequence_metadata_keeps(self, recipe):
         # make sure doesn't overwrite other stuff
-        dummy_schema = tskit.MetadataSchema({
-                'codec': 'json',
-                'type': 'object',
-                'properties': { 'abc': { 'type': 'string' } }
-                })
-        dummy_metadata = { 'abc': 'foo' }
-        tables = recipe["ts"].dump_tables()
-        tables.metadata_schema = dummy_schema
-        tables.metadata = dummy_metadata
-        pyslim.set_tree_sequence_metadata(tables, "nonWF", 0)
-        schema = tables.metadata_schema.schema
-        for k in dummy_metadata:
-            assert k in schema['properties']
-            assert k in tables.metadata
-            assert tables.metadata[k] == dummy_metadata[k]
-        self.validate_slim_metadata(tables)
-        assert tables.metadata['SLiM']['model_type'] == "nonWF"
-        assert tables.metadata['SLiM']['generation'] == 0
+        for x in [{}, { 'properties': { 'abc': { 'type': 'string' } } }]:
+            schema_dict = {
+                    'codec': 'json',
+                    'type': 'object',
+            }
+            schema_dict.update(x)
+            dummy_schema = tskit.MetadataSchema(schema_dict)
+            dummy_metadata = { 'abc': 'foo' }
+            tables = recipe["ts"].dump_tables()
+            tables.metadata_schema = dummy_schema
+            tables.metadata = dummy_metadata
+            pyslim.set_tree_sequence_metadata(tables, "nonWF", 0)
+            schema = tables.metadata_schema.schema
+            for k in dummy_metadata:
+                if len(x) > 0:
+                    assert k in schema['properties']
+                assert k in tables.metadata
+                assert tables.metadata[k] == dummy_metadata[k]
+            self.validate_slim_metadata(tables)
+            assert tables.metadata['SLiM']['model_type'] == "nonWF"
+            assert tables.metadata['SLiM']['generation'] == 0
 
     @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)    
     def test_set_tree_sequence_metadata(self, recipe):
@@ -144,12 +169,23 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
     def test_user_metadata(self, recipe):
         ts = recipe["ts"]
         md = ts.metadata["SLiM"]
-        #print(md)
         assert "user_metadata" in md
         assert md['user_metadata'] == {
                 "hello" : ["world"],
                 "pi" : [3, 1, 4, 1, 5, 9]
                 }
+
+    @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)    
+    def test_population_names(self, recipe):
+        ts = recipe["ts"]
+        md = ts.metadata["SLiM"]
+        assert ts.num_populations == 4
+        p = ts.population(1)
+        assert p.metadata['name'] == "first_population"
+        assert p.metadata['description'] == "i'm the first population"
+        p = ts.population(3)
+        assert p.metadata['name'] == "other_population"
+        assert p.metadata['description'] == "i'm the other population"
 
 
 class TestDumpLoad(tests.PyslimTestCase):
@@ -242,7 +278,6 @@ class TestNucleotides(tests.PyslimTestCase):
         '''
         ts = recipe["ts"]
         for mut in ts.mutations():
-            # print(mut)
             for u in mut.metadata['mutation_list']:
                 assert u["nucleotide"] >= -1
                 assert u["nucleotide"] <= 3

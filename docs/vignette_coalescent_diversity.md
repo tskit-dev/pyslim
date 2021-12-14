@@ -201,13 +201,9 @@ for m in ots.mutations():
      if sid not in mut_map:
         mut_map[sid] = np.random.exponential(scale=0.04)
      md["selection_coeff"] = mut_map[sid]
-  _ = tables.mutations.add_row(
-     site=m.site,
-     node=m.node,
-     time=m.time,
-     derived_state=m.derived_state,
-     parent=m.parent,
-     metadata={"mutation_list": md_list})
+  _ = tables.mutations.append(
+          m.replace(metadata={"mutation_list": md_list})
+  )
 
 # check we didn't mess anything up
 assert tables.mutations.num_rows == ots.num_mutations

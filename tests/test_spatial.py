@@ -39,7 +39,6 @@ class TestPopulationSize(tests.PyslimTestCase):
         nybins = len(y_breaks) - 1
         ntbins = len(time_breaks) - 1
         popsize = np.empty((nxbins, nybins, ntbins))
-        #print(np.shape(popsize))
 
         # Location, times, and ages of individuals
         locations = ts.individual_locations
@@ -52,7 +51,6 @@ class TestPopulationSize(tests.PyslimTestCase):
                 x0, x1 = x_breaks[i], x_breaks[i + 1]
                 y0, y1 = y_breaks[j], y_breaks[j + 1]
                 for k in np.arange(ntbins):
-                    #print(i, j, k)
                     # Endpoints of bins
                     t0, t1 = time_breaks[k], time_breaks[k + 1]
                     alive = 0

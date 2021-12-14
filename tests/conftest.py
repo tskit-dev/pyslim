@@ -143,37 +143,48 @@ class HelperFunctions:
     def get_msprime_examples():
         # NOTE: we use DTWF below to avoid rounding of floating-point times
         # that occur with a continuous-time simulator
-        demographic_events = [
-            msprime.MassMigration(
-            time=5, source=1, destination=0, proportion=1.0)
-        ]
         seed = 6
-        for n in [2, 10, 20]:
-            for mutrate in [0.0]:
-                for recrate in [0.0, 0.01]:
-                    yield msprime.simulate(n, mutation_rate=mutrate,
-                                           recombination_rate=recrate,
-                                           length=200, random_seed=seed,
-                                           model="dtwf")
-                    seed += 1
-                    population_configurations =[
-                        msprime.PopulationConfiguration(
-                        sample_size=n, initial_size=100),
-                        msprime.PopulationConfiguration(
-                        sample_size=n, initial_size=100)
-                    ]
-                    yield msprime.simulate(
-                        population_configurations=population_configurations,
-                        demographic_events=demographic_events,
+        mutrate = 0.01
+        for n in [2, 20]:
+            for recrate in [0.0, 0.01]:
+                ts = msprime.sim_ancestry(
+                        n, recombination_rate=recrate,
+                        population_size=10,
+                        sequence_length=200, random_seed=seed,
+                        model="dtwf"
+                )
+                yield ts
+                mts = msprime.sim_mutations(
+                        ts,
+                        model=msprime.SLiMMutationModel(type=0),
+                        rate=mutrate
+                )
+                yield mts
+                seed += 1
+                demography = msprime.Demography()
+                demography.add_population(name="A", initial_size=20)
+                demography.add_population(name="B", initial_size=30)
+                demography.add_population(name="C", initial_size=10)
+                demography.add_population_split(
+                        time=5,
+                        derived=["A", "B"],
+                        ancestral="C"
+                )
+                ts = msprime.sim_ancestry(
+                        {"A": n, "B": n},
+                        demography=demography,
                         recombination_rate=recrate,
-                        mutation_rate=mutrate,
-                        length=250, random_seed=seed,
-                        model="dtwf")
-                    seed += 1
+                        sequence_length=250, random_seed=seed,
+                        model="dtwf"
+                )
+                yield ts
+                seed += 1
+
 
 @pytest.fixture
 def helper_functions():
     return HelperFunctions
+
 
 @pytest.fixture(scope="session", params=recipe_specs.keys())
 def recipe(request, tmp_path_factory, worker_id):

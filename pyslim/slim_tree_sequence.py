@@ -85,6 +85,12 @@ def annotate_defaults_tables(tables, model_type, slim_generation, reference_sequ
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
+    if not np.allclose(tables.sites.position, np.floor(tables.sites.position)):
+        raise ValueError(
+                "Site positions in this tree sequence are not at integer values, "
+                "but must be for loading into SLiM: generate mutations with "
+                "sim_mutations(..., discrete_genome=True), not simulate()."
+        )
     top_metadata = default_slim_metadata('tree_sequence')['SLiM']
     top_metadata['model_type'] = model_type
     top_metadata['generation'] = slim_generation
@@ -385,6 +391,10 @@ class SlimTreeSequence(tskit.TreeSequence):
         coalescent simulation from the "top" of this tree sequence, i.e.,
         allowing any uncoalesced lineages to coalesce.
 
+        .. warning::
+
+            This method is deprecated: please use pyslim.recapitate( ) instead.
+
         To allow recapitation to be done correctly, the nodes of the
         first generation of the SLiM simulation from whom all samples inherit
         are still present in the tree sequence, but are not marked as samples.
@@ -392,19 +402,10 @@ class SlimTreeSequence(tskit.TreeSequence):
         these are not removed, which you do by passing the argument
         ``keep_input_roots=True`` to :meth:`.simplify()`.
 
-        TODO: UPDATE THIS:
-
         Note that ``Ne`` is not set automatically, so defaults to ``1.0``; you probably
         want to set it explicitly.  Similarly, migration is not set up
         automatically, so that if there are uncoalesced lineages in more than
-        one population, you will need to pass in a migration matrix to allow
-        coalescence. In both cases, remember that population IDs in ``tskit`` begin
-        with 0, so that if your SLiM simulation has populations ``p1`` and ``p2``,
-        then the tree sequence will have three populations (but with no nodes
-        assigned to population 0), so that a migration rate of 1.0 between ``p1`` and
-        ``p2`` needs a migration matrix of::
-
-           [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
+        one population, you will need to pass in a demography that allows coalescence.
 
         In general, all defaults are whatever the defaults of
         {ref}`msprime.simulate` are; this includes recombination rate, so
@@ -929,6 +930,7 @@ def _set_populations(tables):
     for j in range(num_pops):
         md = default_slim_metadata("population")
         md["slim_id"] = j
+        md["name"] = f"pop_{j}"
         tables.populations.add_row(metadata=md)
 
 
@@ -938,16 +940,15 @@ def _set_sites_mutations(tables):
     for SLiM to load in a tree sequence. This means adding to the metadata column
     of the Mutation table,  It will also
     - give SLiM IDs to each mutation
-    - round Site positions to integer values
-    - stack any mutations that end up at the same position as a result
     - replace ancestral states with ""
     This will replace any information already in the metadata or derived state
-    columns of the Mutation table.
+    columns of the Mutation table. We set slim_time in metadata so that
+    - slim_generation = floor(tskit time) + slim_time
     '''
     num_mutations = tables.mutations.num_rows
-    default_mut = default_slim_metadata("mutation")
+    default_mut = default_slim_metadata("mutation_list_entry")
     dsb, dso = tskit.pack_bytes([str(j).encode() for j in range(num_mutations)])
-    slim_time = tables.metadata["SLiM"]["generation"] - tables.mutations.time
+    slim_time = tables.metadata["SLiM"]["generation"] - np.floor(tables.mutations.time).astype("int")
     mms = tables.mutations.metadata_schema
     mutation_metadata = [
             mms.encode_row(
@@ -1016,7 +1017,19 @@ def update_tables(tables):
                       "it will be converted to version {}.".format(slim_file_version))
 
         # the only tables to have metadata schema changed thus far
-        # are individuals and mutations:
+        # are populations, individuals, and mutations:
+        old_schema = _old_metadata_schema("population", file_version)
+        if old_schema is not None:
+            pops = tables.populations.copy()
+            tables.populations.clear()
+            pops.metadata_schema = old_schema
+            new_schema = slim_metadata_schemas["population"]
+            tables.populations.metadata_schema = new_schema
+            defaults = default_slim_metadata("population")
+            # just needs recoding
+            for pop in pops:
+                tables.populations.append(pop)
+
         old_schema = _old_metadata_schema("individual", file_version)
         if old_schema is not None:
             inds = tables.individuals.copy()
@@ -1033,11 +1046,11 @@ def update_tables(tables):
                 md.update(d)
                 tables.individuals.append(ind.replace(metadata=md))
 
-        mut_schema = _old_metadata_schema("mutation", file_version)
-        if mut_schema is not None:
+        old_schema = _old_metadata_schema("mutation", file_version)
+        if old_schema is not None:
             muts = tables.mutations.copy()
             tables.mutations.clear()
-            muts.metadata_schema = mut_schema
+            muts.metadata_schema = old_schema
             tables.mutations.metadata_schema = slim_metadata_schemas["mutation"]
             for mut in muts:
                 md = mut.metadata

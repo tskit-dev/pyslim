@@ -43,11 +43,8 @@ def recapitate(ts,
         as well as ``demography``.
     :param dict kwargs: Any other arguments to :meth:`msprime.sim_ancestry`.
     '''
-    demography = None
-    if "demography" in kwargs:
-        demography = kwargs['demography']
     if ancestral_Ne is not None:
-        if demography is not None:
+        if "demography" in kwargs:
             raise ValueError("You cannot specify both `demography` and `ancestral_Ne`.")
         demography = msprime.Demography.from_tree_sequence(ts)
         # must set pop sizes to >0 even though we merge immediately
@@ -76,19 +73,12 @@ def recapitate(ts,
                 derived=derived_names,
                 ancestral=ancestral_name,
         )
+        kwargs["demography"] = demography
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", msprime.IncompletePopulationMetadataWarning)
-        recap = msprime.sim_ancestry(
-                    initial_state = ts,
-                    demography = demography,
-                    **kwargs)
-    # msprime does not maintain reference sequence yet:
-    # https://github.com/tskit-dev/msprime/issues/1951
-    if ts.has_reference_sequence() and len(ts.reference_sequence.data) > 0:
-        t = recap.dump_tables()
-        t.reference_sequence = ts.reference_sequence
-        recap = t.tree_sequence()
+    recap = msprime.sim_ancestry(
+                initial_state = ts,
+                **kwargs)
+
     return SlimTreeSequence(recap)
 
 

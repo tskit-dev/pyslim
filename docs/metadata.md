@@ -155,7 +155,7 @@ to SLiM time as follows:
 
 ```{code-cell}
 def slim_time(ts, time, stage):
-  slim_time = ts.slim_generation - time
+  slim_time = ts.metadata["SLiM"]["generation"] - time
   if ts.metadata['SLiM']['model_type'] == "WF":
     if (ts.metadata['SLiM']['stage'] == "early"
         and stage == "late"):
@@ -211,21 +211,24 @@ could be used to set spatial bounds on an annotated msprime simulation, for inst
 To modify the metadata that ``pyslim`` has introduced into
 the tree sequence produced by a coalescent simulation,
 or the metadata in a SLiM-produced tree sequence,
-what we do is (a) extract the metadata (as a list of dicts),
-(b) modify them, and then (c) write them back into the tables.
+we need to edit the TableCollection that forms the editable data behind the tree sequence.
 For instance, to set the ages of the individuals in the tree sequence to random numbers between 1 and 4,
-and write out the resulting tree sequence:
+we will extract a copy of the underlying tables, clear it,
+and then iterate over the individuals in the tree sequence,
+as we go re-inserting them into the tables
+after replacing their metadata with a modified version:
 
 ```{code-cell}
-tables = ts.tables
-ind_md = [ind.metadata for ind in tables.individuals]
-for md in ind_md:
-   md["age"] = random.choice([1,2,3,4])
+tables = ts.dump_tables()
+tables.individuals.clear()
+for ind in ts.individuals():
+    md = ind.metadata
+    md["age"] = random.choice([1,2,3,4])
+    _ = tables.individuals.append(
+        ind.replace(metadata=md)
+    )
 
-ims = tables.individuals.metadata_schema
-tables.individuals.packset_metadata(
-  [ims.validate_and_encode_row(md) for md in ind_md])
-mod_ts = pyslim.load_tables(tables)
+mod_ts = tables.tree_sequence()
 
 # check that it worked:
 print("First ten ages:", [mod_ts.individual(i).metadata["age"] for i in range(10)])
@@ -342,7 +345,7 @@ These methods would set the metadata column of a table -
 for instance, if ``metadata`` is a list of NodeMetadata objects, then
 ``annotate_node_metadata(tables, metadata)`` would modify ``tables.nodes`` in place
 to contain the (encoded) metadata in the list ``metadata``.
-Now, this would be done as follows (where now ``metadata`` is a list of metadata dicts):
+Now, this could be done as follows (where now ``metadata`` is a list of metadata dicts):
 
 ```{code-cell}
 metadata = [ {'slim_id': k, 'is_null': False, 'genome_type': 0}

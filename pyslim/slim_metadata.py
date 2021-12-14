@@ -276,8 +276,8 @@ slim_metadata_schemas = {k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k])
 def default_slim_metadata(name):
     """
     Returns default metadata of type ``name``, where ``name`` is one of
-    "tree_sequence", "edge", "site", "mutation", "node", "individual", or
-    "population".
+    "tree_sequence", "edge", "site", "mutation", "mutation_list_entry",
+    "node", "individual", or "population".
 
     :param str name: The type of metadata requested.
     :rtype dict:
@@ -303,6 +303,14 @@ def default_slim_metadata(name):
         out = {
             "mutation_list": []
         }
+    elif name == "mutation_list_entry":
+        out = {
+            "mutation_type": 0,
+            "selection_coeff": 0.0,
+            "subpopulation": tskit.NULL,
+            "slim_time": 0,
+            "nucleotide": -1,
+        }
     elif name == "node":
         out = {
             "slim_id": tskit.NULL,
@@ -322,6 +330,8 @@ def default_slim_metadata(name):
     elif name == "population":
         out = {
             "slim_id": tskit.NULL,
+            "name": "default",
+            "description": "",
             "selfing_fraction": 0.0,
             "female_cloning_fraction": 0.0,
             "male_cloning_fraction": 0.0,
@@ -337,7 +347,8 @@ def default_slim_metadata(name):
     else:
         raise ValueError(
             "Unknown metadata request: name should be one of 'tree_sequence', "
-            "'edge', 'site', 'mutation', 'node', 'individual', or 'population'.")
+            "'edge', 'site', 'mutation', 'mutation_list_entry', 'node', "
+            "'individual', or 'population'.")
     return out
 
 
@@ -402,6 +413,95 @@ def _old_metadata_schema(name, file_version):
     # Returns a metadata schema *if the format has changed*,
     # and None otherwise.
     ms = None
+    if (name == "population"
+        and file_version in ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6"]):
+        pre_0_7_population = {
+            "$schema": "http://json-schema.org/schema#",
+            "description": "SLiM schema for population metadata.",
+            "codec": "struct",
+            "type": ["object", "null"],
+            "properties": {
+                "slim_id": {
+                    "type": "integer",
+                    "description": "The ID of this population in SLiM. Note that this is called a 'subpopulation' in SLiM.",
+                    "binaryFormat": "i",
+                    "index": 1},
+                "selfing_fraction": {
+                    "type": "number",
+                    "description": "The frequency with which individuals in this subpopulation self (for WF models).",
+                    "binaryFormat": "d",
+                    "index": 2},
+                "female_cloning_fraction": {
+                    "type": "number",
+                    "description": "The frequency with which females in this subpopulation reproduce clonally (for WF models).",
+                    "binaryFormat": "d",
+                    "index": 3},
+                "male_cloning_fraction": {
+                    "type": "number",
+                    "description": "The frequency with which males in this subpopulation reproduce clonally (for WF models).",
+                    "binaryFormat": "d",
+                    "index": 4},
+                "sex_ratio": {
+                    "type": "number",
+                    "description": "This subpopulation's sex ratio (for WF models).",
+                    "binaryFormat": "d",
+                    "index": 5},
+                "bounds_x0": {
+                    "type": "number",
+                    "description": "The minimum x-coordinate in this subpopulation.",
+                    "binaryFormat": "d",
+                    "index": 6},
+                "bounds_x1": {
+                    "type": "number",
+                    "description": "The maximum x-coordinate in this subpopulation.",
+                    "binaryFormat": "d",
+                    "index": 7},
+                "bounds_y0": {
+                    "type": "number",
+                    "description": "The minimum y-coordinate in this subpopulation.",
+                    "binaryFormat": "d",
+                    "index": 8},
+                "bounds_y1": {
+                    "type": "number",
+                    "description": "The maximum y-coordinate in this subpopulation.",
+                    "binaryFormat": "d",
+                    "index": 9},
+                "bounds_z0": {
+                    "type": "number",
+                    "description": "The minimum z-coordinate in this subpopulation.",
+                    "binaryFormat": "d",
+                    "index": 10},
+                "bounds_z1": {
+                    "type": "number",
+                    "description": "The maximum z-coordinate in this subpopulation.",
+                    "binaryFormat": "d",
+                    "index": 11},
+                "migration_records": {
+                    "type": "array",
+                    "index": 13,
+                    "arrayLengthFormat": "I",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "source_subpop": {
+                                "type": "integer",
+                                "description": "The ID of the subpopulation migrants come from (in WF models).",
+                                "binaryFormat": "i",
+                                "index": 1},
+                            "migration_rate": {
+                                "type": "number",
+                                "description": "The fraction of children in this subpopulation that are composed of 'migrants' from the source subpopulation (in WF models).",
+                                "binaryFormat": "d",
+                                "index": 2}
+                        },
+                        "required": ["source_subpop", "migration_rate"],
+                        "additionalProperties": False
+                    }
+                }
+            }
+        }
+        ms = pre_0_7_population 
+
     if (name == "individual"
         and file_version in ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6"]):
         pre_0_7_individual = {

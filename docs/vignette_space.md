@@ -136,7 +136,7 @@ we would need to pass ``keep_input_roots=True`` to allow recapitation.
 :::
 
 ```{code-cell}
-recap_ts = slim_ts.recapitate(recombination_rate=1e-8, Ne=1000)
+recap_ts = pyslim.recapitate(slim_ts, recombination_rate=1e-8, ancestral_Ne=1000)
 ts = pyslim.SlimTreeSequence(
        msprime.sim_mutations(
          recap_ts,

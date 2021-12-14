@@ -34,9 +34,9 @@ kernelspec:
 This page provides detailed documentation for the methods and classes
 available in pyslim.
 
-## Methods
+## Editing or adding to tree sequences
 
-pyslim provides tools for transforming tree sequences:
+``pyslim`` provides tools for transforming tree sequences:
 
 
 ```{eval-rst}
@@ -45,8 +45,19 @@ pyslim provides tools for transforming tree sequences:
   recapitate
   convert_alleles
   generate_nucleotides
+  annotate_defaults
+  update_tables
 ```
 
+## Summarizing tree sequences
+
+Additionally, ``pyslim`` contains the following summary methods:
+
+```{eval-rst}
+.. autosummary::
+
+  population_size
+```
 
 
 ## Additions to the tree sequence
