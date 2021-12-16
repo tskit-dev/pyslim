@@ -79,7 +79,7 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
         assert loaded_ts.slim_generation == new_sg
         assert loaded_ts.metadata['SLiM']['generation'] == new_sg
         # check persists through recapitate
-        recap = pyslim.recapitate(ts, recombination_rate=1e-8, ancestral_Ne=10)
+        recap = self.do_recapitate(ts, recombination_rate=1e-8, ancestral_Ne=10)
         assert recap.slim_generation == new_sg
         # check persists through simplify
         simp = ts.simplify(ts.samples())
@@ -131,6 +131,9 @@ class TestRecapitate(tests.PyslimTestCase):
     def check_recap_consistency(self, ts, recap):
         assert ts.metadata['SLiM']['generation'] == recap.metadata['SLiM']['generation']
         assert all(tree.num_roots == 1 for tree in recap.trees())
+        assert ts.has_reference_sequence() == recap.has_reference_sequence()
+        if ts.has_reference_sequence():
+            assert ts.reference_sequence.data == recap.reference_sequence.data
 
         ts_samples = list(ts.samples())
         for u in recap.samples():
@@ -153,22 +156,47 @@ class TestRecapitate(tests.PyslimTestCase):
             p1 = ts.population(k)
             p2 = recap.population(k)
             assert p1.metadata == p2.metadata
+        # find ancestral pop in which recapitation happens
+        tables = ts.tables
+        anc_nodes = np.where(tables.nodes.time > ts.metadata['SLiM']['generation'])[0]
+        if len(anc_nodes) > 0:
+            for pop in ts.populations():
+                if pop.metadata is not None and pop.metadata['name'] == "ancestral":
+                    break
+            assert pop.metadata['name'] == "ancestral"
+            assert np.all(tables.nodes.population[anc_nodes] == pop.id)
 
     # Just test on the first recipe
     @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
     def test_recapitate_errors(self, recipe):
         ts = recipe["ts"]
         with pytest.raises(ValueError, match="cannot specify both `demography` and `ancestral_Ne`"):
-            _ = pyslim.recapitate(
+            _ = self.do_recapitate(
                         ts,
                         recombination_rate=0.0,
                         demography=msprime.Demography.from_tree_sequence(ts),
                         ancestral_Ne=10)
 
+    def test_unique_names(self):
+        ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12)
+        ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+        t = ts.dump_tables()
+        md = t.populations[0].metadata
+        md.update({"name": "ancestral"})
+        t.populations[0] = t.populations[0].replace(metadata=md)
+        md.update({"name": "ancestral_ancestral", "slim_id": 4})
+        t.populations.add_row(metadata=md)
+        ts = t.tree_sequence()
+        rts = self.do_recapitate(ts, ancestral_Ne=10)
+        names = [pop.metadata['name'] for pop in rts.populations()]
+        assert len(set(names)) == len(names)
+        assert "ancestral" in names
+        assert "ancestral_ancestral" in names
+
     def test_recapitation(self, recipe):
         ts = recipe["ts"]
         recomb_rate = 1.0 / ts.sequence_length
-        recap = pyslim.recapitate(ts, recombination_rate=recomb_rate, ancestral_Ne=10)
+        recap = self.do_recapitate(ts, recombination_rate=recomb_rate, ancestral_Ne=10)
         # there should be no new mutations
         assert ts.num_mutations == recap.num_mutations
         assert ts.num_sites == recap.num_sites
@@ -181,11 +209,37 @@ class TestRecapitate(tests.PyslimTestCase):
                 assert t.num_roots == 1
                 assert recap.node(t.root).time >= old_root_time
 
-        # test with passing in a recombination map
+    def test_with_recomb_map(self, recipe):
+        ts = recipe["ts"]
+        recomb_rate = 1.0 / ts.sequence_length
         recombination_map = msprime.RateMap(
                    position = [0.0, ts.sequence_length],
                    rate = [recomb_rate])
-        recap = pyslim.recapitate(ts, recombination_rate=recombination_map, ancestral_Ne=1e-6)
+        recap = self.do_recapitate(ts, recombination_rate=recombination_map, ancestral_Ne=1e-6)
+        self.check_recap_consistency(ts, recap)
+
+    @pytest.mark.parametrize('recipe', recipe_eq("multipop"), indirect=True)
+    def test_with_demography(self, recipe):
+        ts = recipe["ts"]
+        recomb_rate = 1.0 / ts.sequence_length
+        demography = msprime.Demography.from_tree_sequence(ts)
+        for pop in demography.populations:
+            pop.initial_size=100.0
+        demography.add_population(
+                initial_size=10,
+                name='ancestral',
+                extra_metadata={"slim_id": ts.num_populations},
+        )
+        demography.add_population_split(
+                time=ts.metadata["SLiM"]["generation"] + 1.0,
+                derived=[p.name for p in demography.populations if p.name != "ancestral"],
+                ancestral="ancestral",
+        )
+        recap = self.do_recapitate(
+                ts,
+                demography=demography,
+                recombination_rate=recomb_rate,
+        )
         self.check_recap_consistency(ts, recap)
 
     # Just test on the first recipe
@@ -253,6 +307,8 @@ class TestIndividualMetadata(tests.PyslimTestCase):
         root_time = ts.metadata['SLiM']['generation']
         if (ts.metadata['SLiM']['stage'] == 'early'
                 or ts.metadata['SLiM']['model_type'] == 'nonWF'):
+            root_time -= 1
+        if (ts.metadata['SLiM']['model_type'] == 'WF' and "begun_late" in recipe):
             root_time -= 1
         for t in ts.trees():
             for u in t.roots:
@@ -438,8 +494,6 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         right_parents = np.sort(np.array(right_parents), axis=0)
         parents = np.sort(ts.individual_parents(), axis=0)
         assert np.array_equal(right_answer, has_parents)
-        #print("right:", right_parents)
-        #print("pyslim:", parents)
         assert np.array_equal(right_parents, parents)
 
     def get_first_gen(self, ts):
@@ -470,7 +524,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         first_gen = self.get_first_gen(ts)
         right_answer[first_gen] = False
         assert(ts.num_populations <= 2)
-        ts = pyslim.recapitate(ts, recombination_rate=0.01, ancestral_Ne=10)
+        ts = self.do_recapitate(ts, recombination_rate=0.01, ancestral_Ne=10)
         assert(ts.num_individuals == ts.num_individuals)
         has_parents = ts.has_individual_parents()
         assert np.array_equal(right_answer, has_parents)
@@ -487,7 +541,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             keep_nodes.extend(ts.individual(i).nodes)
         ts = ts.simplify(samples=keep_nodes, filter_individuals=True, keep_input_roots=True)
         assert(ts.num_populations <= 2)
-        ts = pyslim.recapitate(ts, recombination_rate=0.01, ancestral_Ne=10)
+        ts = self.do_recapitate(ts, recombination_rate=0.01, ancestral_Ne=10)
         has_parents = ts.has_individual_parents()
         assert sum(has_parents) > 0
         self.verify_has_parents(ts)
@@ -709,7 +763,9 @@ class TestConvertNucleotides(tests.PyslimTestCase):
             yield k, slim_muts[k]
 
     def verify_converted_nucleotides(self, ts, cts):
-        assert ts.reference_sequence.data == cts.reference_sequence.data
+        assert ts.has_reference_sequence() == cts.has_reference_sequence()
+        if ts.has_reference_sequence():
+            assert ts.reference_sequence.data == cts.reference_sequence.data
         assert ts.num_sites == cts.num_sites
         for k, (s, ns) in enumerate(zip(ts.sites(), cts.sites())):
             assert s.position == ns.position
@@ -758,6 +814,17 @@ class TestConvertNucleotides(tests.PyslimTestCase):
     )
     def test_convert_alleles(self, recipe):
         ts = recipe["ts"]
+        cts = pyslim.convert_alleles(ts)
+        self.verify_converted_nucleotides(ts, cts)
+
+        # get some weirder situations in there
+        t = ts.dump_tables()
+        t.mutations.clear()
+        for j, mut in enumerate(ts.mutations()):
+            if j % 2 == 0:
+                t.mutations.append(mut)
+        t.compute_mutation_parents()
+        ts = t.tree_sequence()
         cts = pyslim.convert_alleles(ts)
         self.verify_converted_nucleotides(ts, cts)
 
@@ -881,6 +948,7 @@ class TestConvertNucleotides(tests.PyslimTestCase):
                 tmp_path,
                 WF=False,
         )
+
 
 class TestDeprecations(tests.PyslimTestCase):
     # test on one arbitrary recipe

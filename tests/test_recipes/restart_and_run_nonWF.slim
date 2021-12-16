@@ -1,0 +1,33 @@
+initialize()
+{
+    setSeed(23);
+    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+    // as well as any bespoke TREES_FILE for output, you need to define:
+    //  TREES_IN = path to trees to initialise
+    initializeSLiMModelType("nonWF");
+    initializeSLiMOptions(dimensionality="xy");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+}
+
+1 early() { 
+  if (STAGE == "early") {
+    sim.readFromPopulationFile(TREES_IN);
+  }
+}
+
+1 late() { 
+  if (STAGE == "late") {
+    sim.readFromPopulationFile(TREES_IN);
+  }
+}
+
+20 {
+    catn("Done.");
+    sim.treeSeqOutput(TREES_FILE, simplify=F);
+    sim.simulationFinished();
+}

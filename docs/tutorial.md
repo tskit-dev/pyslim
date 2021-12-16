@@ -108,11 +108,13 @@ and so our simulation would have less genetic variation than it should have
 Doing this is as simple as:
 
 ```{code-cell}
-orig_ts = pyslim.load("example_sim.trees")
-rts = orig_ts.recapitate(
+orig_ts = tskit.load("example_sim.trees")
+rts = pyslim.recapitate(orig_ts,
             recombination_rate=1e-8,
-            Ne=200, random_seed=5)
+            ancestral_Ne=200, random_seed=5)
 ```
+The warning is harmless; it is reminding us to think about generation time
+when recapitating a nonWF simulation (a topic we'll deal with later).
 
 We can check that this worked as expected, by verifying that after recapitation
 all trees have only one root:
@@ -124,14 +126,14 @@ print(f"Maximum number of roots before recapitation: {orig_max_roots}\n"
       f"After recapitation: {recap_max_roots}")
 ```
 
-The {meth}`.SlimTreeSequence.recapitate` method
+The {func}`.recapitate` method
 is just a thin wrapper around {func}`msprime.sim_ancestry`,
 and you need to set up demography explicitly - for instance, in the example above
 we've simulated from an ancestral population of ``Ne=200`` diploids.
 If you have more than one population,
 you must set migration rates or else coalescence will never happen
 (see {ref}`sec_recapitate_with_migration` for an example,
-and {meth}`.SlimTreeSequence.recapitate` for more).
+and {func}`.recapitate` for more).
 
 
 #### Recapitation with a nonuniform recombination map
@@ -223,9 +225,9 @@ positions[-1] += 1
 assert positions[-1] == orig_ts.sequence_length
 
 recomb_map = msprime.RateMap(position=positions, rate=rates)
-rts = orig_ts.recapitate(
-                recombination_map=recomb_map,
-                Ne=200, random_seed=7)
+rts = pyslim.recapitate(orig_ts,
+                recombination_rate=recomb_map,
+                ancestral_Ne=200, random_seed=7)
 assert(max([t.num_roots for t in rts.trees()]) == 1)
 ```
 (As before, you should *not* usually explicitly set
@@ -301,7 +303,7 @@ which would be inconsistent with the SLiM simulation.
 
 After recapitation,
 simplification to the history of 100 individuals alive today
-can be done with the {meth}`.SlimTreeSequence.simplify` method:
+can be done with the {meth}`tskit.TreeSequence.simplify` method:
 
 ```{code-cell}
 import numpy as np
@@ -423,7 +425,9 @@ and write their SNPs to a VCF is:
 ```{code-cell}
 np.random.seed(1)
 keep_indivs = np.random.choice(alive, 100, replace=False)
-ts = pyslim.SlimTreeSequence(msprime.mutate(orig_ts, rate=1e-8, random_seed=1))
+ts = pyslim.SlimTreeSequence(
+    msprime.sim_mutations(orig_ts, rate=1e-8, random_seed=1)
+)
 with open("example_snps.vcf", "w") as vcffile:
     ts.write_vcf(vcffile, individuals=keep_indivs)
 ```
@@ -452,7 +456,9 @@ keep_nodes = []
 for i in keep_indivs:
     keep_nodes.extend(orig_ts.individual(i).nodes)
 sts = rts.simplify(keep_nodes)
-ts = pyslim.SlimTreeSequence(msprime.mutate(sts, rate=1e-8, random_seed=1))
+ts = pyslim.SlimTreeSequence(
+    msprime.sim_mutations(sts, rate=1e-8, random_seed=1)
+)
 ```
 Individuals are retained by simplify if any of their nodes are,
 so we would get an alive individual without sample nodes if, for instance,
@@ -533,27 +539,43 @@ so there is an empty "population 0" in a SLiM-produced tree sequence.
 
 (sec_recapitate_with_migration)=
 
-## Recapitation with more than one population
+## Recapitation with migration between more than one population
 
 Following on the last example,
 let's recapitate and mutate the tree sequence.
-Recapitation takes a bit more thought, because we have to specify a migration matrix
-(or else it will run forever, unable to coalesce).
+Recall that this recipe had two populations, ``p1`` and ``p2``,
+each of size 1000.
+Recapitation takes a bit more thought, because if the two populations stay separate,
+it will run forever, unable to coalesce.
+By default, :func:`.recapitate` *merges* the two populations into a single
+one of size ``ancestral_Ne``.
+But, if we'd like them to stay separate, we need to inclue migration between them.
+Here's how we set up the demography using msprime's tools:
 
 ```{code-cell}
-pop_configs = [msprime.PopulationConfiguration(initial_size=1000)
-              for _ in range(orig_ts.num_populations)]
-rts = orig_ts.recapitate(population_configurations=pop_configs,
-                        migration_matrix=[[0.0, 0.0, 0.0],
-                                          [0.0, 0.0, 0.1],
-                                          [0.0, 0.1, 0.0]],
+demography = msprime.Demography.from_tree_sequence(orig_ts)
+for pop in demography.populations:
+    # must set their effective population sizes
+    pop.initial_size = 1000
+
+demography.add_migration_rate_change(
+    time=orig_ts.metadata['SLiM']['generation'],
+    rate=0.1, source="p1", dest="p2",
+)
+demography.add_migration_rate_change(
+    time=orig_ts.metadata['SLiM']['generation'],
+    rate=0.1, source="p2", dest="p1",
+)
+rts = pyslim.recapitate(orig_ts, demography=demography,
                         recombination_rate=1e-8,
-                        random_seed=4)
+                        random_seed=4
+)
 ts = pyslim.SlimTreeSequence(
         msprime.sim_mutations(
                     rts, rate=1e-8,
                     model=msprime.SLiMMutationModel(type=0),
-                    random_seed=7))
+                    random_seed=7)
+)
 ```
 
 Again, there are *three* populations because SLiM starts counting at 1;

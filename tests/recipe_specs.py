@@ -16,8 +16,14 @@ recipe_specs = {
     "recipe_WF.slim":                          {"WF": True, "pedigree": True},
     "recipe_long_WF.slim":                     {"WF": True},
     "recipe_WF_migration.slim":                {"WF": True, "pedigree": True, "multipop": True},
-    "recipe_nonWF_early.slim":                 {"nonWF": True, "pedigree": True, "remembered_early": True},
-    "recipe_WF_early.slim":                    {"WF": True, "pedigree": True, "remembered_early": True},
+    "recipe_nonWF_early_early.slim":           {"nonWF": True, "pedigree": True, "remembered_early": True},
+    "recipe_nonWF_late_early.slim":            {"nonWF": True, "pedigree": True, "remembered_early": True, "begun_late": True},
+    "recipe_WF_early_early.slim":              {"WF": True, "pedigree": True, "remembered_early": True},
+    "recipe_WF_late_early.slim":               {"WF": True, "pedigree": True, "remembered_early": True, "begun_late": True},
+    "recipe_nonWF_early_late.slim":            {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_late_late.slim":             {"nonWF": True, "pedigree": True, "begun_late": True},
+    "recipe_WF_early_late.slim":               {"WF": True, "pedigree": True},
+    "recipe_WF_late_late.slim":                {"WF": True, "pedigree": True, "begun_late": True},
     "recipe_nucleotides_WF.slim":              {"WF": True, "pedigree": True, "nucleotides": True},
     "recipe_nucleotides_nonWF.slim":           {"nonWF": True, "pedigree": True, "nucleotides": True},
     "recipe_nucleotides_plus_others.slim":     {"WF": True, "pedigree": True, "nucleotides": True, "non-nucleotides": True, "adds_mutations": True},
@@ -63,8 +69,8 @@ def recipe_eq(*keys, exclude=None):
 restarted_recipe_specs = {
     "restart_nucleotides_WF.slim":   {"WF": True, "nucleotides": True, "no_op": True, "input": "recipe_nucleotides_WF.slim"},
     "restart_nucleotides_nonWF.slim":   {"nonWF": True, "nucleotides": True, "no_op": True, "input": "recipe_nucleotides_nonWF.slim"},
-    #"restart_and_run_WF.slim":    {"WF": True, "input": "recipe_init_mutated.slim"},
-    #"restart_and_run_nonWF.slim": {"nonWF": True, "input": "recipe_init_mutated.slim"},
+    "restart_and_run_WF.slim":    {"WF": True, "input": "recipe_init_mutated_WF.slim"},
+    "restart_and_run_nonWF.slim": {"nonWF": True, "input": "recipe_init_mutated_nonWF.slim"},
 }
 for t in ("WF", "nonWF"):
     # recipes that read in and write out immediately ("no_op")

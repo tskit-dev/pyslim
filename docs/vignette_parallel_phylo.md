@@ -19,8 +19,6 @@ from IPython.display import SVG
 import numpy as np
 import pandas as pd 
 import os
-
-np.random.seed(1234)
 ```
 
 
@@ -100,8 +98,12 @@ Here is python code that will write out a makefile from the information in ``df`
 f = open("sims.make", "w")
 print(f"all: {' '.join(df.outfile.to_list())}\n", file=f)
 for i, row in df.iterrows():
-    print(f"{row.outfile}: {row.infile} phylo_bgs.slim\n", file=f)
-    print(f"\tslim -d \"infile='{row.infile}'\" -d popsize={row.popsize} -d num_gens={row.edgelen} -d \"outfile='{row.child}.trees'\" phylo_bgs.slim\n", file=f)
+    print(f"{row.outfile}: {row.infile} phylo_bgs.slim", file=f)
+    print(f"\tslim -d \"infile='{row.infile}'\" -d popsize={row.popsize} "
+          f"-d \"popname=\'{row.child}\'\" "
+          f"-d num_gens={row.edgelen} " f"-d \"outfile='{row.child}.trees'\" "
+          "phylo_bgs.slim\n",
+          file=f)
 f.close()
 ```
 
@@ -246,10 +248,8 @@ pops = merged["root"]["children"]
 A slightly tricky thing we had to do there was to make sure we kept track of
 which population in the union'ed tree sequence corresponds to
 which population in our phylogeny.
-That's the role of the ``pops`` variable, that
-contains the names of the populations
-in the order in which they are indexed in the resulting tree sequence ``tsu``.
-(Since the population in SLiM is ``p1``, the zero-th population will be unused.)
+Happily, we've stored each population's name in its metadata field,
+so it's easy to match populations in the tree sequence up to what they're supposed to be.
 
 Let's make sure we have the right number of present-day samples
 in each of the populations. To do this we need to make sure to get
@@ -258,21 +258,37 @@ population at each species split time.
 
 ```{code-cell}
 alive = np.where(np.isclose(tsu.tables.nodes.time, 0))[0]
-for i, name in enumerate(pops):
-    pop_samples = tsu.samples(i + 1)
+pop_ids = {}
+for pop in tsu.populations():
+    if pop.metadata is not None:
+        pop_ids[pop.metadata['name']] = pop.id
+
+for name in pops:
+    pop_samples = tsu.samples(pop_ids[name])
     n_samples = sum(np.isin(pop_samples, alive)) // 2
     print(f"Union-ed tree sequence has {n_samples} samples in population {name},\n"
           f"\tand we specified {df[df.child==name].popsize.item()} individuals in our simulations.")
     assert n_samples == df[df.child==name].popsize.item()
 ```
 
-Finally, we should recapitate the result,
+Let's do an additional consistency check now, to see if we need to recapitate
+(i.e., if some trees haven't coalesced),
+and to make sure that all roots are in the root population,
+as they should be:
+```{code-cell}
+for t in tsu.trees():
+    for r in t.roots:
+        assert tsu.node(r).population == pop_ids["root"]
+
+print(f"Max number of roots: {max([t.num_roots for t in tsu.trees()])}.")
+```
+
+Finally, we will recapitate the result with a small population size of 100,
 in case some trees on the root branch haven't coalesced,
 and write out the result:
 
 ```{code-cell}
-tsu = pyslim.SlimTreeSequence(tsu)
-tsu = tsu.recapitate(recombination_rate=1e-8)
+tsu = pyslim.recapitate(tsu, recombination_rate=1e-8, ancestral_Ne=100)
 tsu.dump("final.trees")
 ```
 
@@ -284,16 +300,15 @@ disagreements between the species tree and the simulated gene trees
 
 To make it possible to look at the trees,
 I will first simplify the union-ed tree sequence to keep only two diploid
-samples per population. Then, I'll recapitate the tree sequence so that we have
-a single root in all the trees.
+samples per population.
 
 ```{code-cell}
 rng = np.random.default_rng(seed=123)
 ind_alive = tsu.individuals_alive_at(0)
 ind_pops = tsu.individual_populations[ind_alive]
 subsample_indivs = [
-    rng.choice(ind_alive[ind_pops == i + 1], 2)
-    for i, _ in enumerate(pops)
+    rng.choice(ind_alive[ind_pops == pop_ids[name]], 2)
+    for name in pops
 ]
 subsample_nodes = [
     np.concatenate([tsu.individual(i).nodes for i in x])
@@ -305,9 +320,10 @@ tsus = pyslim.SlimTreeSequence(
         filter_populations=False,
     )
 )
+pop_labels = {v: k for k, v in pop_ids.items()}
 SVG(tsus.draw_svg(
     node_labels={
-        node.id: pops[node.population - 1]
+        node.id: pop_labels[node.population]
         for node in tsus.nodes()
         if not node.time > 0.0
     },
@@ -316,8 +332,13 @@ SVG(tsus.draw_svg(
 ))
 ```
 
-Again, we have to index ``pops`` by ``node.population - 1``
-because the zero-th population is unused.
-In an upcoming version of SLiM, populations will have a ``name`` property
-in metadata, so we will not have to keep track of things
-in this awkward way.
+.. note::
+
+    A possible gotcha in the code above lies in getting the time units to work out.
+    Note that in the SLiM script we both save and reload .trees files in the
+    ``late()`` stage of the SLiM life cycle. This is important: if we had reloaded the
+    files in ``early()``, then each time we did so the "tskit time" and "SLiM time"
+    would become one step out of sync. This leads to errors either in union (since
+    if the time units in the two tree sequences do not match, union will raise an error)
+    or in recapitate (since recapitate assumes that the "top" of the trees are at
+    the number of generations ago recorded by SLiM in metadata).
