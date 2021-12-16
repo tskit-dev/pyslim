@@ -308,7 +308,7 @@ can be done with the {meth}`tskit.TreeSequence.simplify` method:
 ```{code-cell}
 import numpy as np
 np.random.seed(3)
-alive_inds = rts.individuals_alive_at(0)
+alive_inds = pyslim.individuals_alive_at(rts, 0)
 keep_indivs = np.random.choice(alive_inds, 100, replace=False)
 keep_nodes = []
 for i in keep_indivs:
@@ -356,14 +356,12 @@ but any of the other mutation models in msprime could be used.
 This works as follows:
 
 ```{code-cell}
-ts = pyslim.SlimTreeSequence(
-       msprime.sim_mutations(
+ts = msprime.sim_mutations(
            sts,
            rate=1e-8,
            model=msprime.SLiMMutationModel(type=0),
            keep=True,
-           )
-    )
+)
 
 print(f"The tree sequence now has {ts.num_mutations} mutations,\n"
       f"and mean pairwise nucleotide diversity is {ts.diversity():0.3e}.")
@@ -412,8 +410,8 @@ the list of individual IDs of all those alive at the end of the
 simulation (i.e., zero time units ago), we could do:
 
 ```{code-cell}
-orig_ts = pyslim.load("example_sim.trees")
-alive = orig_ts.individuals_alive_at(0)
+orig_ts = tskit.load("example_sim.trees")
+alive = pyslim.individuals_alive_at(orig_ts, 0)
 
 print(f"There are {len(alive)} individuals alive in the final generation.")
 ```
@@ -425,9 +423,7 @@ and write their SNPs to a VCF is:
 ```{code-cell}
 np.random.seed(1)
 keep_indivs = np.random.choice(alive, 100, replace=False)
-ts = pyslim.SlimTreeSequence(
-    msprime.sim_mutations(orig_ts, rate=1e-8, random_seed=1)
-)
+ts = msprime.sim_mutations(orig_ts, rate=1e-8, random_seed=1)
 with open("example_snps.vcf", "w") as vcffile:
     ts.write_vcf(vcffile, individuals=keep_indivs)
 ```
@@ -456,9 +452,7 @@ keep_nodes = []
 for i in keep_indivs:
     keep_nodes.extend(orig_ts.individual(i).nodes)
 sts = rts.simplify(keep_nodes)
-ts = pyslim.SlimTreeSequence(
-    msprime.sim_mutations(sts, rate=1e-8, random_seed=1)
-)
+ts = msprime.sim_mutations(sts, rate=1e-8, random_seed=1)
 ```
 Individuals are retained by simplify if any of their nodes are,
 so we would get an alive individual without sample nodes if, for instance,
@@ -488,7 +482,7 @@ using {meth}`is_sample() <tskit.Node.is_sample>`:
 
 ```{code-cell}
 indivlist = []
-for i in ts.individuals_alive_at(0):
+for i in pyslim.individuals_alive_at(ts, 0):
     ind = ts.individual(i)
     if ts.node(ind.nodes[0]).is_sample():
        indivlist.append(i)
@@ -520,8 +514,8 @@ To count up how many individuals are in each population,
 we could do:
 
 ```{code-cell}
-orig_ts = pyslim.load("migrants.trees")
-alive = orig_ts.individuals_alive_at(0)
+orig_ts = tskit.load("migrants.trees")
+alive = pyslim.individuals_alive_at(orig_ts, 0)
 num_alive = [0 for _ in range(orig_ts.num_populations)]
 for i in alive:
   ind = orig_ts.individual(i)
@@ -566,15 +560,15 @@ demography.add_migration_rate_change(
     time=orig_ts.metadata['SLiM']['generation'],
     rate=0.1, source="p2", dest="p1",
 )
-rts = pyslim.recapitate(orig_ts, demography=demography,
-                        recombination_rate=1e-8,
-                        random_seed=4
+rts = pyslim.recapitate(
+        orig_ts, demography=demography,
+        recombination_rate=1e-8,
+        random_seed=4
 )
-ts = pyslim.SlimTreeSequence(
-        msprime.sim_mutations(
-                    rts, rate=1e-8,
-                    model=msprime.SLiMMutationModel(type=0),
-                    random_seed=7)
+ts = msprime.sim_mutations(
+        rts, rate=1e-8,
+        model=msprime.SLiMMutationModel(type=0),
+        random_seed=7
 )
 ```
 
@@ -589,7 +583,7 @@ that are alive at the end of the simulation.
 ```{code-cell}
 pop_indivs = [[], [], []]
 pop_nodes = [[], [], []]
-for i in ts.individuals_alive_at(0):
+for i in pyslim.individuals_alive_at(ts, 0):
   ind = ts.individual(i)
   pop_indivs[ind.population].append(i)
   pop_nodes[ind.population].extend(ind.nodes)
@@ -652,7 +646,7 @@ max_age = max([ind.metadata["age"] for ind in ts.individuals()])
 age_table = np.zeros((max_age + 1, 2))
 age_labels = {pyslim.INDIVIDUAL_TYPE_FEMALE: 'females',
              pyslim.INDIVIDUAL_TYPE_MALE: 'males'}
-for i in ts.individuals_alive_at(0):
+for i in pyslim.individuals_alive_at(ts, 0):
   ind = ts.individual(i)
   age_table[ind.metadata["age"], ind.metadata["sex"]] += 1
 
@@ -685,8 +679,9 @@ and {attr}`.SlimTreeSequence.individual_populations` as follows:
 ```{code-cell}
 alive = ts.individuals_alive_at(0)
 adults = alive[ts.individual_ages[alive] > 2]
-pops = [np.where(
-          ts.individual_populations[adults] == k)[0] for k in [1, 2]]
+pops = [
+    np.where(ts.individual_populations[adults] == k)[0] for k in [1, 2]
+]
 sample_inds = [np.random.choice(pop, 10, replace=False) for pop in pops]
 sample_nodes = []
 for samp in sample_inds:
@@ -894,13 +889,11 @@ stored in the mutation metadata.
 To modify the mutations to be under selection,
 see {ref}`sec_vignette_coalescent_diversity`.
 ```{code-cell}
-ts = pyslim.SlimTreeSequence(
-        msprime.sim_mutations(
-                    ts, rate=1e-8,
-                    model=msprime.SLiMMutationModel(type=0),
-                    random_seed=9
-        )
-     )
+ts = msprime.sim_mutations(
+            ts, rate=1e-8,
+            model=msprime.SLiMMutationModel(type=0),
+            random_seed=9
+)
 ```
 Now the mutations have SLiM metadata.
 For instance, here's the first mutation:
@@ -949,7 +942,7 @@ slim -s 23 selection.slim
 First, let's see how many mutations there are:
 
 ```{code-cell}
-ts = pyslim.load("selection.trees")
+ts = tskit.load("selection.trees")
 print(f"Number of sites: {ts.num_sites}\n"
       f"Number of mutations: {ts.num_mutations}")
 ```

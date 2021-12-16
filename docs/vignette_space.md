@@ -60,7 +60,7 @@ slim -s 23 vignette_space.slim
 Ok, now let's have a quick look at the output:
 
 ```{code-cell}
-slim_ts = pyslim.load("spatial_sim.trees")
+slim_ts = tskit.load("spatial_sim.trees")
 print(f"The tree sequence has {slim_ts.num_trees} trees\n"
       f"on a genome of length {slim_ts.sequence_length},\n"
       f"{slim_ts.num_individuals} individuals, {slim_ts.num_samples} 'sample' genomes,\n"
@@ -76,8 +76,9 @@ Let's have a look at how old those individuals are,
 by tabulating when they were born:
 
 ```{code-cell}
-for t in np.unique(slim_ts.individual_times):
-    print(f"There are {np.sum(slim_ts.individual_times == t)} individuals from time {t}.")
+individual_times, _, _ = pyslim.individual_times_populations_ages(slim_ts)
+for t in np.unique(individual_times):
+    print(f"There are {np.sum(individual_times == t)} individuals from time {t}.")
 ```
 
 These "times" record the birth times of each individual.
@@ -94,7 +95,7 @@ Let's check that all these individuals are alive at either (a) today or (b) 1000
 
 ```{code-cell}
 for t in [0, 1000]:
-  alive = slim_ts.individuals_alive_at(t)
+  alive = pyslim.individuals_alive_at(slim_ts, t)
   print(f"There were {len(alive)} individuals alive {t} time steps in the past.")
 ```
 
@@ -137,14 +138,12 @@ we would need to pass ``keep_input_roots=True`` to allow recapitation.
 
 ```{code-cell}
 recap_ts = pyslim.recapitate(slim_ts, recombination_rate=1e-8, ancestral_Ne=1000)
-ts = pyslim.SlimTreeSequence(
-       msprime.sim_mutations(
+ts = msprime.sim_mutations(
          recap_ts,
          rate=1e-8,
          model=msprime.SLiMMutationModel(type=0),
          keep=True,
-       )
-     )
+ )
 ts.dump("spatial_sim.recap.trees")
 
 print(f"The tree sequence now has {ts.num_trees} trees,\n"
@@ -185,7 +184,7 @@ We'll get genomes to work with by pulling out
 
 np.random.seed(23)
 
-alive = ts.individuals_alive_at(0)
+alive = pyslim.individuals_alive_at(ts, 0)
 locs = ts.individual_locations[alive, :]
 
 W = 35
@@ -199,7 +198,7 @@ groups = {
                                   np.abs(locs[:, 1] - W/2) < w/2)]
   }
 
-old_ones = ts.individuals_alive_at(1000)
+old_ones = pyslim.individuals_alive_at(ts, 1000)
 groups['ancient'] = np.random.choice(old_ones, size=5)
 
 for k in groups:

@@ -42,7 +42,7 @@ class TestPopulationSize(tests.PyslimTestCase):
 
         # Location, times, and ages of individuals
         locations = ts.individual_locations
-        times = ts.individual_times
+        times, _, _ = pyslim.individual_times_populations_ages(ts)
 
         # Iterate through location bins and time bins
         for i in np.arange(nxbins):

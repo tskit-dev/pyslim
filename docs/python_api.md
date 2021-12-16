@@ -18,7 +18,7 @@ kernelspec:
     from IPython.display import SVG
     import numpy as np
 
-    ts = pyslim.load("example_sim.trees")
+    ts = tskit.load("example_sim.trees")
     tables = ts.tables
 ```
 
@@ -51,12 +51,19 @@ available in pyslim.
 
 ## Summarizing tree sequences
 
-Additionally, ``pyslim`` contains the following summary methods:
+Additionally, ``pyslim`` contains the following methods:
 
 ```{eval-rst}
 .. autosummary::
 
+  has_individual_parents
+  individual_ages_at
+  individual_parents
+  individuals_alive_at
+  mutation_at
+  nucleotide_at
   population_size
+  slim_time
 ```
 
 

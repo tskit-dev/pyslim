@@ -11,6 +11,7 @@
     - file: vignette_coalescent_diversity
     - file: vignette_parallel_phylo
     - file: metadata
+    - file: previous_versions
 
 - part: pyslim reference
   chapters:

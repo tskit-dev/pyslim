@@ -286,7 +286,7 @@ This runs quickly, since it's only 100 generations.
 
 First, let's look at what mutations are present.
 ```{code-cell}
-ts = pyslim.load("vignette_annotated.trees")
+ts = tskit.load("vignette_annotated.trees")
 num_stacked = np.array([len(m.metadata["mutation_list"]) for m in ts.mutations()])
 old_mut = np.array([m.time > ts.slim_generation - 1 - 1e-12 for m in ts.mutations()])
 assert sum(old_mut) == ots.num_mutations

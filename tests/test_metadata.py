@@ -135,7 +135,8 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                 spatial_dimensionality='xy',
                 spatial_periodicity='y',
                 separate_sexes=False,
-                nucleotide_based=True)
+                nucleotide_based=True
+        )
         self.validate_slim_metadata(tables)
         assert tables.metadata['SLiM']['model_type'] == "WF"
         assert tables.metadata['SLiM']['generation'] == 99
@@ -207,7 +208,8 @@ class TestDumpLoad(tests.PyslimTestCase):
         ts = recipe["ts"]
         assert isinstance(ts, pyslim.SlimTreeSequence)
         tables = ts.dump_tables()
-        new_ts = pyslim.load_tables(tables)
+        with pytest.warns(FutureWarning):
+            new_ts = pyslim.load_tables(tables)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
         new_tables = new_ts.dump_tables()
         assert tables == new_tables
@@ -219,19 +221,22 @@ class TestDumpLoad(tests.PyslimTestCase):
         assert isinstance(msp_ts, tskit.TreeSequence)
         # transfer tables
         msp_tables = msp_ts.dump_tables()
-        new_ts = pyslim.load_tables(msp_tables)
+        with pytest.warns(FutureWarning):
+            new_ts = pyslim.load_tables(msp_tables)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
         self.verify_times(msp_ts, new_ts)
         new_tables = new_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, new_tables)
         # convert directly
-        new_ts = pyslim.SlimTreeSequence(msp_ts)
+        with pytest.warns(FutureWarning):
+            new_ts = pyslim.SlimTreeSequence(msp_ts)
         assert isinstance(new_ts, pyslim.SlimTreeSequence)
         self.verify_times(msp_ts, new_ts)
         new_tables = new_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, new_tables)
         # load to pyslim from file
-        slim_ts = pyslim.load(fn)
+        with pytest.warns(FutureWarning):
+            slim_ts = pyslim.load(fn)
         assert isinstance(slim_ts, pyslim.SlimTreeSequence)
         slim_tables = slim_ts.dump_tables()
         self.assertTableCollectionsEqual(msp_tables, slim_tables)
@@ -245,7 +250,8 @@ class TestDumpLoad(tests.PyslimTestCase):
         tmp_file = os.path.join(tmp_path, "test_dump.trees")
         ts = recipe["ts"]
         ts.dump(tmp_file)
-        ts2 = pyslim.load(tmp_file)
+        with pytest.warns(FutureWarning):
+            ts2 = pyslim.load(tmp_file)
         assert ts.num_samples == ts2.num_samples
         assert ts.sequence_length == ts2.sequence_length
         assert ts.tables == ts2.dump_tables()
@@ -259,9 +265,11 @@ class TestDumpLoad(tests.PyslimTestCase):
         ts = recipe["ts"]
         ts.dump(tmp_file)
         with pytest.raises(ValueError, match="legacy metadata tools"):
-            _ = pyslim.load(tmp_file, legacy_metadata=True)
+            with pytest.warns(FutureWarning):
+                _ = pyslim.load(tmp_file, legacy_metadata=True)
         with pytest.raises(ValueError, match="legacy metadata tools"):
-            _ = pyslim.SlimTreeSequence(ts, legacy_metadata=True)
+            with pytest.warns(FutureWarning):
+                _ = pyslim.SlimTreeSequence(ts, legacy_metadata=True)
 
 
 

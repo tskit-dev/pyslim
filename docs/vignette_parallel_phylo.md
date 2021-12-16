@@ -304,8 +304,9 @@ samples per population.
 
 ```{code-cell}
 rng = np.random.default_rng(seed=123)
-ind_alive = tsu.individuals_alive_at(0)
-ind_pops = tsu.individual_populations[ind_alive]
+ind_alive = pyslim.individuals_alive_at(tsu, 0)
+_, populations, _ = pyslim.individual_times_populations_ages(tsu)
+ind_pops = populations[ind_alive]
 subsample_indivs = [
     rng.choice(ind_alive[ind_pops == pop_ids[name]], 2)
     for name in pops
@@ -314,11 +315,9 @@ subsample_nodes = [
     np.concatenate([tsu.individual(i).nodes for i in x])
     for x in subsample_indivs
 ]
-tsus = pyslim.SlimTreeSequence(
-    tsu.simplify(
+tsus = tsu.simplify(
         np.concatenate(subsample_nodes),
         filter_populations=False,
-    )
 )
 pop_labels = {v: k for k, v in pop_ids.items()}
 SVG(tsus.draw_svg(

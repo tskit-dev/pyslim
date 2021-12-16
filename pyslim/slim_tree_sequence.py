@@ -26,6 +26,17 @@ INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 
 
+def _deprecation_warning(w):
+    warnings.warn(
+        "The SlimTreeSequence class is deprecated, and will be removed in the "
+        "near future, as all important functionality is provided by tskit. "
+        "Please see the "
+        "`documentation <https://tskit.dev/pyslim/latest/previous_versions.html>`_. "
+        f"{w}",
+        FutureWarning
+    )
+
+
 def load(path, legacy_metadata=False):
     '''
     Load the SLiM-compatible tree sequence found in the .trees file at ``path``.
@@ -40,7 +51,7 @@ def load(path, legacy_metadata=False):
             "for how to update your script."
     )
 
-    ts = SlimTreeSequence.load(path, legacy_metadata=legacy_metadata)
+    ts = SlimTreeSequence.load(path)
     return ts
 
 
@@ -58,7 +69,7 @@ def annotate_defaults(ts, **kwargs):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
-    mostly default values. Returns a :class:`SlimTreeSequence`.
+    mostly default values. Returns a :class:`tskit.TreeSequence`.
 
     :param TreeSequence ts: A :class:`TreeSequence`.
     :param string model_type: SLiM model type: either "WF" or "nonWF".
@@ -71,7 +82,7 @@ def annotate_defaults(ts, **kwargs):
     '''
     tables = ts.dump_tables()
     annotate_defaults_tables(tables, **kwargs)
-    return SlimTreeSequence.load_tables(tables)
+    return tables.tree_sequence()
 
 
 def annotate_defaults_tables(tables, model_type, slim_generation, reference_sequence=None,
@@ -119,11 +130,12 @@ class MetadataDictWrapper(dict):
     def __getattr__(self, name):
         if name in self.keys():
             raise AttributeError(
-                    f"'dict' object has no attribute '{name}'. "
-                    "It looks like you're trying to use the legacy "
-                    "metadata interface: see "
-                    "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_ "
-                    "for how to switch over your script")
+                f"'dict' object has no attribute '{name}'. "
+                "It looks like you're trying to use the legacy "
+                "metadata interface: see the "
+                "`documentation <https://tskit.dev/pyslim/latest/previous_versions.html#legacy-metadata>`_ "
+                "for how to switch over your script"
+            )
         else:
             raise AttributeError(f"'dict' object has no attribute '{name}'")
 
@@ -133,10 +145,12 @@ class MetadataDictWrapper(dict):
         except KeyError as e:
             if isinstance(key, int):
                 msg = e.args[0]
-                e.args = (f"{msg}: It looks like you're trying to use the legacy "
-                           "metadata interface: see "
-                           "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_ "
-                           "for how to switch over your script",)
+                e.args = (
+                    f"{msg}: It looks like you're trying to use the legacy "
+                    "metadata interface: see the "
+                    "`documentation <https://tskit.dev/pyslim/latest/previous_versions.html#legacy-metadata>`_ "
+                    "for how to switch over your script",
+                )
             raise e
 
 
@@ -173,6 +187,7 @@ class SlimTreeSequence(tskit.TreeSequence):
                 "<https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
                 "for how to update your script."
         )
+        _deprecation_warning("")
 
         if not (isinstance(ts.metadata, dict) and 'SLiM' in ts.metadata
                 and ts.metadata['SLiM']['file_version'] in compatible_slim_file_versions):
@@ -185,24 +200,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         # pre-extract individual metadata
         self.individual_locations = ts.tables.individuals.location
         self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
-        self.individual_ages = np.zeros(ts.num_individuals, dtype='int')
-        if self.model_type != "WF":
-            self.individual_ages = np.fromiter(map(lambda ind: ind.metadata['age'], ts.individuals()), dtype='int64')
 
-        self.individual_times = np.zeros(ts.num_individuals)
-        self.individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
-        if not np.all(unique_labels_by_group(ts.tables.nodes.individual,
-                                              ts.tables.nodes.population)):
-            raise ValueError("Individual has nodes from more than one population.")
-        if not np.all(unique_labels_by_group(ts.tables.nodes.individual,
-                                              ts.tables.nodes.time)):
-            raise ValueError("Individual has nodes from more than one time.")
-        has_indiv = (ts.tables.nodes.individual >= 0)
-        which_indiv = ts.tables.nodes.individual[has_indiv]
-        # if we did not do the sanity check above then an individual with nodes in more than one pop
-        # would get the pop of their last node in the list
-        self.individual_populations[which_indiv] = ts.tables.nodes.population[has_indiv]
-        self.individual_times[which_indiv] = ts.tables.nodes.time[has_indiv]
+        times, populations, ages = individual_times_populations_ages(self)
+        self.individual_times = times
+        self.individual_populations = populations
+        self.individual_ages = ages
 
     def __getstate__(self):
         return {
@@ -216,16 +218,17 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     @property
     def slim_generation(self):
-        # return self.metadata['SLiM']['generation']
+        _deprecation_warning("Please access ts.metadata['SLiM']['generation'] instead.")
         return self._slim_generation
 
     @slim_generation.setter
     def slim_generation(self, value):
-        # TODO: throw a deprecation warning here after stdpopsim updates
+        _deprecation_warning("Please access ts.metadata['SLiM']['generation'] instead.")
         self._slim_generation = value
 
     @property
     def model_type(self):
+        _deprecation_warning("Please access ts.metadata['SLiM']['model_type'] instead.")
         return self.metadata['SLiM']['model_type']
 
     @classmethod
@@ -254,17 +257,17 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     def dump(self, path, **kwargs):
         '''
-        Dumps the tree sequence to the path specified. This is mostly just a wrapper for
-        :func:`tskit.TreeSequence.dump`, but also writes out the reference sequence.
+        Dumps the tree sequence to the path specified. This is only a wrapper
+        :func:`tskit.TreeSequence.dump`.
 
         :param str path: The file path to write the TreeSequence to.
         :param kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
         '''
         # temporary until we remove support for setting slim_generation
-        if self.slim_generation != self.metadata['SLiM']['generation']:
+        if self._slim_generation != self.metadata['SLiM']['generation']:
             tables = self.dump_tables()
             md = tables.metadata
-            md['SLiM']['generation'] = self.slim_generation
+            md['SLiM']['generation'] = self._slim_generation
             tables.metadata = md
             tables.dump(path, **kwargs)
         else:
@@ -282,10 +285,10 @@ class SlimTreeSequence(tskit.TreeSequence):
         :rtype SlimTreeSequence:
         '''
         # temporary until we remove support for setting slim_generation
-        if self.slim_generation != self.metadata['SLiM']['generation']:
+        if self._slim_generation != self.metadata['SLiM']['generation']:
             tables = self.dump_tables()
             md = tables.metadata
-            md['SLiM']['generation'] = self.slim_generation
+            md['SLiM']['generation'] = self._slim_generation
             tables.metadata = md
             # note we have to go to a tree sequence to get the map_nodes argument
             sts = tables.tree_sequence().simplify(*args, **kwargs)
@@ -407,6 +410,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         if "keep_first_generation" in kwargs:
             raise ValueError("The keep_first_generation argument is deprecated: "
                              "the FIRST_GEN flag is no longer used.")
+        _deprecation_warning("Please use pyslim.recapitate( ) instead.")
 
         if recombination_map is None:
             recombination_map = msprime.RecombinationMap(
@@ -418,10 +422,10 @@ class SlimTreeSequence(tskit.TreeSequence):
             population_configurations = [msprime.PopulationConfiguration()
                                          for _ in range(self.num_populations)]
         # temporary until we remove support for setting slim_generation
-        if self.slim_generation != self.metadata['SLiM']['generation']:
+        if self._slim_generation != self.metadata['SLiM']['generation']:
             tables = self.dump_tables()
             md = tables.metadata
-            md['SLiM']['generation'] = self.slim_generation
+            md['SLiM']['generation'] = self._slim_generation
             tables.metadata = md
             ts = tables.tree_sequence()
         else:
@@ -454,34 +458,8 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :returns: Index of the mutation in question, or -1 if none.
         '''
-        if position < 0 or position >= self.sequence_length:
-            raise ValueError("Position {} not valid.".format(position))
-        if node < 0 or node >= self.num_nodes:
-            raise ValueError("Node {} not valid.".format(node))
-        if time is None:
-            time = self.node(node).time
-        tree = self.at(position)
-        site_pos = self.tables.sites.position
-        out = tskit.NULL
-        if position in site_pos:
-            site_index = np.where(site_pos == position)[0][0]
-            site = self.site(site_index)
-            mut_nodes = []
-            # look for only mutations that occurred before `time`
-            # not strictly necessary if time was None
-            for mut in site.mutations:
-                if mut.time >= time:
-                    mut_nodes.append(mut.node)
-            n = node
-            while n > -1 and n not in mut_nodes:
-                n = tree.parent(n)
-            if n >= 0:
-                # do careful error checking here
-                for mut in site.mutations:
-                    if mut.node == n:
-                        assert(out == tskit.NULL or out == mut.parent)
-                        out = mut.id
-        return out
+        _deprecation_warning("Please use pyslim.mutation_at(ts, ...) instead.")
+        return mutation_at(self, node=node, position=position, time=time)
 
     def nucleotide_at(self, node, position, time=None):
         '''
@@ -500,16 +478,8 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :returns: Index of the nucleotide in ``NUCLEOTIDES`` (0=A, 1=C, 2=G, 3=T).
         '''
-        if not self.has_reference_sequence():
-            raise ValueError("This tree sequence has no reference sequence.")
-        mut_id = self.mutation_at(node, position, time)
-        if mut_id == tskit.NULL:
-            out = NUCLEOTIDES.index(self.reference_sequence.data[int(position)])
-        else:
-            mut = self.mutation(mut_id)
-            k = np.argmax([u["slim_time"] for u in mut.metadata["mutation_list"]])
-            out = mut.metadata["mutation_list"][k]["nucleotide"]
-        return out
+        _deprecation_warning("Please use pyslim.nucleotide_at(ts, ...) instead.")
+        return nucleotide_at(self, node=node, position=position, time=time)
 
     @property
     def slim_provenance(self):
@@ -582,62 +552,11 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param bool samples_only: Whether to return only individuals who have at
             least one node marked as samples.
         """
-        if stage not in ("late", "early"):
-            raise ValueError(f"Unknown stage '{stage}': "
-                              "should be either 'early' or 'late'.")
-
-        if remembered_stage is None:
-            remembered_stage = self.metadata['SLiM']['stage']
-
-        if remembered_stage not in ("late", "early"):
-            raise ValueError(f"Unknown remembered_stage '{remembered_stage}': "
-                              "should be either 'early' or 'late'.")
-        if remembered_stage != self.metadata['SLiM']['stage']:
-            warnings.warn(f"Provided remembered_stage '{remembered_stage}' does not"
-                          " match the stage at which the tree sequence was saved"
-                          f" ('{self.metadata['SLiM']['stage']}'). This is not necessarily"
-                          " an error, but mismatched stages will lead to inconsistencies:"
-                          " make sure you know what you're doing.")
-
-        # birth_time is the time ago that they were first alive in 'late'
-        # in a nonWF model they are alive for the same time step's 'early'
-        # but in a WF model the first 'early' they were alive for is one more recent
-        birth_time = self.individual_times
-        # birth_time - birth_offset is the first time ago they were alive
-        # during stage 'stage'
-        if stage == "early" and self.metadata['SLiM']['model_type'] == "WF":
-            birth_offset = 1
-        else:
-            birth_offset = 0
-        # ages is the number of complete life cycles they are known to have lived through,
-        # and so individuals have lived through at least 'age + 1' of both stages.
-        # In nonWF models, they live for one more 'early' than 'late',
-        # but this is only reflected in their age if Remembered in 'early'.
-        ages = self.individual_ages
-        # ages + age_offset + 1 is the number of 'stage' stages they are known
-        # to have lived through
-        if (self.metadata['SLiM']['model_type'] == "WF"
-                or stage == remembered_stage):
-            age_offset = 0
-        else:
-            if (remembered_stage == "early"
-                    and stage == "late"):
-                age_offset = -1
-            else:
-                age_offset = 1
-        # if adjusted age=0 then they are be alive at exactly one time step
-        alive_bool = np.logical_and(
-                birth_time >= time + birth_offset,
-                birth_time - ages <= time + birth_offset + age_offset)
-
-        if population is not None:
-            alive_bool &= np.isin(self.individual_populations, population)
-        if samples_only:
-            alive_bool &= (0 < np.bincount(1 + self.tables.nodes.individual,
-                                           self.tables.nodes.flags & tskit.NODE_IS_SAMPLE,
-                                           minlength=1 + self.num_individuals)[1:])
-
-        return np.where(alive_bool)[0]
+        _deprecation_warning("Please use pyslim.individuals_alive_at(ts, ...) instead.")
+        return individuals_alive_at(
+                self, time=time, stage=stage, remembered_stage=remembered_stage,
+                population=population, samples_only=samples_only
+        )
 
     def individual_ages_at(self, time, stage="late", remembered_stage="late"):
         """
@@ -665,11 +584,10 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param str remembered_stage: The stage in the SLiM life cycle during which
             individuals were Remembered.
         """
-        ages = np.repeat(np.nan, self.num_individuals)
-        alive = self.individuals_alive_at(time, stage=stage,
-                                          remembered_stage=remembered_stage)
-        ages[alive] = self.individual_times[alive] - time
-        return ages
+        _deprecation_warning("Please use pyslim.individual_ages_at(ts, ...) instead.")
+        return individual_ages_at(
+                self, time=time, stage=stage, remembered_stage=remembered_stage
+        )
 
     def slim_time(self, time, stage="late"):
         """
@@ -699,13 +617,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param string stage: The stage of the SLiM life cycle that the SLiM time
             should be computed for.
         """
-        slim_time = self.metadata['SLiM']['generation'] - time
-        if self.metadata['SLiM']['model_type'] == "WF":
-            if (self.metadata['SLiM']['stage'] == "early" and stage == "late"):
-                slim_time -= 1
-            if (self.metadata['SLiM']['stage'] == "late" and stage == "early"):
-                slim_time += 1
-        return slim_time
+        _deprecation_warning("Please use pyslim.slim_time(ts, ...) instead.")
+        return slim_time(self, time=time, stage=stage)
 
     def first_generation_individuals(self):
         """
@@ -726,53 +639,6 @@ class SlimTreeSequence(tskit.TreeSequence):
                 "instead.", FutureWarning)
         return np.where(self.tables.individuals.flags & INDIVIDUAL_RETAINED > 0)[0]
 
-    def _do_individual_parents_stuff(self, return_parents=False):
-        # Helper for has_individual_parents and individual_parents,
-        # which share a lot of machinery.
-        edges = self.tables.edges
-        nodes = self.tables.nodes
-        edge_parent_indiv = nodes.individual[edges.parent]
-        edge_child_indiv = nodes.individual[edges.child]
-        # nodes whose parent nodes are all in the same individual
-        unique_parent_nodes = unique_labels_by_group(
-                edges.child,
-                edge_parent_indiv,
-                minlength=nodes.num_rows)
-        unique_parent_edges = unique_parent_nodes[edges.child]
-        # edges describing relationships between individuals
-        indiv_edges = np.logical_and(
-                np.logical_and(edge_parent_indiv != tskit.NULL,
-                                     edge_child_indiv != tskit.NULL),
-                unique_parent_edges)
-        # individual edges where the parent was alive during "late"
-        # of the time step before the child is born
-        child_births = self.individual_times[edge_child_indiv[indiv_edges]]
-        parent_births = self.individual_times[edge_parent_indiv[indiv_edges]]
-        alive_edges = indiv_edges.copy()
-        if self.metadata['SLiM']['model_type'] == "WF":
-            alive_edges[indiv_edges] = (child_births + 1 == parent_births)
-        else:
-            parent_deaths = parent_births - self.individual_ages[edge_parent_indiv[indiv_edges]]
-            alive_edges[indiv_edges] = (child_births + 1 >= parent_deaths)
-        edge_spans = edges.right - edges.left
-        parental_span = np.bincount(edge_child_indiv[alive_edges],
-                weights=edge_spans[alive_edges], minlength=self.num_individuals)
-        # we could also check for edges without individual parents terminating
-        # in this individual, but this is unnecessary as the entire genome is
-        # accounted for
-        has_all_parents = (parental_span == 2 * self.sequence_length)
-        if return_parents:
-            full_parent_edges = np.logical_and(
-                    alive_edges,
-                    has_all_parents[edge_child_indiv])
-            parents = np.unique(np.column_stack(
-                            [edge_parent_indiv[full_parent_edges],
-                             edge_child_indiv[full_parent_edges]]
-                            ), axis=0)
-            return parents
-        else:
-            return has_all_parents
-
     def individual_parents(self):
         '''
         Finds all parent-child relationships in the tree sequence (as far as we
@@ -786,7 +652,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         :return: An array of individual IDs, with row [i, j] if individual i is
             a parent of individual j.
         '''
-        return self._do_individual_parents_stuff(return_parents=True)
+        _deprecation_warning("Please use pyslim.individual_parents(ts, ...) instead.")
+        return individual_parents(self)
 
     def has_individual_parents(self):
         '''
@@ -808,7 +675,8 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         :return: A boolean array of length equal to ``targets``.
         '''
-        return self._do_individual_parents_stuff(return_parents=False)
+        _deprecation_warning("Please use pyslim.has_individual_parents(ts, ...) instead.")
+        return has_individual_parents(self)
 
 
 def _set_nodes_individuals(tables, age):
@@ -1080,3 +948,377 @@ def update_tables(tables):
         md = tables.metadata
         md['SLiM']['file_version'] = slim_file_version
         tables.metadata = md
+
+
+def mutation_at(ts, node, position, time=None):
+    '''
+    Finds the mutation present in the genome of ``node`` at ``position``,
+    returning -1 if there is no such mutation recorded in the tree
+    sequence.  Warning: if ``node`` is not actually in the tree sequence
+    (e.g., not ancestral to any samples) at ``position``, then this
+    function will return -1, possibly erroneously.  If `time` is provided,
+    returns the last mutation at ``position`` inherited by ``node`` that
+    occurred at or before ``time`` ago.
+
+    :param TreeSequence ts: The tree sequence.
+    :param int node: The index of a node in the tree sequence.
+    :param float position: A position along the genome.
+    :param int time: The time ago that we want the nucleotide, or None,
+        in which case the ``time`` of ``node`` is used.
+
+    :returns: Index of the mutation in question, or -1 if none.
+    '''
+    if position < 0 or position >= ts.sequence_length:
+        raise ValueError("Position {} not valid.".format(position))
+    if node < 0 or node >= ts.num_nodes:
+        raise ValueError("Node {} not valid.".format(node))
+    if time is None:
+        time = ts.node(node).time
+    tree = ts.at(position)
+    site_pos = ts.tables.sites.position
+    out = tskit.NULL
+    if position in site_pos:
+        site_index = np.where(site_pos == position)[0][0]
+        site = ts.site(site_index)
+        mut_nodes = []
+        # look for only mutations that occurred before `time`
+        # not strictly necessary if time was None
+        for mut in site.mutations:
+            if mut.time >= time:
+                mut_nodes.append(mut.node)
+        n = node
+        while n > -1 and n not in mut_nodes:
+            n = tree.parent(n)
+        if n >= 0:
+            # do careful error checking here
+            for mut in site.mutations:
+                if mut.node == n:
+                    assert(out == tskit.NULL or out == mut.parent)
+                    out = mut.id
+    return out
+
+
+def nucleotide_at(ts, node, position, time=None):
+    '''
+    Finds the nucleotide present in the genome of ``node`` at ``position``.
+    Warning: if ``node`` is not actually in the tree sequence (e.g., not
+    ancestral to any samples) at ``position``, then this function will
+    return the reference sequence nucleotide, possibly erroneously.  If
+    `time` is provided, returns the last nucletide produced by a mutation
+    at ``position`` inherited by ``node`` that occurred at or before
+    ``time`` ago.
+
+    :param TreeSequence ts: The tree sequence.
+    :param int node: The index of a node in the tree sequence.
+    :param float position: A position along the genome.
+    :param int time: The time ago that we want the nucleotide, or None,
+        in which case the ``time`` of ``node`` is used.
+
+    :returns: Index of the nucleotide in ``NUCLEOTIDES`` (0=A, 1=C, 2=G, 3=T).
+    '''
+    if not ts.has_reference_sequence():
+        raise ValueError("This tree sequence has no reference sequence.")
+    mut_id = pyslim.mutation_at(ts, node, position, time)
+    if mut_id == tskit.NULL:
+        out = NUCLEOTIDES.index(ts.reference_sequence.data[int(position)])
+    else:
+        mut = ts.mutation(mut_id)
+        k = np.argmax([u["slim_time"] for u in mut.metadata["mutation_list"]])
+        out = mut.metadata["mutation_list"][k]["nucleotide"]
+    return out
+
+def individual_times_populations_ages(ts):
+    tables = ts.tables
+    times = np.zeros(ts.num_individuals)
+    populations = np.repeat(np.int32(-1), ts.num_individuals)
+    if not np.all(unique_labels_by_group(tables.nodes.individual,
+                                          tables.nodes.population)):
+        raise ValueError("Individual has nodes from more than one population.")
+    if not np.all(unique_labels_by_group(tables.nodes.individual,
+                                          tables.nodes.time)):
+        raise ValueError("Individual has nodes from more than one time.")
+    has_indiv = (tables.nodes.individual >= 0)
+    which_indiv = tables.nodes.individual[has_indiv]
+    # if we did not do the sanity check above then an individual with nodes in more than one pop
+    # would get the pop of their last node in the list
+    times[which_indiv] = tables.nodes.time[has_indiv]
+    populations[which_indiv] = tables.nodes.population[has_indiv]
+    if ts.metadata['SLiM']['model_type'] == "WF":
+        ages = np.zeros(ts.num_individuals, dtype='int')
+    else:
+        ages = tables.individuals.metadata_vector("age")
+    return times, populations, ages
+
+
+def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
+                         population=None, samples_only=False):
+    """
+    Returns an array giving the IDs of all individuals that are known to be
+    alive at the given time ago.  This is determined using their birth time
+    ago (given by their `time` attribute) and, for nonWF models,
+    their `age` attribute (which is equal to their age at the last time
+    they were Remembered). See also :meth:`.individual_ages_at`.
+
+    In WF models, birth occurs after "early()", so that individuals are only
+    alive during "late()" for the time step when they have age zero,
+    while in nonWF models, birth occurs before "early()", so they are alive
+    for both stages.
+    
+    In both WF and nonWF models, mortality occurs between
+    "early()" and "late()", so that individuals are last alive during the
+    "early()" stage of the time step of their final age, and if individuals
+    are alive during "late()" they will also be alive during "early()" of the
+    next time step. This means it is important to know during which stage
+    individuals were Remembered - for instance, if the call to
+    sim.treeSeqRememberIndividuals() was made during "early()" of a given time step,
+    then those individuals might not have survived until "late()" of that
+    time step. Since SLiM does not record the stage at which individuals
+    were Remembered, you can specify this by setting ``remembered_stages``:
+    it should be the stage during which *all* calls to
+    ``sim.treeSeqRememberIndividuals()``,  as well as to ``sim.treeSeqOutput()``,
+    were made.
+
+    Note also that in nonWF models, birth occurs before "early()", so the
+    possible parents in a given time step are those that are alive in
+    "early()" and have age greater than zero, or, equivalently, are alive in
+    "late()" during the previous time step.
+    In WF models, birth occurs after "early()", so possible parents in a
+    given time step are those that are alive during "early()" of that time
+    step or are alive during "late()" of the previous time step.
+
+    :param TreeSequence ts: The tree sequence.
+    :param float time: The number of time steps ago.
+    :param str stage: The stage in the SLiM life cycle that we are inquiring
+        about (either "early" or "late"; defaults to "late").
+    :param str remembered_stage: The stage in the SLiM life cycle
+        during which individuals were Remembered (defaults to the stage the
+        tree sequence was recorded at, stored in metadata).
+    :param int population: If given, return only individuals in the
+        population(s) with these population ID(s).
+    :param bool samples_only: Whether to return only individuals who have at
+        least one node marked as samples.
+    """
+    if stage not in ("late", "early"):
+        raise ValueError(f"Unknown stage '{stage}': "
+                          "should be either 'early' or 'late'.")
+
+    if remembered_stage is None:
+        remembered_stage = ts.metadata['SLiM']['stage']
+
+    if remembered_stage not in ("late", "early"):
+        raise ValueError(f"Unknown remembered_stage '{remembered_stage}': "
+                          "should be either 'early' or 'late'.")
+    if remembered_stage != ts.metadata['SLiM']['stage']:
+        warnings.warn(f"Provided remembered_stage '{remembered_stage}' does not"
+                      " match the stage at which the tree sequence was saved"
+                      f" ('{ts.metadata['SLiM']['stage']}'). This is not necessarily"
+                      " an error, but mismatched stages will lead to inconsistencies:"
+                      " make sure you know what you're doing.")
+
+    # birth_time is the time ago that they were first alive in 'late'
+    # in a nonWF model they are alive for the same time step's 'early'
+    # but in a WF model the first 'early' they were alive for is one more recent
+    birth_time, populations, ages = individual_times_populations_ages(ts)
+    # birth_time - birth_offset is the first time ago they were alive
+    # during stage 'stage'
+    if stage == "early" and ts.metadata['SLiM']['model_type'] == "WF":
+        birth_offset = 1
+    else:
+        birth_offset = 0
+    # ages is the number of complete life cycles they are known to have lived through,
+    # and so individuals have lived through at least 'age + 1' of both stages.
+    # In nonWF models, they live for one more 'early' than 'late',
+    # but this is only reflected in their age if Remembered in 'early'.
+    # So:
+    # ages + age_offset + 1 is the number of 'stage' stages they are known
+    # to have lived through
+    if (ts.metadata['SLiM']['model_type'] == "WF"
+            or stage == remembered_stage):
+        age_offset = 0
+    else:
+        if (remembered_stage == "early"
+                and stage == "late"):
+            age_offset = -1
+        else:
+            age_offset = 1
+    # if adjusted age=0 then they are be alive at exactly one time step
+    alive_bool = np.logical_and(
+            birth_time >= time + birth_offset,
+            birth_time - ages <= time + birth_offset + age_offset)
+
+    if population is not None:
+        alive_bool &= np.isin(populations, population)
+    if samples_only:
+        nodes = ts.tables.nodes
+        alive_bool &= (0 < np.bincount(1 + nodes.individual,
+                                       nodes.flags & tskit.NODE_IS_SAMPLE,
+                                       minlength=1 + ts.num_individuals)[1:])
+
+    return np.where(alive_bool)[0]
+
+
+def individual_ages_at(ts, time, stage="late", remembered_stage="late"):
+    """
+    Returns the `ages` of each individual at the corresponding time ago,
+    which will be ``nan`` if the individual is either not born yet or dead.
+    This is computed as the time ago the individual was born (found by the
+    `time` associated with the the individual's nodes) minus the `time`
+    argument; while "death" is inferred from the individual's ``age``,
+    recorded in metadata. These values are the same as what would be shown
+    in SLiM during the corresponding time step and stage.
+
+    Since age increments at the end of each time step,
+    the age is the number of time steps ends the individual has lived
+    through, so if they were born in time step `time`, then their age
+    will be zero.
+
+    In a WF model, this method does not provide any more information than
+    does :meth:`.individuals_alive_at`, but for consistency, non-nan ages
+    will be 0 in "late" and 1 in "early".
+    See :meth:`.individuals_alive_at` for further discussion.
+
+    :param TreeSequence ts: The tree sequence.
+    :param float time: The reference time ago.
+    :param str stage: The stage in the SLiM life cycle used to determine who
+        is alive (either "early" or "late"; defaults to "late").
+    :param str remembered_stage: The stage in the SLiM life cycle during which
+        individuals were Remembered.
+    """
+    ages = np.repeat(np.nan, ts.num_individuals)
+    alive = individuals_alive_at(
+                ts, time, stage=stage,
+                remembered_stage=remembered_stage
+    )
+    times, _, _ = individual_times_populations_ages(ts)
+    ages[alive] = times[alive] - time
+    return ages
+
+
+def slim_time(ts, time, stage="late"):
+    """
+    Converts the given "tskit times" (i.e., in units of time before the end
+    of the simulation) to SLiM times (those recorded by SLiM, usually in units
+    of generations since the start of the simulation). Although the latter are
+    always integers, these will not be if the provided times are not integers.
+
+    When the tree sequence is written out, SLiM records the value of its
+    current generation, which can be found in the metadata:
+    ``ts.metadata['SLiM']['generation']``. In most cases, the “SLiM time”
+    referred to by a time ago in the tree sequence (i.e., the value that would
+    be reported by sim.generation within SLiM at the point in time thus
+    referenced) can be obtained by subtracting that time ago from
+    ``ts.metadata['SLiM']['generation']``. However, in WF models, birth
+    happens between the “early()” and “late()” stages, so if the tree
+    sequence was written out using sim.treeSeqOutput() during “early()” in
+    a WF model, the tree sequence’s times measure time before the last set
+    of individuals are born, i.e., before SLiM time step
+    ``ts.metadata['SLiM']['generation'] - 1``.
+
+    In some situations (e.g., mutations added during early() in WF models)
+    this may not return what you expect. See :ref:`sec_metadata_converting_times`
+    for more discussion.
+
+    :param TreeSequence ts: The tree sequence.
+    :param array time: An array of times to be converted.
+    :param string stage: The stage of the SLiM life cycle that the SLiM time
+        should be computed for.
+    """
+    slim_time = ts.metadata['SLiM']['generation'] - time
+    if ts.metadata['SLiM']['model_type'] == "WF":
+        if (ts.metadata['SLiM']['stage'] == "early" and stage == "late"):
+            slim_time -= 1
+        if (ts.metadata['SLiM']['stage'] == "late" and stage == "early"):
+            slim_time += 1
+    return slim_time
+
+
+def _do_individual_parents_stuff(ts, return_parents=False):
+    # Helper for has_individual_parents and individual_parents,
+    # which share a lot of machinery.
+    tables = ts.tables
+    edges = tables.edges
+    nodes = tables.nodes
+    edge_parent_indiv = nodes.individual[edges.parent]
+    edge_child_indiv = nodes.individual[edges.child]
+    # nodes whose parent nodes are all in the same individual
+    unique_parent_nodes = unique_labels_by_group(
+            edges.child,
+            edge_parent_indiv,
+            minlength=nodes.num_rows)
+    unique_parent_edges = unique_parent_nodes[edges.child]
+    # edges describing relationships between individuals
+    indiv_edges = np.logical_and(
+            np.logical_and(edge_parent_indiv != tskit.NULL,
+                                 edge_child_indiv != tskit.NULL),
+            unique_parent_edges)
+    # individual edges where the parent was alive during "late"
+    # of the time step before the child is born
+
+    times, _, ages = individual_times_populations_ages(ts)
+    child_births = times[edge_child_indiv[indiv_edges]]
+    parent_births = times[edge_parent_indiv[indiv_edges]]
+    alive_edges = indiv_edges.copy()
+    if ts.metadata['SLiM']['model_type'] == "WF":
+        alive_edges[indiv_edges] = (child_births + 1 == parent_births)
+    else:
+        parent_deaths = parent_births - ages[edge_parent_indiv[indiv_edges]]
+        alive_edges[indiv_edges] = (child_births + 1 >= parent_deaths)
+    edge_spans = edges.right - edges.left
+    parental_span = np.bincount(edge_child_indiv[alive_edges],
+            weights=edge_spans[alive_edges], minlength=ts.num_individuals)
+    # we could also check for edges without individual parents terminating
+    # in this individual, but this is unnecessary as the entire genome is
+    # accounted for
+    has_all_parents = (parental_span == 2 * ts.sequence_length)
+    if return_parents:
+        full_parent_edges = np.logical_and(
+                alive_edges,
+                has_all_parents[edge_child_indiv])
+        parents = np.unique(np.column_stack(
+                        [edge_parent_indiv[full_parent_edges],
+                         edge_child_indiv[full_parent_edges]]
+                        ), axis=0)
+        return parents
+    else:
+        return has_all_parents
+
+
+def individual_parents(ts):
+    '''
+    Finds all parent-child relationships in the tree sequence (as far as we
+    can tell). The output will be a two-column array with row [i,j]
+    indicating that individual i is a parent of individual j.  See
+    :meth:`.has_individual_parents` for exactly which parents are returned.
+
+    See :meth:`.individuals_alive_at` for further discussion about how
+    this is determined based on when the individuals were Remembered.
+
+    :param TreeSequence ts: The tree sequence.
+    :return: An array of individual IDs, with row [i, j] if individual i is
+        a parent of individual j.
+    '''
+    return _do_individual_parents_stuff(ts, return_parents=True)
+
+
+def has_individual_parents(ts):
+    '''
+    Finds which individuals have both their parent individuals also present
+    in the tree sequence, as far as we can tell. To do this, we return a
+    boolean array with True for those individuals for which:
+
+    - all edges terminating in that individual's nodes are in individuals,
+    - each of the individual's nodes inherit from a single individual only,
+    - those parental individuals were alive when the individual was born,
+    - the parental individuals account for two whole genomes.
+
+    This returns a boolean array indicating for each individual whether all
+    these are true. Note in particular that individuals with only *one*
+    recorded parent are *not* counted as "having parents".
+
+    See :meth:`.individuals_alive_at` for further discussion about how
+    this is determined based on when the individuals were Remembered.
+
+    :param TreeSequence ts: The tree sequence.
+    :return: A boolean array of length equal to ``targets``.
+    '''
+    return _do_individual_parents_stuff(ts, return_parents=False)

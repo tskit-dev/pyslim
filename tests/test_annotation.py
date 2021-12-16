@@ -448,7 +448,7 @@ class TestReload(tests.PyslimTestCase):
         in_tables.sort()
         cleared_ts = pyslim.SlimTreeSequence(
                 in_tables.tree_sequence(),
-                )
+        )
         out_ts = helper_functions.run_slim_restart(cleared_ts, restart_name, tmp_path)
         out_tables = out_ts.dump_tables()
         out_tables.provenances.clear()

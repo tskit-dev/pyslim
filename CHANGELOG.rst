@@ -4,12 +4,34 @@
 
 **Breaking changes**:
 
-- 
+- `reference_sequence` is now a tskit attribute, no longer managed by pyslim.
+    It is no longer mutable on tree sequences (only TableCollections), and
+    previous calls to `ts.reference_sequence` to get the actual sequence
+    should be replaced by `ts.reference_sequence.data`.
+
+- `annotate_defaults` no longer returns a SlimTreeSequence; wrap the call
+    in `pyslim.SlimTreeSequence( )` to retain previous behavior.
+
+- Old-style "legacy" metadata (previously deprecated) has been removed.
+    See `the documentation <https://tskit.dev/pyslim/docs/previous_versions.html>`_
+    for instructions on migrating your code.
+
+- The `SlimTreeSequence` class is now deprecated, and using it produces a
+    warning, and will be removed at some point in the future (not soon).
 
 **New features**:
 
 - Added `pyslim.population_size( )` to compute an array giving numbers of
     individuals across a grid of space and time bins. ({user}giliapatterson)
+
+- `recapitate` is updated to use new demography features in msprime 1.0.
+
+- Methods of the SlimTreeSequence class are now methods of pyslim:
+    `recapitate`, `individual_parents`, `individual_ages_at`,
+    `has_individual_parents`, `individuals_alive_at`,
+    `mutation_at`, `nucleotide_at`, `slim_time`. For instance it is now
+    recommended to call `pyslim.recapitate(ts, ...)` instead of
+    `ts.recapitate(...)`.
 
 ********************
 [0.600] - 2021-02-24

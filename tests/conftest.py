@@ -3,6 +3,7 @@ import os
 import pytest
 import random
 import subprocess
+import warnings
 
 from filelock import FileLock
 import pyslim
@@ -54,7 +55,7 @@ class Outfiles:
             self.Outfile(
                 path=os.path.join(out_dir, "out.trees"),
                 slim_name="TREES_FILE",  # The var containing the path name for SLiM output
-                post_process=pyslim.load,  # function applied on path to create returned obj
+                post_process=load,  # function applied on path to create returned obj
                 key="ts",  # The key to use for the post-processed item in the returned dict
             ),
             self.Outfile(
@@ -64,6 +65,7 @@ class Outfiles:
                 key="info",
             ),
         ]
+
     def __getitem__(self, index):
         return self._outfiles[index]
 
@@ -78,6 +80,13 @@ class Outfiles:
                 res[o.key] = o.post_process(o.path) 
         return res
     
+
+def load(*args, **kwargs):
+    with warnings.catch_warnings():
+        # why isn't this suppressing the warnings??
+        warnings.simplefilter("ignore", FutureWarning)
+        ts = pyslim.load(*args, **kwargs)
+    return ts
 
 def run_slim(recipe, out_dir, recipe_dir="test_recipes", **kwargs):
     """

@@ -58,7 +58,7 @@ slim -s 5 rapid_adaptation.slim
 We can see what happened in the GUI,
 but let's pull some more statistics out of the tree sequence:
 ```{code-cell}
-ts = pyslim.load("rapid_adaptation.trees")
+ts = tskit.load("rapid_adaptation.trees")
 
 # allele frequencies
 p = ts.sample_count_stat(
@@ -78,7 +78,7 @@ We'll add SLiM mutations with "mutation type" 0
 so first we check that all the existing mutations are of a different type.
 
 ```{code-cell}
-rts = ts.recapitate(Ne=1000, recombination_rate=1e-8, random_seed=6)
+rts = pyslim.recapitate(ts, Ne=1000, recombination_rate=1e-8, random_seed=6)
 
 # check type m0 is not used:
 mut_types = set([md['mutation_type']
@@ -88,11 +88,10 @@ print(f"Keeping {rts.num_mutations} existing mutations of type(s) {mut_types}.")
 assert 0 not in mut_types
 
 # add type m0 mutations
-rts = pyslim.SlimTreeSequence(
-        msprime.sim_mutations(
+rts = msprime.sim_mutations(
             rts, rate=1e-8, random_seed=7, keep=True,
-            model=msprime.SLiMMutationModel(type=0))
-        )
+            model=msprime.SLiMMutationModel(type=0)
+)
 
 p = rts.sample_count_stat(
                 [rts.samples()], lambda x: x/20000, 1, windows='sites',
@@ -163,7 +162,7 @@ new_nodes = np.where(new_tables.nodes.time == new_time)[0]
 print(f"There are {len(new_nodes)} nodes from the start of the new simulation.")
 # There are 4425 nodes from the start of the new simulation.
 
-slim_indivs = rts.individuals_alive_at(0)
+slim_indivs = pyslim.individuals_alive_at(rts, 0)
 slim_nodes = []
 for ind in slim_indivs:
   slim_nodes.extend(ts.individual(ind).nodes)
@@ -189,7 +188,7 @@ tables.union(new_tables, node_map,
             check_shared_equality=False)
 
 # get back the tree sequence
-full_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
+full_ts = tables.tree_sequence()
 
 p = full_ts.sample_count_stat(
                 [full_ts.samples()], lambda x: x/20000, 1,
