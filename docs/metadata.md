@@ -276,24 +276,13 @@ so that now ``n.metadata`` would be a dict,
 with entries ``n.metadata["slim_id"]`` and ``n.metadata["is_null"]`` and ``n.metadata["genome_type"]``.
 Annotation should be done with tskit methods (e.g., ``packset_metadata``).
 
-For now, the old-style metadata is still available:
-passing the argument ``legacy_metadata=True`` to {meth}`load`
-will produce a tree sequence whose metadata is just as before,
-and so all previously-written scripts that depend on metadata processing should work, unchanged.
-Restating this:
+.. note::
 
-:::{note}
-   To make an script that relied on previous metadata parsing work,
-   it should suffice to add `legacy_metadata=True` to calls producing
-   SlimTreeSequences, e.g., replacing ``pyslim.load("file.trees")`` with
-   ``pyslim.load("file.trees", legacy_metadata=True)``, and
-   ``ts.simplify(nodes)`` with
-   ``pyslim.SlimTreeSequence(ts.simplify(nodes), legacy_metadata=True)``.
-   If this fails, please file an issue on github.
-:::
+    Until pyslim version 0.600, the old-style metadata was still available,
+    but this functionality has been removed.
 
 Here are more detailed notes on how to migrate a script from the legacy
-metadata handling.
+metadata handling. If you run into issues, please ask (open a discussion on github).
 
 **1.** Use top-level metadata instead of ``slim_provenance``:
 previously, information about the model type and the time counter (generation)

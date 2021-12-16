@@ -12,7 +12,7 @@ from ._version import *
 from .slim_metadata import *
 from .provenance import *
 from .util import *
-from .slim_metadata import _decode_mutation_pre_nucleotides, _old_metadata_schema
+from .slim_metadata import _old_metadata_schema
 
 INDIVIDUAL_ALIVE = 2**16
 INDIVIDUAL_REMEMBERED = 2**17
@@ -31,10 +31,15 @@ def load(path, legacy_metadata=False):
     Load the SLiM-compatible tree sequence found in the .trees file at ``path``.
 
     :param string path: The path to a .trees file.
-    :param bool legacy_metadata: If True, then the resulting tree sequence will
-        provide old-style metadata: as objects instead of dictionaries. This
-        option is deprecated and will dissappear at some point in the future.
     '''
+    if legacy_metadata:
+        raise ValueError(
+            "It looks like you're trying to use pyslim legacy metadata tools, "
+            "which are no longer supported. See `the documentation "
+            "<https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
+            "for how to update your script."
+    )
+
     ts = SlimTreeSequence.load(path, legacy_metadata=legacy_metadata)
     return ts
 
@@ -158,14 +163,17 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     :ivar reference_sequence: None, or an string of length equal to the sequence
         length that gives the entire reference sequence for nucleotide models.
-    :ivar legacy_metadata: Whether this tree sequence returns metadata in objects
-        (as in older versions of pyslim) rather than dicts: see
-        `the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_.
-        This option is deprecated and will disappear at some point.
     '''
 
     def __init__(self, ts, legacy_metadata=False):
-        self.legacy_metadata = legacy_metadata
+        if legacy_metadata:
+            raise ValueError(
+                "It looks like you're trying to use pyslim legacy metadata tools, "
+                "which are no longer supported. See `the documentation "
+                "<https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
+                "for how to update your script."
+        )
+
         if not (isinstance(ts.metadata, dict) and 'SLiM' in ts.metadata
                 and ts.metadata['SLiM']['file_version'] in compatible_slim_file_versions):
             tables = ts.dump_tables()
@@ -198,14 +206,12 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     def __getstate__(self):
         return {
-            'tables':self.dump_tables(),
-            'legacy_metadata': self.legacy_metadata,
+            'tables': self.dump_tables(),
         }
 
     def __setstate__(self, state):
         self.__init__(
             state['tables'].tree_sequence(),
-            state['legacy_metadata']
         )
 
     @property
@@ -309,14 +315,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the population (i.e., its index).
         '''
         pop = super(SlimTreeSequence, self).population(id_)
-        if self.legacy_metadata:
-            try:
-                pop.metadata = PopulationMetadata.fromdict(pop.metadata)
-            except:
-                pass
-        else:
-            if pop.metadata is not None:
-                pop.metadata = MetadataDictWrapper(pop.metadata)
+        if pop.metadata is not None:
+            pop.metadata = MetadataDictWrapper(pop.metadata)
         return pop
 
     def individual(self, id_):
@@ -333,13 +333,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         ind = super(SlimTreeSequence, self).individual(id_)
         ind.population = self.individual_populations[id_]
         ind.time = self.individual_times[id_]
-        if self.legacy_metadata:
-            try:
-                ind.metadata = IndividualMetadata.fromdict(ind.metadata)
-            except:
-                pass
-        else:
-            ind.metadata = MetadataDictWrapper(ind.metadata)
+        ind.metadata = MetadataDictWrapper(ind.metadata)
         return ind
 
     def node(self, id_):
@@ -352,14 +346,8 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the node (i.e., its index).
         '''
         node = super(SlimTreeSequence, self).node(id_)
-        if self.legacy_metadata:
-            try:
-                node.metadata = NodeMetadata.fromdict(node.metadata)
-            except:
-                pass
-        else:
-            if node.metadata is not None:
-                node.metadata = MetadataDictWrapper(node.metadata)
+        if node.metadata is not None:
+            node.metadata = MetadataDictWrapper(node.metadata)
         return node
 
     def mutation(self, id_):
@@ -373,13 +361,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         :param int id_: The ID of the mutation (i.e., its index).
         '''
         mut = super(SlimTreeSequence, self).mutation(id_)
-        if self.legacy_metadata:
-            try:
-                mut.metadata = [MutationMetadata.fromdict(x) for x in mut.metadata['mutation_list']]
-            except:
-                pass
-        else:
-            mut.metadata = MetadataDictWrapper(mut.metadata)
+        mut.metadata = MetadataDictWrapper(mut.metadata)
         return mut
 
     def recapitate(self,

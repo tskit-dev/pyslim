@@ -63,12 +63,6 @@ class Outfiles:
                 post_process=self.parse_pedigree_info,
                 key="info",
             ),
-            self.Outfile(
-                path=os.path.join(out_dir, "out.trees"),
-                slim_name="",  # Empty, therefore no need to pass to SLiM
-                post_process=lambda path: pyslim.load(path, legacy_metadata=True),
-                key="ts_legacy_metadata",
-            ),
         ]
     def __getitem__(self, index):
         return self._outfiles[index]
