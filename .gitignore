@@ -6,3 +6,5 @@ build/
 dist/
 *.pyc
 .DS_Store
+.coverage
+htmlcov

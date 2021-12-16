@@ -94,7 +94,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
         assert ts.metadata['SLiM']['generation'] >= np.max(ts.tables.nodes.time)
 
 
-    @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)    
+    @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)
     def test_set_tree_sequence_metadata_errors(self, recipe):
         tables = recipe["ts"].dump_tables()
         tables.metadata_schema = tskit.MetadataSchema(None)
@@ -102,7 +102,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
         with pytest.raises(ValueError):
             pyslim.set_tree_sequence_metadata(tables, "nonWF", 0)
 
-    @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)    
+    @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)
     def test_set_tree_sequence_metadata_keeps(self, recipe):
         # make sure doesn't overwrite other stuff
         for x in [{}, { 'properties': { 'abc': { 'type': 'string' } } }]:
@@ -127,7 +127,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
             assert tables.metadata['SLiM']['model_type'] == "nonWF"
             assert tables.metadata['SLiM']['generation'] == 0
 
-    @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)    
+    @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)
     def test_set_tree_sequence_metadata(self, recipe):
         tables = recipe["ts"].dump_tables()
         pyslim.set_tree_sequence_metadata(
@@ -146,16 +146,16 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
 
 
 
-    @pytest.mark.parametrize('recipe', recipe_eq("WF"), indirect=True)    
+    @pytest.mark.parametrize('recipe', recipe_eq("WF"), indirect=True)
     def test_WF_model_type(self, recipe):
         self.validate_model_type(recipe["ts"], "WF")
-        
-    @pytest.mark.parametrize('recipe', recipe_eq("nonWF"), indirect=True)    
+
+    @pytest.mark.parametrize('recipe', recipe_eq("nonWF"), indirect=True)
     def test_nonWF_model_type(self, recipe):
         self.validate_model_type(recipe["ts"], "nonWF")
-        
+
     @pytest.mark.parametrize(
-        'recipe', recipe_eq(exclude="user_metadata"), indirect=True)    
+        'recipe', recipe_eq(exclude="user_metadata"), indirect=True)
     def test_recover_metadata(self, recipe):
         # msprime <=0.7.5 discards metadata, but we can recover it from provenance
         ts = recipe["ts"]
@@ -165,7 +165,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
         new_ts = pyslim.load_tables(tables)
         assert new_ts.metadata == ts.metadata
 
-    @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)    
+    @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)
     def test_user_metadata(self, recipe):
         ts = recipe["ts"]
         md = ts.metadata["SLiM"]
@@ -175,7 +175,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                 "pi" : [3, 1, 4, 1, 5, 9]
                 }
 
-    @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)    
+    @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)
     def test_population_names(self, recipe):
         ts = recipe["ts"]
         md = ts.metadata["SLiM"]
@@ -253,6 +253,17 @@ class TestDumpLoad(tests.PyslimTestCase):
         if ts.has_reference_sequence():
             assert ts.reference_sequence.data == ts2.reference_sequence.data
 
+    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
+    def test_legacy_error(self, recipe, tmp_path):
+        tmp_file = os.path.join(tmp_path, "test_legacy.trees")
+        ts = recipe["ts"]
+        ts.dump(tmp_file)
+        with pytest.raises(ValueError, match="legacy metadata tools"):
+            _ = pyslim.load(tmp_file, legacy_metadata=True)
+        with pytest.raises(ValueError, match="legacy metadata tools"):
+            _ = pyslim.SlimTreeSequence(ts, legacy_metadata=True)
+
+
 
 class TestAlleles(tests.PyslimTestCase):
     '''
@@ -283,12 +294,12 @@ class TestNucleotides(tests.PyslimTestCase):
                 assert u["nucleotide"] <= 3
 
 
-@pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)    
+@pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
 class TestMetadataAttributeError(tests.PyslimTestCase):
     """
     These are all only tested on a single recipe, the first grabbed from recipe
     """
-    
+
     def test_population_error(self, recipe):
         ts = recipe["ts"]
         for x in ts.populations():

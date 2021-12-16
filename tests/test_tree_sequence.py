@@ -90,8 +90,6 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
         ts = pyslim.SlimTreeSequence(ts)
         roundtripped = pickle.loads(pickle.dumps(ts))
         assert roundtripped == ts
-        # __eq__ doesn't check pyslim properties:
-        assert roundtripped.legacy_metadata == ts.legacy_metadata
 
 
 class TestSlimTime(tests.PyslimTestCase):
