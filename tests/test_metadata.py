@@ -135,7 +135,8 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                 spatial_dimensionality='xy',
                 spatial_periodicity='y',
                 separate_sexes=False,
-                nucleotide_based=True)
+                nucleotide_based=True
+        )
         self.validate_slim_metadata(tables)
         assert tables.metadata['SLiM']['model_type'] == "WF"
         assert tables.metadata['SLiM']['generation'] == 99

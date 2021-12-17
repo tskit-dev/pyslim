@@ -566,9 +566,10 @@ demography.add_migration_rate_change(
     time=orig_ts.metadata['SLiM']['generation'],
     rate=0.1, source="p2", dest="p1",
 )
-rts = pyslim.recapitate(orig_ts, demography=demography,
-                        recombination_rate=1e-8,
-                        random_seed=4
+rts = pyslim.recapitate(
+        orig_ts, demography=demography,
+        recombination_rate=1e-8,
+        random_seed=4
 )
 ts = pyslim.SlimTreeSequence(
         msprime.sim_mutations(
@@ -685,8 +686,9 @@ and {attr}`.SlimTreeSequence.individual_populations` as follows:
 ```{code-cell}
 alive = ts.individuals_alive_at(0)
 adults = alive[ts.individual_ages[alive] > 2]
-pops = [np.where(
-          ts.individual_populations[adults] == k)[0] for k in [1, 2]]
+pops = [
+    np.where(ts.individual_populations[adults] == k)[0] for k in [1, 2]
+]
 sample_inds = [np.random.choice(pop, 10, replace=False) for pop in pops]
 sample_nodes = []
 for samp in sample_inds:

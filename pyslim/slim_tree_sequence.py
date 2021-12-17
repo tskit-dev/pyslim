@@ -26,6 +26,17 @@ INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 
 
+def _deprecation_warning(w):
+    warnings.warn(
+        "The SlimTreeSequence class is being phased out, "
+        "as most important functionality is provided by tskit. "
+        "Please see the "
+        "`documentation <https://tskit.dev/pyslim/latest/previous_versions.html>`_. "
+        f"{w}",
+        FutureWarning
+    )
+
+
 def load(path, legacy_metadata=False):
     '''
     Load the SLiM-compatible tree sequence found in the .trees file at ``path``.
@@ -36,11 +47,11 @@ def load(path, legacy_metadata=False):
         raise ValueError(
             "It looks like you're trying to use pyslim legacy metadata tools, "
             "which are no longer supported. See `the documentation "
-            "<https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
+            "<https://tskit.dev/pyslim/pyslim/latest/metadata.html#legacy-metadata>`_"
             "for how to update your script."
     )
 
-    ts = SlimTreeSequence.load(path, legacy_metadata=legacy_metadata)
+    ts = SlimTreeSequence.load(path)
     return ts
 
 
@@ -119,11 +130,12 @@ class MetadataDictWrapper(dict):
     def __getattr__(self, name):
         if name in self.keys():
             raise AttributeError(
-                    f"'dict' object has no attribute '{name}'. "
-                    "It looks like you're trying to use the legacy "
-                    "metadata interface: see "
-                    "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_ "
-                    "for how to switch over your script")
+                f"'dict' object has no attribute '{name}'. "
+                "It looks like you're trying to use the legacy "
+                "metadata interface: see the "
+                "`documentation <https://tskit.dev/pyslim/latest/previous_versions.html#legacy-metadata>`_ "
+                "for how to switch over your script"
+            )
         else:
             raise AttributeError(f"'dict' object has no attribute '{name}'")
 
@@ -133,10 +145,12 @@ class MetadataDictWrapper(dict):
         except KeyError as e:
             if isinstance(key, int):
                 msg = e.args[0]
-                e.args = (f"{msg}: It looks like you're trying to use the legacy "
-                           "metadata interface: see "
-                           "`the documentation <https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_ "
-                           "for how to switch over your script",)
+                e.args = (
+                    f"{msg}: It looks like you're trying to use the legacy "
+                    "metadata interface: see the "
+                    "`documentation <https://tskit.dev/pyslim/latest/previous_versions.html#legacy-metadata>`_ "
+                    "for how to switch over your script",
+                )
             raise e
 
 
@@ -170,7 +184,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             raise ValueError(
                 "It looks like you're trying to use pyslim legacy metadata tools, "
                 "which are no longer supported. See `the documentation "
-                "<https://pyslim.readthedocs.io/en/latest/metadata.html#legacy-metadata>`_"
+                "<https://tskit.dev/pyslim/latest/metadata.html#legacy-metadata>`_"
                 "for how to update your script."
         )
 
@@ -186,7 +200,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         self.individual_locations = ts.tables.individuals.location
         self.individual_locations.shape = (int(len(self.individual_locations)/3), 3)
         self.individual_ages = np.zeros(ts.num_individuals, dtype='int')
-        if self.model_type != "WF":
+        if self.metadata['SLiM']['model_type'] != "WF":
             self.individual_ages = np.fromiter(map(lambda ind: ind.metadata['age'], ts.individuals()), dtype='int64')
 
         self.individual_times = np.zeros(ts.num_individuals)
@@ -216,16 +230,17 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     @property
     def slim_generation(self):
-        # return self.metadata['SLiM']['generation']
+        _deprecation_warning("Please access ts.metadata['SLiM']['generation'] instead.")
         return self._slim_generation
 
     @slim_generation.setter
     def slim_generation(self, value):
-        # TODO: throw a deprecation warning here after stdpopsim updates
+        _deprecation_warning("Please access ts.metadata['SLiM']['generation'] instead.")
         self._slim_generation = value
 
     @property
     def model_type(self):
+        _deprecation_warning("Please access ts.metadata['SLiM']['model_type'] instead.")
         return self.metadata['SLiM']['model_type']
 
     @classmethod
@@ -254,17 +269,17 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     def dump(self, path, **kwargs):
         '''
-        Dumps the tree sequence to the path specified. This is mostly just a wrapper for
-        :func:`tskit.TreeSequence.dump`, but also writes out the reference sequence.
+        Dumps the tree sequence to the path specified. This is only a wrapper
+        :func:`tskit.TreeSequence.dump`.
 
         :param str path: The file path to write the TreeSequence to.
         :param kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
         '''
         # temporary until we remove support for setting slim_generation
-        if self.slim_generation != self.metadata['SLiM']['generation']:
+        if self._slim_generation != self.metadata['SLiM']['generation']:
             tables = self.dump_tables()
             md = tables.metadata
-            md['SLiM']['generation'] = self.slim_generation
+            md['SLiM']['generation'] = self._slim_generation
             tables.metadata = md
             tables.dump(path, **kwargs)
         else:
@@ -282,10 +297,10 @@ class SlimTreeSequence(tskit.TreeSequence):
         :rtype SlimTreeSequence:
         '''
         # temporary until we remove support for setting slim_generation
-        if self.slim_generation != self.metadata['SLiM']['generation']:
+        if self._slim_generation != self.metadata['SLiM']['generation']:
             tables = self.dump_tables()
             md = tables.metadata
-            md['SLiM']['generation'] = self.slim_generation
+            md['SLiM']['generation'] = self._slim_generation
             tables.metadata = md
             # note we have to go to a tree sequence to get the map_nodes argument
             sts = tables.tree_sequence().simplify(*args, **kwargs)
@@ -407,6 +422,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         if "keep_first_generation" in kwargs:
             raise ValueError("The keep_first_generation argument is deprecated: "
                              "the FIRST_GEN flag is no longer used.")
+        _deprecation_warning("Please use pyslim.recapitate( ) instead.")
 
         if recombination_map is None:
             recombination_map = msprime.RecombinationMap(
@@ -418,10 +434,10 @@ class SlimTreeSequence(tskit.TreeSequence):
             population_configurations = [msprime.PopulationConfiguration()
                                          for _ in range(self.num_populations)]
         # temporary until we remove support for setting slim_generation
-        if self.slim_generation != self.metadata['SLiM']['generation']:
+        if self._slim_generation != self.metadata['SLiM']['generation']:
             tables = self.dump_tables()
             md = tables.metadata
-            md['SLiM']['generation'] = self.slim_generation
+            md['SLiM']['generation'] = self._slim_generation
             tables.metadata = md
             ts = tables.tree_sequence()
         else:

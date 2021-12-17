@@ -519,7 +519,7 @@ To do this, we'll compute two standard measures of genetic diversity
 in windows along the genome:
 nucleotide diverstiy (also called "Tajima's {math}`\pi`" or "mean density of pairwise differences"),
 and Tajima's {math}`D` (with no known aliases).
-This is easy to do thanks to the (statistics methods in tskit)[https://tskit.readthedocs.io/en/latest/stats.html].
+This is easy to do thanks to the (statistics methods in tskit)[https://tskit.dev/tskit/docs/stable/stats.html].
 
 ```{code-cell}
 windows = np.linspace(0, mts.sequence_length, 21)

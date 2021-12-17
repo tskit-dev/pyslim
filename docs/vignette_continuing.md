@@ -78,7 +78,7 @@ We'll add SLiM mutations with "mutation type" 0
 so first we check that all the existing mutations are of a different type.
 
 ```{code-cell}
-rts = ts.recapitate(Ne=1000, recombination_rate=1e-8, random_seed=6)
+rts = pyslim.recapitate(ts, ancestral_Ne=1000, recombination_rate=1e-8, random_seed=6)
 
 # check type m0 is not used:
 mut_types = set([md['mutation_type']

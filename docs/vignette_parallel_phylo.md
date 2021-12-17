@@ -314,11 +314,9 @@ subsample_nodes = [
     np.concatenate([tsu.individual(i).nodes for i in x])
     for x in subsample_indivs
 ]
-tsus = pyslim.SlimTreeSequence(
-    tsu.simplify(
+tsus = tsu.simplify(
         np.concatenate(subsample_nodes),
         filter_populations=False,
-    )
 )
 pop_labels = {v: k for k, v in pop_ids.items()}
 SVG(tsus.draw_svg(
