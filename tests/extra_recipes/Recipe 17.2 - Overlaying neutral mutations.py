@@ -4,7 +4,8 @@
 
 import msprime, pyslim
 
-ts = pyslim.load("./recipe_17.1.trees").simplify()
+ts = pyslim.load("./recipe_17.1.trees")
+ts = ts.simplify()
 
 ## EDIT FOR TESTING
 asserted = False

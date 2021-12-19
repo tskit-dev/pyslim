@@ -36,8 +36,13 @@ check : recipe_17.1_overlaid.log recipe_17.3.log recipe_17.4.png recipe_17.5.png
 clean :
 	-rm -f *.trees *.log *.png
 
+sanitize : 
+	for x in *; do mv -v "$x" "${x/:/-}"; done
+	for x in *; do mv -v "$x" "${x/(/-}"; done
+	for x in *; do mv -v "$x" "${x/)/-}"; done
+
 recipe_17.1.trees : Recipe\ 17.1\ -\ A\ minimal\ tree-seq\ model.txt
-	slim -s 0 "$<" &> $@.log
+	slim -s 5 "$<" &> $@.log
 
 recipe_17.1_overlaid.trees : Recipe\ 17.2\ -\ Overlaying\ neutral\ mutations.py recipe_17.1.trees
 	python3 "$<"
@@ -51,10 +56,10 @@ slim_2345_FIXED.trees : Recipe\ 17.3\ -\ Simulation\ conditional\ upon\ fixation
 recipe_17.3.log : slim_2345_FIXED.trees
 	./check_trees.py $< > $@
 
-recipe_17.4.trees : Recipe\ 17.4\ -\ Detecting\ the\ "dip\ in\ diversity"\ (analyzing\ tree\ heights\ in\ Python)\ I.txt
+recipe_17.4.trees : Recipe\ 17.4\ -\ Detecting\ the\ dip\ in\ diversity\ (analyzing\ tree\ heights\ in\ Python)\ I.txt
 	slim -s 2345 '$<' &> $@.log
 
-recipe_17.4.png : Recipe\ 17.4\ -\ Detecting\ the\ "dip\ in\ diversity"\ (analyzing\ tree\ heights\ in\ Python)\ II.py recipe_17.4.trees
+recipe_17.4.png : Recipe\ 17.4\ -\ Detecting\ the\ dip\ in\ diversity\ (analyzing\ tree\ heights\ in\ Python)\ II.py recipe_17.4.trees
 	python3 '$<'
 
 recipe_17.5.trees: Recipe\ 17.5\ -\ Mapping\ admixture\ (analyzing\ ancestry\ in\ Python)\ I.txt
