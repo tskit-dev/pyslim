@@ -6,9 +6,11 @@ jupytext:
     format_version: 0.12
     jupytext_version: 1.9.1
 kernelspec:
-  display_name: Python 3
-  language: python
-  name: python3
+    display_name: Python 3
+    language: python
+    name: python3
+execution:
+    timeout: 90
 ---
 
 ```{code-cell}
