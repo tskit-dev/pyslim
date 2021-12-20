@@ -163,12 +163,7 @@ new_nodes = np.where(new_tables.nodes.time == new_time)[0]
 print(f"There are {len(new_nodes)} nodes from the start of the new simulation.")
 # There are 4425 nodes from the start of the new simulation.
 
-slim_indivs = rts.individuals_alive_at(0)
-slim_nodes = []
-for ind in slim_indivs:
-  slim_nodes.extend(ts.individual(ind).nodes)
-
-slim_nodes = np.array(slim_nodes)
+slim_nodes = rts.samples(time=0)
 assert(len(slim_nodes) == 20000)
 
 # randomly give new_nodes IDs in rts

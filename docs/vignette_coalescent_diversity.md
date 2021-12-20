@@ -315,11 +315,7 @@ times = list(set(ts.individual_times))
 times.sort()
 print("The times ago at which individuals in the tree sequence were born:", times)
 # The times ago at which individuals in the tree sequence were born: [0.0, 100.0]
-inds_by_time = [ts.individuals_alive_at(t) for t in times]
-nodes_by_time = []
-for inds in inds_by_time:
-  nodes = np.array([ts.individual(i).nodes for i in inds]).flatten()
-  nodes_by_time.append(nodes)
+nodes_by_time = [ts.samples(time=t) for t in times]
 
 num_nodes = np.array([len(x) for x in nodes_by_time])
 p = ts.sample_count_stat(nodes_by_time, lambda x: x/num_nodes, 2, windows='sites',

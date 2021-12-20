@@ -588,13 +588,7 @@ To do this, we need to extract the node IDs from the individuals of the two popu
 that are alive at the end of the simulation.
 
 ```{code-cell}
-pop_indivs = [[], [], []]
-pop_nodes = [[], [], []]
-for i in ts.individuals_alive_at(0):
-  ind = ts.individual(i)
-  pop_indivs[ind.population].append(i)
-  pop_nodes[ind.population].extend(ind.nodes)
-
+pop_nodes = [ts.samples(population=p, time=0) for p in range(ts.num_populations)]
 diversity = ts.diversity(pop_nodes[1:])
 divergence = ts.divergence(pop_nodes[1:])
 
