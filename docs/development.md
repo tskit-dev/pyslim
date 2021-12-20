@@ -35,12 +35,12 @@ python -m pytest tests
 
 If you would like to add some features to ``pyslim``, please read the
 following. If you think there is anything missing,
-please open an `issue <http://github.com/tskit-dev/pyslim/issues>`_ or
-`pull request <http://github.com/tskit-dev/pyslim/pulls>`_ on GitHub!
+please open an [issue](http://github.com/tskit-dev/pyslim/issues>) or
+[pull request](http://github.com/tskit-dev/pyslim/pulls>) on GitHub!
 
 ## Quickstart
 
-- Make a fork of the pyslim repo on `GitHub <http://github.com/tskit-dev/pyslim>`_
+- Make your own fork of the pyslim repo on [GitHub](http://github.com/tskit-dev/pyslim>)
 - Clone your fork into a local directory:
 
 ```bash
@@ -55,3 +55,6 @@ git clone git@github.com:YOUR_GITHUB/pyslim.git
   are ready. Please make sure that (a) the tests pass before you open the pull request; and
   (b) your code passes PEP8 checks before opening the pull request.
 
+For a more detailed walkthrough of development methods,
+see [the stdpopsim documentation](https://popsim-consortium.github.io/stdpopsim-docs/latest/development.html#github-workflow)
+and/or [the tskit documentation](https://tskit.dev/tskit/docs/latest/development.html#workflow).

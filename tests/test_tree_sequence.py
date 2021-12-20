@@ -543,7 +543,8 @@ class TestHasIndividualParents(tests.PyslimTestCase):
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_post_simplify(self, recipe):
         ts = recipe["ts"]
-        keep_indivs = np.random.choice(
+        rng = np.random.default_rng(seed=3)
+        keep_indivs = rng.choice(
                 np.where(ts.individual_times < ts.metadata['SLiM']['generation'] - 1)[0],
                 size=30, replace=False)
         keep_nodes = []
