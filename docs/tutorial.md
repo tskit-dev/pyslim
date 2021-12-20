@@ -588,13 +588,7 @@ To do this, we need to extract the node IDs from the individuals of the two popu
 that are alive at the end of the simulation.
 
 ```{code-cell}
-pop_indivs = [[], [], []]
-pop_nodes = [[], [], []]
-for i in ts.individuals_alive_at(0):
-  ind = ts.individual(i)
-  pop_indivs[ind.population].append(i)
-  pop_nodes[ind.population].extend(ind.nodes)
-
+pop_nodes = [ts.samples(population=p, time=0) for p in range(ts.num_populations)]
 diversity = ts.diversity(pop_nodes[1:])
 divergence = ts.divergence(pop_nodes[1:])
 
@@ -687,7 +681,8 @@ and {attr}`.SlimTreeSequence.individual_populations` as follows:
 alive = ts.individuals_alive_at(0)
 adults = alive[ts.individual_ages[alive] > 2]
 pops = [
-    np.where(ts.individual_populations[adults] == k)[0] for k in [1, 2]
+   [i for i in adults if ts.individual(i).metadata['subpopulation'] == k]
+   for k in [1, 2]
 ]
 sample_inds = [np.random.choice(pop, 10, replace=False) for pop in pops]
 sample_nodes = []
@@ -696,6 +691,11 @@ for samp in sample_inds:
      sample_nodes.extend(ts.individual(i).nodes)
 sub_ts = ts.simplify(sample_nodes)
 ```
+
+Note that here we have used the *subpopulation* attribute that SLiM places in metadata
+to find out where each individual lives at the end of the simulation.
+We might alternatively have used the *population* attribute of Nodes -
+but, this would give each individual's *birth* location.
 
 The resulting tree sequence does indeed have fewer individuals and fewer trees:
 

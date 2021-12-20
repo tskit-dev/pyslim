@@ -170,6 +170,9 @@ class SlimTreeSequence(tskit.TreeSequence):
     in the tree sequence: either the last time they were Remembered, or at the end
     of the simulation, if they are still alive then.
 
+    However, `.individual_populations` gives individuals' birth populations;
+    for their final location use the subpopulation attribute of metadata.
+
     You can create a :class:`.SlimTreeSequence` using one of
 
     - :meth:`.SlimTreeSequence.load_tables`, :meth:`.SlimTreeSequence.load`,
