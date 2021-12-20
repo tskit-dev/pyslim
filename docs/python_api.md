@@ -13,13 +13,12 @@ kernelspec:
 
 ```{code-cell}
 :tags: [remove-cell]
+import pyslim, tskit, msprime
+from IPython.display import SVG
+import numpy as np
 
-    import pyslim, tskit, msprime
-    from IPython.display import SVG
-    import numpy as np
-
-    ts = pyslim.load("example_sim.trees")
-    tables = ts.tables
+ts = pyslim.load("example_sim.trees")
+tables = ts.tables
 ```
 
 ```{eval-rst}
@@ -33,11 +32,7 @@ kernelspec:
 
 This page provides detailed documentation for the methods and classes
 available in pyslim.
-
-## Editing or adding to tree sequences
-
-``pyslim`` provides tools for transforming tree sequences:
-
+Here is a quick reference to some of the methods:
 
 ```{eval-rst}
 .. autosummary::
@@ -45,8 +40,31 @@ available in pyslim.
   recapitate
   convert_alleles
   generate_nucleotides
-  annotate_defaults
   update_tables
+  population_size
+  default_slim_metadata
+```
+
+
+## Editing or adding to tree sequences
+
+``pyslim`` provides tools for transforming tree sequences:
+
+
+```{eval-rst}
+.. autofunction:: recapitate
+```
+
+```{eval-rst}
+.. autofunction::  convert_alleles
+```
+
+```{eval-rst}
+.. autofunction::  generate_nucleotides
+```
+
+```{eval-rst}
+.. autofunction::  update_tables
 ```
 
 ## Summarizing tree sequences
@@ -54,9 +72,7 @@ available in pyslim.
 Additionally, ``pyslim`` contains the following methods:
 
 ```{eval-rst}
-.. autosummary::
-
-  population_size
+.. autofunction::  population_size
 ```
 
 
