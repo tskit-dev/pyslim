@@ -2,15 +2,20 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+********************
+[0.700] - 2021-02-24
+********************
+
 **Breaking changes**:
 
 - `pyslim.recapitate` is updated to use new demography features in msprime 1.0,
-    and differs from `SlimTreeSequence.recapitate()` (now deprecated). The
-    argument `Ne` is removed; use `ancestral_Ne`.
+    and differs from `SlimTreeSequence.recapitate()` (now deprecated). Since
+    the backend is now `msprime.sim_ancestry()` instead of `msprime.simulate()`,
+    the argument `Ne` should be replaced with `ancestral_Ne`.
 
-- `reference_sequence` is now a tskit attribute, no longer managed by pyslim.
-    It is no longer mutable on tree sequences (only TableCollections), and
-    previous calls to `ts.reference_sequence` to get the actual sequence
+- `reference_sequence` is now a tskit TreeSequence attribute, no longer managed
+    by pyslim. It is no longer mutable on tree sequences (only TableCollections),
+    and previous calls to `ts.reference_sequence` to get the actual sequence
     should be replaced by `ts.reference_sequence.data`.
 
 - Old-style "legacy" metadata (previously deprecated) has been removed.
