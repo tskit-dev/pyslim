@@ -20,7 +20,6 @@ tables.individuals.packset_metadata(
         [ims.validate_and_encode_row(md) for md in individual_metadata])
 
 # add selected mutation
-
 mut_ind_id = random.choice(range(tables.individuals.num_rows))
 mut_node_id = random.choice(np.where(tables.nodes.individual == mut_ind_id)[0])
 mut_node = tables.nodes[mut_node_id]

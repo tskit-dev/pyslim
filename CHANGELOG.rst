@@ -4,12 +4,25 @@
 
 **Breaking changes**:
 
-- 
+- `pyslim.recapitate` is updated to use new demography features in msprime 1.0,
+    and differs from `SlimTreeSequence.recapitate()` (now deprecated). The
+    argument `Ne` is removed; use `ancestral_Ne`.
+
+- `reference_sequence` is now a tskit attribute, no longer managed by pyslim.
+    It is no longer mutable on tree sequences (only TableCollections), and
+    previous calls to `ts.reference_sequence` to get the actual sequence
+    should be replaced by `ts.reference_sequence.data`.
+
+- Old-style "legacy" metadata (previously deprecated) has been removed.
+    See `the documentation <https://tskit.dev/pyslim/docs/previous_versions.html>`_
+    for instructions on migrating your code.
+
 
 **New features**:
 
 - Added `pyslim.population_size( )` to compute an array giving numbers of
     individuals across a grid of space and time bins. ({user}giliapatterson)
+
 
 ********************
 [0.600] - 2021-02-24

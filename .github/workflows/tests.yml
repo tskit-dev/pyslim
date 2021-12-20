@@ -31,13 +31,14 @@ jobs:
       - name: Cache conda and dependancies
         id: cache
         uses: actions/cache@v2
+        env:
+          # Increase this to reset the cache if the key hasn't changed.
+          CACHE_NUM: 2
         with:
           path: |
-            c:\Miniconda\envs\anaconda-client-env
-            /usr/share/miniconda/envs/anaconda-client-env
-            ~/osx-conda
-            ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v10-${{ hashFiles('requirements/CI/pip-requirements.txt') }}-${{ hashFiles('requirements/CI/conda-requirements.txt') }}
+            ${{ steps.find-conda.outputs.CONDA }}/envs/${{ env.CONDA_ENV_NAME }}
+            ~/.bash_profile
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v10-${{ hashFiles('requirements/CI/pip-requirements.txt') }}-${{ hashFiles('requirements/CI/conda-requirements.txt') }}-${{ env.CACHE_NUM }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
@@ -58,7 +59,11 @@ jobs:
       - name: Install conda deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
-        run: conda install --yes --file=requirements/CI/conda-requirements.txt
+        run: |
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            conda install --yes slim
+          fi
+          conda install --yes --file=requirements/CI/conda-requirements.txt
 
       - name: Install pip deps
         if: steps.cache.outputs.cache-hit != 'true'
@@ -76,13 +81,14 @@ jobs:
           mkdir -p /usr/local/miniconda/envs
           sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
 
-      - name: Build SLiM
-        run: |
-          git clone https://github.com/messerlab/SLiM.git
-          mkdir -p SLiM/Release
-          cd SLiM/Release
-          cmake -D CMAKE_BUILD_TYPE=Release ..
-          make -j 2
+# Installing SLiM from conda now.
+#      - name: Build SLiM
+#        run: |
+#          git clone https://github.com/messerlab/SLiM.git
+#          mkdir -p SLiM/Release
+#          cd SLiM/Release
+#          cmake -D CMAKE_BUILD_TYPE=Release ..
+#          make -j 2
 
       - name: Run tests
         run: |
@@ -91,5 +97,13 @@ jobs:
           export PATH=$PATH:$PWD/SLiM/Release
           pytest -xv -n2
 
+      - name: Build docs
+        run: |
+          source ~/.profile
+          conda activate anaconda-client-env
+          export PATH=$PATH:$PWD/SLiM/Release
+          touch docs/_static/{pedigree0.svg,pedigree1.svg,pedigree2.svg,pedigree_recapitate.svg,pedigree_simplify.svg,pedigree_mutate.svg}
+          touch docs/_static/{pedigree01.png,pedigree0.png,pedigree1.png,pedigree2.png,pedigree_recapitate.png,pedigree_simplify.png,pedigree_mutate.png}
+          cd docs && make
 
 

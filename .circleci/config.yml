@@ -48,38 +48,8 @@ jobs:
             - "/home/circleci/.local"
 
       - run:
-          name: Build docs
-          command: |
-            # don't re-generate these which require tricky prerequisites (inkscape, xmlstarlet)
-            touch docs/_static/{pedigree0.svg,pedigree1.svg,pedigree2.svg,pedigree_recapitate.svg,pedigree_simplify.svg,pedigree_mutate.svg}
-            touch docs/_static/{pedigree01.png,pedigree0.png,pedigree1.png,pedigree2.png,pedigree_recapitate.png,pedigree_simplify.png,pedigree_mutate.png}
-            cd docs && make
-
-      - run:
-          name: Run Python tests
-          command: |
-            PYTHONPATH=python pytest --cov=pyslim --cov-report=xml --cov-branch \
-              -n 1 tests
-
-      - run:
           name: Upload Python coverage
           command: |
             bash <(curl -s https://codecov.io/bash) -X gcov -n python_tests
             # Clean up reports so we don't upload them twice.
             rm -f coverage.xml
-
-      - run:
-          name: Build Python package
-          command: |
-            rm -fR build
-            python setup.py sdist
-            python setup.py check
-            python -m twine check dist/*.tar.gz
-            python -m venv venv
-            source venv/bin/activate
-            pip install --upgrade setuptools pip wheel
-            python setup.py build_ext
-            python setup.py egg_info
-            python setup.py bdist_wheel
-            pip install dist/*.tar.gz
-            python3 -c "import pyslim; print(pyslim.__version__)"

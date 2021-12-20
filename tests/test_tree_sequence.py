@@ -3,9 +3,9 @@ Test cases for tree sequences.
 """
 import pickle
 import random
+import numpy as np
 import os
 
-import numpy as np
 import pytest
 import tskit
 import msprime
@@ -68,15 +68,19 @@ class TestSlimTreeSequence(tests.PyslimTestCase):
     def test_slim_generation(self, recipe, tmp_path):
         # tests around awkward backwards-compatible patch for setting slim_generation
         ts = recipe["ts"]
-        assert ts.slim_generation == ts.metadata['SLiM']['generation']
+        with pytest.warns(FutureWarning):
+            assert ts.slim_generation == ts.metadata['SLiM']['generation']
         new_sg = 12345
-        ts.slim_generation = new_sg
-        assert ts.slim_generation == new_sg
+        with pytest.warns(FutureWarning):
+            ts.slim_generation = new_sg
+        with pytest.warns(FutureWarning):
+            assert ts.slim_generation == new_sg
         # check persists through dump/load
         temp_file = tmp_path / "temp.trees"
         ts.dump(temp_file.name)
         loaded_ts = pyslim.load(temp_file.name)
-        assert loaded_ts.slim_generation == new_sg
+        with pytest.warns(FutureWarning):
+            assert loaded_ts.slim_generation == new_sg
         assert loaded_ts.metadata['SLiM']['generation'] == new_sg
         # check persists through recapitate
         recap = self.do_recapitate(ts, recombination_rate=1e-8, ancestral_Ne=10)
@@ -245,7 +249,8 @@ class TestRecapitate(tests.PyslimTestCase):
     def test_old_recapitate_errors(self, recipe):
         ts = recipe["ts"]
         with pytest.raises(ValueError):
-            _ = ts.recapitate(
+            with pytest.warns(FutureWarning):
+                _ = ts.recapitate(
                         recombination_rate=0.0,
                         keep_first_generation=True)
 
@@ -254,14 +259,16 @@ class TestRecapitate(tests.PyslimTestCase):
         if ts.num_populations <= 2:
             # if not we need migration rates
             recomb_rate = 1.0 / ts.sequence_length
-            recap = ts.recapitate(recombination_rate=recomb_rate)
+            with pytest.warns(FutureWarning):
+                recap = ts.recapitate(recombination_rate=recomb_rate)
             # there should be no new mutations
             assert ts.num_mutations == recap.num_mutations
             assert ts.num_sites == recap.num_sites
             assert list(ts.tables.sites.position) == list(recap.tables.sites.position)
             self.check_recap_consistency(ts, recap)
 
-            recap = ts.recapitate(recombination_rate=recomb_rate, Ne=1e-6)
+            with pytest.warns(FutureWarning):
+                recap = ts.recapitate(recombination_rate=recomb_rate, Ne=1e-6)
             self.check_recap_consistency(ts, recap)
             if ts.metadata['SLiM']['generation'] < 200:
                 for t in recap.trees():
@@ -272,7 +279,8 @@ class TestRecapitate(tests.PyslimTestCase):
                        positions = [0.0, ts.sequence_length],
                        rates = [recomb_rate, 0.0],
                        num_loci=int(ts.sequence_length))
-            recap = ts.recapitate(recombination_map=recombination_map, Ne=1e-6)
+            with pytest.warns(FutureWarning):
+                    recap = ts.recapitate(recombination_map=recombination_map, Ne=1e-6)
             self.check_recap_consistency(ts, recap)
 
 
@@ -323,7 +331,11 @@ class TestMutationMetadata(tests.PyslimTestCase):
         ts = recipe["ts"]
         # check that slim_times make sense, i.e., that
         # slim_generation == (time + slim_time + (model_type == "WF" and stage="early"))
-        offset = (ts.metadata["SLiM"]["model_type"] == "WF") and (ts.metadata["SLiM"]["stage"] == "early")
+        offset = (
+            (ts.metadata["SLiM"]["model_type"] == "WF")
+            and
+            (ts.metadata["SLiM"]["stage"] == "early")
+        )
         for mut in ts.mutations():
             mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])
             assert ts.metadata['SLiM']['generation'] == mut_slim_time + mut.time + offset

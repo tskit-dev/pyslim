@@ -51,7 +51,7 @@ available in pyslim.
 
 ## Summarizing tree sequences
 
-Additionally, ``pyslim`` contains the following summary methods:
+Additionally, ``pyslim`` contains the following methods:
 
 ```{eval-rst}
 .. autosummary::
