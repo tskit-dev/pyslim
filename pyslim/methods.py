@@ -21,7 +21,7 @@ def recapitate(ts,
     are still present in the tree sequence, but are not marked as samples.
     If you simplify the tree sequence before recapitating you must ensure
     these are not removed, which you do by passing the argument
-    ``keep_input_roots=True`` to :meth:`.simplify()`.
+    ``keep_input_roots=True`` to :meth:`simplify <tskit.TreeSequence.simplify>`.
 
     If you specify an ``ancestral_Ne``, then the recapitated portion of the
     tree sequence will be simulated in a single population with this
@@ -30,18 +30,18 @@ def recapitate(ts,
     taken), and coalescence is allowed to happen.
 
     You may control the ancestral demography by passing in a ``demography``
-    argument: see {ref}``msprime.sim_ancestry``.
+    argument: see :func:`msprime.sim_ancestry`.
     
     In general, all defaults are whatever the defaults of
-    {ref}`msprime.sim_ancestry` are; this includes recombination rate, so
+    {meth}`msprime.sim_ancestry` are; this includes recombination rate, so
     that if neither ``recombination_rate`` or a ``recombination_map`` are
     provided, there will be *no* recombination.
 
-    : param TreeSequence ts: The tree sequence to transform.
+    :param TreeSequence ts: The tree sequence to transform.
     :param float ancestral_Ne: If specified, then will simulate from a single
         ancestral population of this size. It is an error to specify this
         as well as ``demography``.
-    :param dict kwargs: Any other arguments to :meth:`msprime.sim_ancestry`.
+    :param dict kwargs: Any other arguments to :func:`msprime.sim_ancestry`.
     '''
     if ancestral_Ne is not None:
         if "demography" in kwargs:
@@ -97,13 +97,15 @@ def convert_alleles(ts):
     The main purpose of this method is for output: for instance, this code will produce
     a VCF file with nucleotide alleles:
 
-    nts = pyslim.convert_alleles(ts)
-    with open('nucs.vcf', 'w') as f:
-        nts.write_vcf(f)
+    .. code-block:: python
+
+        nts = pyslim.convert_alleles(ts)
+        with open('nucs.vcf', 'w') as f:
+            nts.write_vcf(f)
 
     This method will produce an error if the tree sequence does not have a
     valid reference sequence or if any mutations do not have nucleotides: to first
-    generate these, see :meth:`.generate_nucleotides`.
+    generate these, see :func:`.generate_nucleotides`.
 
     :param TreeSequence ts: The tree sequence to transform.
     """
