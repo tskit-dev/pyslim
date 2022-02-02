@@ -47,13 +47,26 @@ class PySlimMagic(Magics):
                         count += 1
             df = pd.read_csv(logfile, skiprows=count)
             df = df.set_index('generation')
+            # TODO generalize me to more statistics/summaries
             df.rename(columns={'H':'H'+str(i)}, inplace=True)
             aList.append(df)
-            dff = pd.concat(aList, axis=1, join="inner")
+        dff = pd.concat(aList, axis=1, join="inner")
         return dff
         
     @cell_magic
     def slim_stats_reps_stack(self, reps, cell):
+        """
+        slim_stats_reps_stack returns a pandas df in which
+        reps number of replicate slim simulations have been
+        run, and their output captured, and then stacked, merging
+        along columns. 
+        
+        output from simulation is expected to be a comma-delimited
+        list of summaries printed from slim to stdout. by convention
+        the header row begins with 'generation' e.g.,
+        
+        generation,stat1,stat2,...,statn
+        """
         script = cell
         n = int(reps)
         aList = []
@@ -73,7 +86,7 @@ class PySlimMagic(Magics):
             df = pd.read_csv(logfile, skiprows=count)
             df = df.set_index('generation')
             aList.append(df)
-            dff = pd.concat(aList)
+        dff = pd.concat(aList)
         return dff
         
 
