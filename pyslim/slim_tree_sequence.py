@@ -1023,7 +1023,8 @@ def update_tables(tables):
         if old_schema is not None:
             pops = tables.populations.copy()
             tables.populations.clear()
-            pops.metadata_schema = old_schema
+            if pops.metadata_schema == tskit.MetadataSchema(None):
+                pops.metadata_schema = old_schema
             new_schema = slim_metadata_schemas["population"]
             tables.populations.metadata_schema = new_schema
             defaults = default_slim_metadata("population")
@@ -1035,7 +1036,8 @@ def update_tables(tables):
         if old_schema is not None:
             inds = tables.individuals.copy()
             tables.individuals.clear()
-            inds.metadata_schema = old_schema
+            if inds.metadata_schema == tskit.MetadataSchema(None):
+                inds.metadata_schema = old_schema
             new_schema = slim_metadata_schemas["individual"]
             tables.individuals.metadata_schema = new_schema
             defaults = default_slim_metadata("individual")
@@ -1051,7 +1053,8 @@ def update_tables(tables):
         if old_schema is not None:
             muts = tables.mutations.copy()
             tables.mutations.clear()
-            muts.metadata_schema = old_schema
+            if muts.metadata_schema == tskit.MetadataSchema(None):
+                muts.metadata_schema = old_schema
             tables.mutations.metadata_schema = slim_metadata_schemas["mutation"]
             for mut in muts:
                 md = mut.metadata

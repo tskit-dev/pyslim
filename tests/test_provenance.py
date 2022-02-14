@@ -172,6 +172,13 @@ class TestProvenance(tests.PyslimTestCase):
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
+    def get_mixed_slim_examples(self):
+        for filename in [
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.5_and_v3.6.trees'),
+        ]:
+            with pytest.warns(Warning):
+                yield tskit.load(filename)
+
     def test_get_provenance_errors(self):
         ts = msprime.sim_ancestry(2, sequence_length=10, random_seed=144)
         with pytest.raises(ValueError, match="not a SLiM tree sequence"):
@@ -389,6 +396,29 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_6_files(self):
         for ts in self.get_0_6_slim_examples():
+            pts = pyslim.SlimTreeSequence(ts)
+            self.verify_upgrade(pts)
+            assert ts.num_provenances == 1
+            assert pts.num_provenances == 2
+            assert ts.provenance(0).record == pts.provenance(0).record
+            record = json.loads(ts.provenance(0).record)
+            assert isinstance(pts.metadata, dict)
+            assert 'SLiM' in pts.metadata
+            assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
+            assert record['slim']['generation'] == pts.metadata['SLiM']['generation']
+            assert list(ts.samples()) == list(pts.samples())
+            assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
+            samples = list(ts.samples())
+            t = ts.first()
+            pt = pts.first()
+            for _ in range(20):
+                u = random.sample(samples, 1)[0]
+                assert t.parent(u) == pt.parent(u)
+                if t.parent(u) != tskit.NULL:
+                    assert t.branch_length(u) == pt.branch_length(u)
+
+    def test_convert_mixd_files(self):
+        for ts in self.get_mixed_slim_examples():
             pts = pyslim.SlimTreeSequence(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
