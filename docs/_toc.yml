@@ -1,22 +1,21 @@
-- file: introduction
-- part: Getting started
+format: jb-book
+root: introduction
+parts:
+- caption: Getting started
   chapters:
-    - file: installation
-
-- part: Using pyslim
+  - file: installation
+- caption: Using pyslim
   chapters:
-    - file: tutorial
-    - file: vignette_space
-    - file: vignette_continuing
-    - file: vignette_coalescent_diversity
-    - file: vignette_parallel_phylo
-    - file: metadata
-    - file: previous_versions
-
-- part: pyslim reference
+  - file: tutorial
+  - file: vignette_space
+  - file: vignette_continuing
+  - file: vignette_coalescent_diversity
+  - file: vignette_parallel_phylo
+  - file: metadata
+  - file: previous_versions
+- caption: pyslim reference
   chapters:
-    - file: python_api
-
-- part: Miscellaneous
+  - file: python_api
+- caption: Miscellaneous
   chapters:
   - file: development

@@ -2,6 +2,48 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**Breaking changes**:
+
+- Removed `SlimTreeSequence` class entirely.
+
+- TODO: what about `slim_ts.mutation_at` and `slim_ts.nucleotide_at` (used in a Recipe)
+
+- Moved some methods of `SlimTreeSequence` to pyslim:
+    * instead of `slim_ts.slim_time(t)` do `pyslim.slim_time(ts, t)`
+    * instead of `slim_ts.individuals_alive_at(t)` do `pyslim.individuals_alive_at(ts, t)`
+    * instead of `slim_ts.individuals_parents(t)` do `pyslim.individuals_parents(ts, t)`
+
+- Methods for getting time, population, and location information about individuals
+  are now in tskit:
+    * instead of `slim_ts.individual_times` use `ts.individual_times()`
+    * instead of `slim_ts.individual_populations` use `ts.individual_populations()`
+    * instead of `slim_ts.individual_locations` use `ts.individual_locations()`
+
+- In SLiM v4 "generation" has been renamed to "tick", and so corresponding things
+  in pyslim have been renamed: top-level metadata now has `ts.metadata["SLiM"]["tick"]`
+  instead of `ts.metadata["SLiM"]["generation"]`
+
+- Renamed `pyslim.annotate_defaults()` to `pyslim.annotate()`, with slight
+  changes in behavior: since msprime.sim_ancestry() now simulates individuals
+  by default, annotation does not set up individuals: if you have a tree
+  sequence without individuals (e.g., produced by msprime.simulate()) then you
+  need to set up those individuals yourself.
+
+- To update a tree sequence produced by an old version of SLiM to the current one,
+  use `pyslim.update_tables( )`. (However, note that reading it in to SLiM and
+  writing it out again might be even easier.)
+
+- The method `pyslim.set_tree_sequence_metadata` now has arguments `tick` and `cycle`
+  instead of `generation`.
+
+**Other notable changes**:
+
+- Top-level metadata now has a `tick` attribute that is (for now) a synonym
+    for `generation`; the latter will be deprecated at some point in the future.
+
+- TODO: Individual properties `time` and `population` now moved to tskit
+
+
 ********************
 [0.700] - 2021-12-20
 ********************

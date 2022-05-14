@@ -62,9 +62,10 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
         run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            conda install --yes slim
-          fi
+          # TODO: uncomment when SLiM v4 is released
+          # if [ "$RUNNER_OS" != "Windows" ]; then
+          #   conda install --yes slim
+          # fi
           conda install --yes --file=requirements/CI/conda-requirements.txt
 
       - name: Install pip deps
@@ -84,20 +85,23 @@ jobs:
           sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
 
       # Installing SLiM from conda now.
-      # - name: Build SLiM
-      #   run: |
-      #     git clone https://github.com/messerlab/SLiM.git
-      #     mkdir -p SLiM/Release
-      #     cd SLiM/Release
-      #     cmake -D CMAKE_BUILD_TYPE=Release ..
-      #     make -j 2
+      # TODO: comment this out again when SLiM v4 is released
+      - name: Build SLiM
+        run: |
+          git clone https://github.com/messerlab/SLiM.git
+          cd SLiM
+          git checkout -b multispecies origin/multispecies
+          mkdir -p Release
+          cd Release
+          cmake -D CMAKE_BUILD_TYPE=Release ..
+          make -j 2
 
       - name: Run tests
         run: |
           source ~/.profile
           conda activate anaconda-client-env
           export PATH=$PATH:$PWD/SLiM/Release
-          pytest -xv -n2
+          pytest -xv -n2 tests
 
       - name: Build docs
         run: |

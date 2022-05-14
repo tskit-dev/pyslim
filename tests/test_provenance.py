@@ -172,6 +172,14 @@ class TestProvenance(tests.PyslimTestCase):
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
+    def get_0_7_slim_examples(self):
+        for filename in [
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.7.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.7.trees'),
+        ]:
+            with pytest.warns(Warning):
+                yield tskit.load(filename)
+
     def get_mixed_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.5_and_v3.6.trees'),
@@ -179,89 +187,12 @@ class TestProvenance(tests.PyslimTestCase):
             with pytest.warns(Warning):
                 yield tskit.load(filename)
 
-    def test_get_provenance_errors(self):
-        ts = msprime.sim_ancestry(2, sequence_length=10, random_seed=144)
-        with pytest.raises(ValueError, match="not a SLiM tree sequence"):
-            _ = pyslim.get_provenance(ts)
-
-    @pytest.mark.parametrize("recipe", recipe_eq("WF"), indirect=True)    
-    def test_get_WF_provenance(self, recipe):
-        ts = recipe["ts"]
-        with pytest.warns(Warning):
-            prov = ts.slim_provenance
-        assert prov.model_type == "WF"
-        assert prov == pyslim.get_provenance(ts)
-        assert prov == pyslim.get_provenance(ts.tables)
-
-    @pytest.mark.parametrize("recipe", recipe_eq("nonWF"), indirect=True)    
-    def test_get_nonWF_provenance(self, recipe):
-        ts = recipe["ts"]
-        with pytest.warns(Warning):
-            prov = ts.slim_provenance
-        assert prov.model_type == "nonWF"
-        assert prov == pyslim.get_provenance(ts)
-        assert prov == pyslim.get_provenance(ts.tables)
-
-    @pytest.mark.parametrize("recipe", recipe_eq("WF"), indirect=True)    
-    def test_get_all_provenances(self, recipe, helper_functions, tmp_path):
-        ts = recipe["ts"]
-        rts = helper_functions.run_msprime_restart(ts, tmp_path, WF=True)
-        provenances = rts.slim_provenances
-        assert len(provenances) == 2
-        with pytest.warns(Warning):
-            last_prov = ts.slim_provenance
-        assert last_prov == provenances[0]
-        # mrts = pyslim.SlimTreeSequence(msprime.mutate(rts, rate=0.001))
-        j = 0
-        for p in rts.provenances():
-            is_slim, _ = pyslim.slim_provenance_version(p)
-            if is_slim:
-                sp = pyslim.parse_provenance(p)
-                assert provenances[j] == sp
-                j += 1
-            else:
-                with pytest.raises(ValueError):
-                    pyslim.parse_provenance(p)
-
     def test_provenance_creation(self):
         record = pyslim.make_pyslim_provenance_dict()
         tskit.provenance.validate_provenance(record)
 
         record = pyslim.make_slim_provenance_dict("nonWF", 100)
         tskit.provenance.validate_provenance(record)
-
-    def test_upgrade_provenance_errors(self):
-        ts = msprime.sim_ancestry(10)
-        # test bad input
-        with pytest.raises(ValueError):
-            pyslim.upgrade_slim_provenance(ts.tables)
-
-    def test_upgrade_provenance(self):
-        ts = msprime.sim_ancestry(10)
-        for record_text in old_provenance_examples:
-            record = json.loads(record_text)
-            prov = tskit.Provenance(id=0, timestamp='2018-08-25T14:59:13', record=json.dumps(record))
-            is_slim, version = pyslim.slim_provenance_version(prov)
-            assert is_slim
-            if 'file_version' in record:
-                assert version == "0.1"
-            else:
-                assert version == record['slim']['file_version']
-            tables = ts.dump_tables()
-            tables.provenances.add_row(json.dumps(record))
-            pyslim.upgrade_slim_provenance(tables) # modifies the tables
-            new_ts = tables.tree_sequence()
-            assert new_ts.num_provenances == 3
-            is_slim, version = pyslim.slim_provenance_version(new_ts.provenance(2))
-            assert is_slim
-            assert version == "0.4"
-            new_record = json.loads(new_ts.provenance(2).record)
-            if 'model_type' in record:
-                assert record['model_type'] == new_record['parameters']['model_type']
-                assert record['generation'] == new_record['slim']["generation"]
-            else:
-                assert record['parameters']['model_type'] == new_record['parameters']['model_type']
-                assert record['slim']['generation'] == new_record['slim']["generation"]
 
     def verify_upgrade(self, ts):
         # check that we have successfully got read-able metadata
@@ -279,7 +210,7 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_1_files(self):
         for ts in self.get_0_1_slim_examples():
-            pts = pyslim.SlimTreeSequence(ts)
+            pts = pyslim.update(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -288,7 +219,7 @@ class TestProvenance(tests.PyslimTestCase):
             assert isinstance(pts.metadata, dict)
             assert 'SLiM' in pts.metadata
             assert record['model_type'] == pts.metadata['SLiM']['model_type']
-            assert record['generation'] == pts.metadata['SLiM']["generation"]
+            assert record['generation'] == pts.metadata['SLiM']["tick"]
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -302,7 +233,7 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_2_files(self):
         for ts in self.get_0_2_slim_examples():
-            pts = pyslim.SlimTreeSequence(ts)
+            pts = pyslim.update(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -311,7 +242,7 @@ class TestProvenance(tests.PyslimTestCase):
             assert isinstance(pts.metadata, dict)
             assert 'SLiM' in pts.metadata
             assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
-            assert record['slim']['generation'] == pts.metadata['SLiM']["generation"]
+            assert record['slim']['generation'] == pts.metadata['SLiM']["tick"]
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -325,7 +256,7 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_3_files(self):
         for ts in self.get_0_3_slim_examples():
-            pts = pyslim.SlimTreeSequence(ts)
+            pts = pyslim.update(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -334,7 +265,7 @@ class TestProvenance(tests.PyslimTestCase):
             assert isinstance(pts.metadata, dict)
             assert 'SLiM' in pts.metadata
             assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
-            assert record['slim']['generation'] == pts.metadata['SLiM']["generation"]
+            assert record['slim']['generation'] == pts.metadata['SLiM']["tick"]
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -350,7 +281,7 @@ class TestProvenance(tests.PyslimTestCase):
         # Note that with version 0.5 and above, we *don't* get information from
         # provenance, we get it from top-level metadata
         for ts in self.get_0_4_slim_examples():
-            pts = pyslim.SlimTreeSequence(ts)
+            pts = pyslim.update(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -359,7 +290,7 @@ class TestProvenance(tests.PyslimTestCase):
             assert isinstance(pts.metadata, dict)
             assert 'SLiM' in pts.metadata
             assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
-            assert record['slim']['generation'] == pts.metadata['SLiM']['generation']
+            assert record['slim']['generation'] == pts.metadata['SLiM']['tick']
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -373,7 +304,7 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_5_files(self):
         for ts in self.get_0_5_slim_examples():
-            pts = pyslim.SlimTreeSequence(ts)
+            pts = pyslim.update(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -382,7 +313,7 @@ class TestProvenance(tests.PyslimTestCase):
             assert isinstance(pts.metadata, dict)
             assert 'SLiM' in pts.metadata
             assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
-            assert record['slim']['generation'] == pts.metadata['SLiM']['generation']
+            assert record['slim']['generation'] == pts.metadata['SLiM']['tick']
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -396,7 +327,7 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_6_files(self):
         for ts in self.get_0_6_slim_examples():
-            pts = pyslim.SlimTreeSequence(ts)
+            pts = pyslim.update(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -405,7 +336,7 @@ class TestProvenance(tests.PyslimTestCase):
             assert isinstance(pts.metadata, dict)
             assert 'SLiM' in pts.metadata
             assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
-            assert record['slim']['generation'] == pts.metadata['SLiM']['generation']
+            assert record['slim']['generation'] == pts.metadata['SLiM']['tick']
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
@@ -417,9 +348,9 @@ class TestProvenance(tests.PyslimTestCase):
                 if t.parent(u) != tskit.NULL:
                     assert t.branch_length(u) == pt.branch_length(u)
 
-    def test_convert_mixd_files(self):
-        for ts in self.get_mixed_slim_examples():
-            pts = pyslim.SlimTreeSequence(ts)
+    def test_convert_0_7_files(self):
+        for ts in self.get_0_7_slim_examples():
+            pts = pyslim.update(ts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -428,7 +359,30 @@ class TestProvenance(tests.PyslimTestCase):
             assert isinstance(pts.metadata, dict)
             assert 'SLiM' in pts.metadata
             assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
-            assert record['slim']['generation'] == pts.metadata['SLiM']['generation']
+            assert record['slim']['generation'] == pts.metadata['SLiM']['tick']
+            assert list(ts.samples()) == list(pts.samples())
+            assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
+            samples = list(ts.samples())
+            t = ts.first()
+            pt = pts.first()
+            for _ in range(20):
+                u = random.sample(samples, 1)[0]
+                assert t.parent(u) == pt.parent(u)
+                if t.parent(u) != tskit.NULL:
+                    assert t.branch_length(u) == pt.branch_length(u)
+
+    def test_convert_mixed_files(self):
+        for ts in self.get_mixed_slim_examples():
+            pts = pyslim.update(ts)
+            self.verify_upgrade(pts)
+            assert ts.num_provenances == 1
+            assert pts.num_provenances == 2
+            assert ts.provenance(0).record == pts.provenance(0).record
+            record = json.loads(ts.provenance(0).record)
+            assert isinstance(pts.metadata, dict)
+            assert 'SLiM' in pts.metadata
+            assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
+            assert record['slim']['generation'] == pts.metadata['SLiM']['tick']
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())

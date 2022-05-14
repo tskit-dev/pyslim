@@ -12,15 +12,16 @@ initialize()
 	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
 	initializeGenomicElement(g1, 0, L-1);
 	initializeRecombinationRate(1e-2);
+	if (!exists("SUBPOP_MAP")) defineConstant("SUBPOP_MAP", NULL);
 }
 
 1 late() { 
     // output immediately! Nothing should have changed.
-    sim.readFromPopulationFile(TREES_IN);
+    sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
     sim.treeSeqOutput(TREES_FILE, simplify=F);
 }
 
-2 {
+2 early() {
     catn("Done.");
     sim.simulationFinished();
 }

@@ -5,8 +5,8 @@ import random
 import subprocess
 
 from filelock import FileLock
-import pyslim
-import msprime
+import json
+import tskit, msprime
 
 from .recipe_specs import recipe_specs
 
@@ -18,6 +18,14 @@ class Outfiles:
     access and a "name" (key) in the dictionary to access that object in the unit test.
     """
     Outfile = namedtuple("Outfile", "path, slim_name, post_process, key")
+
+    @staticmethod
+    def read_dictionary(fname):
+        # reads in the json-written dictionary
+        assert os.path.isfile(fname)
+        with open(fname, "r") as f:
+            out = json.load(f)
+        return out
 
     @staticmethod
     def parse_pedigree_info(fname):
@@ -50,11 +58,12 @@ class Outfiles:
         return out
 
     def __init__(self, out_dir):
+        # Note: the 'key' below cannot match a 'key' in recipe_specs
         self._outfiles = [
             self.Outfile(
                 path=os.path.join(out_dir, "out.trees"),
                 slim_name="TREES_FILE",  # The var containing the path name for SLiM output
-                post_process=pyslim.load,  # function applied on path to create returned obj
+                post_process=tskit.load,  # function applied on path to create returned obj
                 key="ts",  # The key to use for the post-processed item in the returned dict
             ),
             self.Outfile(
@@ -62,6 +71,12 @@ class Outfiles:
                 slim_name="PEDIGREE_FILE",
                 post_process=self.parse_pedigree_info,
                 key="info",
+            ),
+            self.Outfile(
+                path=os.path.join(out_dir, "out_mutations.json"),
+                slim_name="MUTATIONS_FILE",
+                post_process=self.read_dictionary,
+                key="mutation_info",
             ),
         ]
     def __getitem__(self, index):
@@ -75,6 +90,7 @@ class Outfiles:
         for o in self._outfiles:
             res["path"][o.key] = o.path
             if os.path.isfile(o.path):
+                assert o.key not in res
                 res[o.key] = o.post_process(o.path) 
         return res
     
@@ -97,7 +113,7 @@ def run_slim(recipe, out_dir, recipe_dir="test_recipes", **kwargs):
     for k in kwargs:
         x = kwargs[k]
         if x is not None:
-            if isinstance(x, str):
+            if isinstance(x, str) and x[:10] != 'Dictionary':
                 x = f"'{x}'"
             if isinstance(x, bool):
                 x = 'T' if x else 'F'
@@ -113,7 +129,7 @@ def run_slim(recipe, out_dir, recipe_dir="test_recipes", **kwargs):
 
 class HelperFunctions:
     @classmethod
-    def run_slim_restart(cls, in_ts, recipe, out_dir, **kwargs):
+    def run_slim_restart(cls, in_ts, recipe, out_dir, subpop_map=None, **kwargs):
         # Saves out the tree sequence to a trees file and run the SLiM recipe
         # on it, saving to files in out_dir.
         infile = os.path.join(out_dir, "in.trees")
@@ -121,6 +137,9 @@ class HelperFunctions:
         kwargs['TREES_IN'] = infile
         if 'STAGE' not in kwargs:
             kwargs['STAGE'] = in_ts.metadata['SLiM']['stage']
+        if subpop_map is not None:
+            spm = "Dictionary(" + ", ".join([f"\"{a}\", {b}" for a, b in subpop_map.items()]) + ")"
+            kwargs['SUBPOP_MAP'] = spm
         results = run_slim(recipe, out_dir, **kwargs)
         return results["ts"]
 
@@ -130,7 +149,10 @@ class HelperFunctions:
             in_ts,
             "restart_msprime.slim",  # This is standard script defined in test_recipes
             out_dir,
-            WF=WF, SEX=sex, L=int(in_ts.sequence_length))
+            WF=WF,
+            SEX=sex,
+            L=int(in_ts.sequence_length)
+        )
         return out_ts
 
     @staticmethod
@@ -142,9 +164,11 @@ class HelperFunctions:
         for n in [2, 20]:
             for recrate in [0.0, 0.01]:
                 ts = msprime.sim_ancestry(
-                        n, recombination_rate=recrate,
+                        n,
+                        recombination_rate=recrate,
                         population_size=10,
-                        sequence_length=200, random_seed=seed,
+                        sequence_length=200,
+                        random_seed=seed,
                         model="dtwf"
                 )
                 yield ts
@@ -168,7 +192,8 @@ class HelperFunctions:
                         {"A": n, "B": n},
                         demography=demography,
                         recombination_rate=recrate,
-                        sequence_length=250, random_seed=seed,
+                        sequence_length=250,
+                        random_seed=seed,
                         model="dtwf"
                 )
                 yield ts

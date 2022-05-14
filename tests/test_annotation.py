@@ -61,6 +61,7 @@ class TestAnnotate(tests.PyslimTestCase):
         '''
         Verify the default values have been entered into metadata.
         '''
+        do_pops = [False for _ in ts.populations()]
         for m in ts.mutations():
             md = m.metadata
             assert isinstance(md['mutation_list'], list)
@@ -75,6 +76,7 @@ class TestAnnotate(tests.PyslimTestCase):
             else:
                 assert md["is_null"] is False
                 assert md["genome_type"] == pyslim.GENOME_TYPE_AUTOSOME
+                do_pops[n.population] = True
         for ind in ts.individuals():
             md = ind.metadata
             assert np.array_equal(ind.location, [0, 0, 0])
@@ -84,18 +86,19 @@ class TestAnnotate(tests.PyslimTestCase):
             assert md["pedigree_p1"] == tskit.NULL
             assert md["pedigree_p2"] == tskit.NULL
         for pop in ts.populations():
-            md = pop.metadata
-            assert md["selfing_fraction"] == 0.0
-            assert md["female_cloning_fraction"] == 0.0
-            assert md["male_cloning_fraction"] == 0.0
-            assert md["sex_ratio"] == 0.0
-            assert md["bounds_x0"] == 0.0
-            assert md["bounds_x1"] == 1.0
-            assert md["bounds_y0"] == 0.0
-            assert md["bounds_y1"] == 1.0
-            assert md["bounds_z0"] == 0.0
-            assert md["bounds_z1"] == 1.0
-            assert len(md["migration_records"]) == 0
+            if do_pops[pop.id]:
+                md = pop.metadata
+                assert md["selfing_fraction"] == 0.0
+                assert md["female_cloning_fraction"] == 0.0
+                assert md["male_cloning_fraction"] == 0.0
+                assert md["sex_ratio"] == 0.0
+                assert md["bounds_x0"] == 0.0
+                assert md["bounds_x1"] == 1.0
+                assert md["bounds_y0"] == 0.0
+                assert md["bounds_y1"] == 1.0
+                assert md["bounds_z0"] == 0.0
+                assert md["bounds_z1"] == 1.0
+                assert len(md["migration_records"]) == 0
 
     def verify_provenance(self, ts):
         for u in ts.provenances():
@@ -115,74 +118,59 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_errors(self, helper_functions):
         for ts in helper_functions.get_msprime_examples():
             with pytest.raises(ValueError):
-                _ = pyslim.annotate_defaults(ts, model_type="WF",
-                                             slim_generation=0)
+                _ = pyslim.annotate(ts, model_type="WF", tick=0)
             with pytest.raises(ValueError):
-                _ = pyslim.annotate_defaults(ts, model_type="WF",
-                                             slim_generation=4.4)
+                _ = pyslim.annotate(ts, model_type="WF", tick=4.4)
             with pytest.raises(ValueError):
-                _ = pyslim.annotate_defaults(ts, model_type="foo",
-                                             slim_generation=4)
+                _ = pyslim.annotate(ts, model_type="foo", tick=4)
             with pytest.raises(ValueError):
-                _ = pyslim.annotate_defaults(ts, model_type=[],
-                                             slim_generation=4)
-        # odd number of samples
-        ts = msprime.simulate(3)
+                _ = pyslim.annotate(ts, model_type=[], tick=4)
+        # no individuals
+        ts = msprime.simulate(4)
         with pytest.raises(ValueError) as except_info:
-            _ = pyslim.annotate_defaults(ts, model_type="WF",
-                                         slim_generation=1)
-        assert "diploid" in str(except_info)
-        # inconsistent populations for diploids
-        ts = msprime.simulate(
-            population_configurations=[
-                msprime.PopulationConfiguration(sample_size=3),
-                msprime.PopulationConfiguration(sample_size=1)],
-            migration_matrix=[[0.0, 1.0], [1.0, 0.0]]
-            )
-        with pytest.raises(ValueError) as except_info:
-            _ = pyslim.annotate_defaults(ts, model_type="WF",
-                                         slim_generation=1)
-        assert "more than one population" in str(except_info)
-        # inconsistent times for diploids
-        samples = [
-            msprime.Sample(population=0, time=0),
-            msprime.Sample(population=0, time=0),
-            msprime.Sample(population=0, time=0),
-            msprime.Sample(population=0, time=1),
-        ]
-        ts = msprime.simulate(samples=samples)
-        with pytest.raises(ValueError) as except_info:
-            _ = pyslim.annotate_defaults(ts, model_type="WF",
-                                         slim_generation=1)
-        assert "more than one time" in str(except_info)
+            _ = pyslim.annotate(ts, model_type="WF", tick=1)
+        assert "individuals" in str(except_info)
         # non-integer positions
-        ts = msprime.simulate(4, mutation_rate=10)
+        ts = msprime.sim_mutations(
+                msprime.sim_ancestry(4, random_seed=8),
+                rate=10,
+                discrete_genome=False,
+                random_seed=9,
+        )
         with pytest.raises(ValueError) as except_info:
-            _ = pyslim.annotate_defaults(ts, model_type="WF",
-                                         slim_generation=1)
+            _ = pyslim.annotate(ts, model_type="WF", tick=1)
         assert "not at integer" in str(except_info)
 
     def test_just_simulate(self, helper_functions, tmp_path):
-        ts = msprime.simulate(
-                sample_size=4, Ne=10, length=10,
-                mutation_rate=0.0, recombination_rate=0.01
+        ts = msprime.sim_ancestry(
+                4,
+                population_size=10,
+                sequence_length=10,
+                recombination_rate=0.01,
+                random_seed=100,
         )
-        ts = msprime.sim_mutations(ts, rate=0.1)
-        slim_ts = pyslim.annotate_defaults(ts, model_type="WF", slim_generation=1) 
+        ts = msprime.sim_mutations(ts, rate=0.1, random_seed=11)
+        slim_ts = pyslim.annotate(ts, model_type="WF", tick=1) 
         loaded_ts = helper_functions.run_msprime_restart(slim_ts, tmp_path, WF=True)
         self.verify_annotated_trees(ts, loaded_ts)
 
     def test_basic_annotation(self, helper_functions, tmp_path):
         for ts in helper_functions.get_msprime_examples():
             for do_mutations in [False, True]:
-                slim_gen = 4
-                slim_ts = pyslim.annotate_defaults(
+                tick = 4
+                cycle = 1
+                stage = "late"
+                slim_ts = pyslim.annotate(
                         ts, model_type="WF",
-                        slim_generation=slim_gen,
+                        tick=tick,
+                        cycle=cycle,
+                        stage=stage,
                         annotate_mutations=do_mutations,
                 )
                 assert slim_ts.metadata['SLiM']['model_type'] == 'WF'
-                assert slim_ts.metadata['SLiM']['generation'] == slim_gen
+                assert slim_ts.metadata['SLiM']['tick'] == tick
+                assert slim_ts.metadata['SLiM']['cycle'] == cycle
+                assert slim_ts.metadata['SLiM']['stage'] == stage
                 assert slim_ts.metadata['SLiM']['file_version'] == pyslim.slim_file_version
                 self.verify_annotated_tables(ts, slim_ts, check_alleles=(not do_mutations))
                 self.verify_annotated_trees(ts, slim_ts)
@@ -199,14 +187,15 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_refseq(self):
         ts = msprime.sim_ancestry(2, sequence_length=10, random_seed=77)
         refseq = "A" * int(ts.sequence_length)
-        ats = pyslim.annotate_defaults(
-                ts, model_type="nonWF", slim_generation=5, reference_sequence=refseq
+        ats = pyslim.annotate(
+                ts, model_type="nonWF", tick=5, reference_sequence=refseq
         )
         assert ats.reference_sequence.data == refseq
 
     def test_annotate_individuals(self, helper_functions, tmp_path):
+        # test the workflow of annotating defaults, then assigning sexes randomly
         for ts in helper_functions.get_msprime_examples():
-            slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+            slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1, stage="early")
             tables = slim_ts.dump_tables()
             top_md = tables.metadata
             top_md['SLiM']['separate_sexes'] = True
@@ -218,15 +207,17 @@ class TestAnnotate(tests.PyslimTestCase):
                 metadata[j]["sex"] = sexes[j]
             ims = tables.individuals.metadata_schema
             tables.individuals.packset_metadata(
-                    [ims.validate_and_encode_row(r) for r in metadata])
+                    [ims.validate_and_encode_row(r) for r in metadata]
+            )
             pop_metadata = [p.metadata for p in tables.populations]
             for j, md in enumerate(pop_metadata):
                 # nonWF models always have this
                 md['sex_ratio'] = 0.0
             pms = tables.populations.metadata_schema
             tables.populations.packset_metadata(
-                    [pms.validate_and_encode_row(r) for r in pop_metadata])
-            new_ts = pyslim.load_tables(tables)
+                    [pms.validate_and_encode_row(r) for r in pop_metadata]
+            )
+            new_ts = tables.tree_sequence()
             for j, ind in enumerate(new_ts.individuals()):
                 md = ind.metadata
                 assert md["sex"] == sexes[j]
@@ -296,19 +287,23 @@ class TestAnnotate(tests.PyslimTestCase):
                 #         skip_provenance=-1, reordered_individuals=True)
 
     def test_annotate_nodes(self, helper_functions):
+        # test workflow of annotating defaults and then editing node metadata
         for ts in helper_functions.get_msprime_examples():
-            slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+            slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
             tables = slim_ts.dump_tables()
             metadata = [n.metadata for n in tables.nodes]
-            gtypes = [random.choice([pyslim.GENOME_TYPE_X, pyslim.GENOME_TYPE_Y])
-                      for _ in metadata]
+            gtypes = [
+                    random.choice([pyslim.GENOME_TYPE_X, pyslim.GENOME_TYPE_Y])
+                    for _ in metadata
+            ]
             for md, g in zip(metadata, gtypes):
                 if md is not None:
                     md["genome_type"] = g
             nms = tables.nodes.metadata_schema
             tables.nodes.packset_metadata(
-                    [nms.validate_and_encode_row(r) for r in metadata])
-            new_ts = pyslim.load_tables(tables)
+                    [nms.validate_and_encode_row(r) for r in metadata]
+            )
+            new_ts = tables.tree_sequence()
             for x, g in zip(new_ts.nodes(), gtypes):
                 if x.metadata is not None:
                     assert x.metadata["genome_type"] == g
@@ -316,7 +311,7 @@ class TestAnnotate(tests.PyslimTestCase):
 
     def test_annotate_mutations(self, helper_functions):
         for ts in helper_functions.get_msprime_examples():
-            slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+            slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
             tables = slim_ts.dump_tables()
             metadata = [m.metadata for m in tables.mutations]
             selcoefs = [random.uniform(0, 1) for _ in metadata]
@@ -324,58 +319,91 @@ class TestAnnotate(tests.PyslimTestCase):
                 metadata[j]['mutation_list'][0]["selection_coeff"] = selcoefs[j]
             ms = tables.mutations.metadata_schema
             tables.mutations.packset_metadata(
-                    [ms.validate_and_encode_row(r) for r in metadata])
-            new_ts = pyslim.load_tables(tables)
+                    [ms.validate_and_encode_row(r) for r in metadata]
+            )
+            new_ts = tables.tree_sequence()
             for j, x in enumerate(new_ts.mutations()):
                 md = x.metadata
                 assert np.isclose(md['mutation_list'][0]["selection_coeff"], selcoefs[j])
 
     def test_dont_annotate_mutations(self, helper_functions):
         # Test the option to not overwrite mutation annotations
-        ts = msprime.sim_ancestry(10)
+        ts = msprime.sim_ancestry(10, random_seed=5)
         ts = msprime.sim_mutations(ts, rate=5, random_seed=3)
         assert ts.num_mutations > 0
         tables = ts.dump_tables()
         pre_mutations = tables.mutations.copy()
-        pyslim.annotate_defaults_tables(tables, model_type="WF",
-                slim_generation=1, annotate_mutations=False)
+        pyslim.annotate_tables(
+                tables,
+                model_type="WF",
+                tick=1,
+                annotate_mutations=False
+        )
         # this is necessary because b'' actually is decoded to
         # an empty mutation_list by the schema
         pre_mutations.metadata_schema = tables.mutations.metadata_schema
         assert tables.mutations.equals(pre_mutations)
 
-    def test_empty_populations(self, helper_functions, tmp_path):
-        # test SLiM doesn't error on having empty populations
+    def test_empty_populations_errors(self, helper_functions, tmp_path):
+        # test SLiM errors on having empty populations in a WF model
         ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
-        ts = pyslim.annotate_defaults(ts, model_type='WF', slim_generation=1)
+        ts = pyslim.annotate(ts, model_type='WF', tick=1, stage="late")
         t = ts.dump_tables()
         for k in range(5):
             md = pyslim.default_slim_metadata('population')
+            md['slim_id'] = k + 1
+            md['name'] = f"new_pop_num_{k}"
+            t.populations.add_row(metadata=md)
+        ts = t.tree_sequence()
+        for p in ts.populations():
+            assert "slim_id" in p.metadata
+        with pytest.raises(RuntimeError):
+            sts = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_WF.slim",
+                    tmp_path,
+                    WF=True,
+            )
+
+    def test_empty_populations(self, helper_functions, tmp_path):
+        # test SLiM doesn't error on having empty populations in a nonWF model
+        # however, it may rewrite the metadata
+        ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
+        ts = pyslim.annotate(ts, model_type='nonWF', tick=1)
+        t = ts.dump_tables()
+        for k in range(5):
+            md = pyslim.default_slim_metadata('population')
+            md['slim_id'] = k + 1
             md['name'] = f"new_pop_num_{k}"
             md['description'] = f"the {k}-th added pop"
             t.populations.add_row(metadata=md)
         ts = t.tree_sequence()
         sts = helper_functions.run_slim_restart(
                 ts,
-                "restart_WF.slim",
+                "restart_nonWF.slim",
                 tmp_path,
-                WF=True,
+                WF=False,
         )
+        assert ts.num_populations == sts.num_populations
+        for p, q in zip(ts.populations(), sts.populations()):
+            assert p.metadata['name'] == q.metadata['name']
+            assert p.metadata['slim_id'] == q.metadata['slim_id']
 
     def test_many_populations(self, helper_functions, tmp_path):
-        # test we can add more than one population
+        # test we can add more than one population and that names are preserved
         ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
         t = ts.dump_tables()
-        for k in range(5):
+        for k in range(1, 6):
             md = pyslim.default_slim_metadata('population')
             md['name'] = f"new_pop_num_{k}"
             md['description'] = f"the {k}-th added pop"
+            md['slim_id'] = k
             t.populations.add_row(metadata=md)
             i = t.individuals.add_row()
             for _ in range(2):
                 t.nodes.add_row(flags=1, time=0.0, individual=i, population=k)
         ts = t.tree_sequence()
-        ts = pyslim.annotate_defaults(ts, model_type='WF', slim_generation=1)
+        ts = pyslim.annotate(ts, model_type='WF', tick=1)
         for ind in ts.individuals():
             assert ind.flags == pyslim.INDIVIDUAL_ALIVE
         sts = helper_functions.run_slim_restart(
@@ -384,6 +412,39 @@ class TestAnnotate(tests.PyslimTestCase):
                 tmp_path,
                 WF=True,
         )
+        for k in range(1, 6):
+            md = sts.population(k).metadata
+            assert md['name'] == f"new_pop_num_{k}"
+
+    def test_keeps_extra_populations(self, helper_functions, tmp_path):
+        # test that non-SLiM metadata is not removed
+        d = msprime.Demography()
+        d.add_population(initial_size=10, name="A", extra_metadata={"pi": 3.1415})
+        md = pyslim.default_slim_metadata('population')
+        del md['name']
+        del md['description']
+        md['slim_id'] = 1
+        d.add_population(initial_size=10, name="B", extra_metadata=md)
+        ts = msprime.sim_ancestry(
+                samples={"B": 5},
+                demography=d,
+                sequence_length=100,
+                random_seed=455
+        )
+        ts = pyslim.annotate(ts, model_type='WF', tick=1)
+        sts = helper_functions.run_slim_restart(
+                ts,
+                "restart_WF.slim",
+                tmp_path,
+                WF=True,
+        )
+        assert sts.num_populations == 2
+        assert np.all(ts.tables.nodes.population == 1)
+        p = sts.population(0)
+        assert p.metadata['name'] == "A"
+        assert p.metadata['pi'] == 3.1415
+        p = sts.population(1)
+        assert p.metadata['name'] == "B"
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
@@ -397,8 +458,6 @@ class TestAnnotate(tests.PyslimTestCase):
         # put it through SLiM (which just reads in and writes out)
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         # check for equality, in everything but the last provenance
-        in_ts.dump("in_ts.trees")
-        out_ts.dump("out_ts.trees")
         self.verify_slim_restart_equality(in_ts, out_ts)
 
     @pytest.mark.parametrize(
@@ -413,8 +472,12 @@ class TestAnnotate(tests.PyslimTestCase):
         has_nucleotides = tables.metadata['SLiM']['nucleotide_based']
         if has_nucleotides:
             nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
-            refseq = "".join(random.choices(pyslim.NUCLEOTIDES,
-                                            k = int(ts.sequence_length)))
+            refseq = "".join(
+                    random.choices(
+                        pyslim.NUCLEOTIDES,
+                        k = int(ts.sequence_length),
+                    ),
+            )
             for n, md in zip(nucs, metadata):
                 for m in md['mutation_list']:
                     m["nucleotide"] = n
@@ -424,8 +487,9 @@ class TestAnnotate(tests.PyslimTestCase):
                 m["selection_coeff"] = random.random()
         ms = tables.mutations.metadata_schema
         tables.mutations.packset_metadata(
-                [ms.validate_and_encode_row(r) for r in metadata])
-        in_ts = pyslim.load_tables(tables)
+                [ms.validate_and_encode_row(r) for r in metadata]
+        )
+        in_ts = tables.tree_sequence()
         # put it through SLiM (which just reads in and writes out)
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         # check for equality, in everything but the last provenance
@@ -446,9 +510,7 @@ class TestReload(tests.PyslimTestCase):
         in_tables = in_ts.dump_tables()
         in_tables.provenances.clear()
         in_tables.sort()
-        cleared_ts = pyslim.SlimTreeSequence(
-                in_tables.tree_sequence(),
-        )
+        cleared_ts = in_tables.tree_sequence()
         out_ts = helper_functions.run_slim_restart(cleared_ts, restart_name, tmp_path)
         out_tables = out_ts.dump_tables()
         out_tables.provenances.clear()
@@ -470,14 +532,18 @@ class TestReload(tests.PyslimTestCase):
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq(), indirect=["recipe"])
-    def test_restarts_and_runs_spatial(
+    def test_restarts_and_runs_simplified(
         self, restart_name, recipe, helper_functions, tmp_path
     ):
         in_ts = recipe["ts"]
         n = set(in_ts.samples()[:4])
         for k in n:
             n |= set(in_ts.individual(in_ts.node(k).individual).nodes)
-        py_ts = in_ts.simplify(list(n))
-        out_ts = helper_functions.run_slim_restart(py_ts, restart_name, tmp_path)
-        assert out_ts.metadata["SLiM"]["generation"] >= in_ts.metadata["SLiM"]["generation"]
+        py_ts = in_ts.simplify(list(n), filter_populations=False)
+        out_ts = helper_functions.run_slim_restart(
+                py_ts,
+                restart_name,
+                tmp_path,
+        )
+        assert out_ts.metadata["SLiM"]["tick"] >= in_ts.metadata["SLiM"]["tick"]
 

@@ -53,9 +53,9 @@ late() {
 1: early() {
     for (pop in sim.subpopulations) {
         for (ind in pop.individuals) {
-            age = sim.modelType == "nonWF" ? ind.age else -1;
+            age = community.modelType == "nonWF" ? ind.age else -1;
             writeFile(PEDIGREE_FILE,
-             paste(c(sim.generation, 'early', ind.pedigreeID, age, ind.pedigreeParentIDs),
+             paste(c(sim.cycle, 'early', ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
         }
@@ -65,9 +65,9 @@ late() {
 1: late() {
     for (pop in sim.subpopulations) {
         for (ind in pop.individuals) {
-            age = sim.modelType == "nonWF" ? ind.age else -1;
+            age = community.modelType == "nonWF" ? ind.age else -1;
             writeFile(PEDIGREE_FILE,
-             paste(c(sim.generation, 'late', ind.pedigreeID, age, ind.pedigreeParentIDs),
+             paste(c(sim.cycle, 'late', ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
         }
