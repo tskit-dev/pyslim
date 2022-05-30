@@ -600,10 +600,13 @@ class TestReferenceSequence(tests.PyslimTestCase):
                                 b = mut.metadata["mutation_list"][0]["nucleotide"]
                         assert a == b
 
-    @pytest.mark.skip(reason="TODO")
     @pytest.mark.parametrize('recipe', recipe_eq("mutation_spectrum"), indirect=True)
     def test_nucleotide_spectrum(self, recipe):
         # this is modified from Recipe 18.13
+        # Also note that we are comparing to "truth" in a recipe where
+        # truth is recorded during a mutation callback, in which we have
+        # access to the parental genome, so if two adjacent mutations
+        # occur in the same meiosis then each will not know about the other.
         ts = recipe["ts"]
         mutation_spectrum = recipe["mutation_info"]
         M = {
@@ -621,12 +624,14 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 mut_list = mut.metadata["mutation_list"]
                 k = np.argmax([u["slim_time"] for u in mut_list])
                 derived_nuc = mut_list[k]["nucleotide"]
-                left_nuc = pyslim.nucleotide_at(ts, mut.node, pos - 1, time = mut.time)
-                right_nuc = pyslim.nucleotide_at(ts, mut.node, pos + 1, time = mut.time)
+                left_nuc = pyslim.nucleotide_at(ts, mut.node, pos - 1, time = mut.time + 1.0)
+                right_nuc = pyslim.nucleotide_at(ts, mut.node, pos + 1, time = mut.time + 1.0)
                 parent_nuc = pyslim.nucleotide_at(ts, mut.node, pos, time = mut.time + 1.0)
                 context = "".join([pyslim.NUCLEOTIDES[k] for k in (left_nuc, parent_nuc, right_nuc)])
                 key = context + "," + pyslim.NUCLEOTIDES[derived_nuc]
                 M[key] += 1
+                if key == "ACA,T" or key == "CCA,T":
+                    print(key, pos, mut.node, mut.time)
         assert sum([M[k] for k in M]) == nmuts
         assert sum([mutation_spectrum[k][0] for k in mutation_spectrum]) == nmuts
         for k in M:
