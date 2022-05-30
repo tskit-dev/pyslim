@@ -607,7 +607,7 @@ def annotate_tables(tables, model_type, tick, cycle=None, stage="early", referen
     if stage not in ("first", "early", "late"):
         raise ValueError(f"stage must be 'first', 'early', or 'late' (provided {stage})")
     if (type(tick) is not int) or (tick < 1):
-        raise ValueError("SLiM generation must be an integer and at least 1.")
+        raise ValueError("tick must be an integer and at least 1.")
     # set_nodes must come before set_populations
     if model_type == "WF":
         default_ages = -1
@@ -750,7 +750,7 @@ def _annotate_sites_mutations(tables):
     - replace ancestral states with ""
     This will replace any information already in the metadata or derived state
     columns of the Mutation table. We set slim_time in metadata so that
-    - slim_generation = floor(tskit time) + slim_time
+    - tick = floor(tskit time) + slim_time
     '''
     num_mutations = tables.mutations.num_rows
     default_mut = default_slim_metadata("mutation_list_entry")

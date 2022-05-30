@@ -191,9 +191,6 @@ class TestProvenance(tests.PyslimTestCase):
         record = pyslim.make_pyslim_provenance_dict()
         tskit.provenance.validate_provenance(record)
 
-        record = pyslim.make_slim_provenance_dict("nonWF", 100)
-        tskit.provenance.validate_provenance(record)
-
     def verify_upgrade(self, ts):
         # check that we have successfully got read-able metadata
         # (since this isn't tested on load)
