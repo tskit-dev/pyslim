@@ -15,7 +15,7 @@ class TestUniqueLabelsByGroup():
             u = set(label[group == g])
             if (len(u) == 1) != x[g]:
                 print(g, u, x[g], label[group == g], label.dtype)
-            assert (len(u) == 1) == x[g]
+            assert (len(u) <= 1) == x[g]
 
     def test_all_same(self):
         n = 10
@@ -24,13 +24,13 @@ class TestUniqueLabelsByGroup():
         self.verify_unique_labels_by_group(group, label, 1)
         x = pyslim.util.unique_labels_by_group(group, label, 1)
         assert len(x) == 2
-        assert x[0] == False
+        assert x[0] == True
         assert x[1] == False
         label = np.repeat(5, 10)
         self.verify_unique_labels_by_group(group, label, 1)
         x = pyslim.util.unique_labels_by_group(group, label, 1)
         assert len(x) == 2
-        assert x[0] == False
+        assert x[0] == True
         assert x[1] == True
 
     def test_all_unique(self):
@@ -62,4 +62,10 @@ class TestUniqueLabelsByGroup():
                         label = minl + np.random.choice(np.random.uniform(0, 1, nl), size=n)
                         self.verify_unique_labels_by_group(group, label, ng)
 
+    def test_unused_labels(self):
+        x = pyslim.unique_labels_by_group(
+            group=np.array([1, 1, 4], dtype='int'),
+            label=np.array([2, 2, 2], dtype='int')
+        )
+        assert np.all(x)
 

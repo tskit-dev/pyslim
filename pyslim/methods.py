@@ -266,7 +266,7 @@ def individual_times(ts):
     """
     nodes = ts.tables.nodes
     if not np.all(unique_labels_by_group(nodes.individual,
-                                          nodes.time)):
+                                         nodes.time)):
         raise ValueError("Individual has nodes from more than one time.")
     individual_times = np.zeros(ts.num_individuals)
     has_indiv = (nodes.individual >= 0)
@@ -586,7 +586,7 @@ def annotate(ts, **kwargs):
     :param int cycle: What cycle number in SLiM correponds to
         ``time=0`` in the tree sequence (default: equal to ``tick``).
     :param int stage: What stage in SLiM's cycle has the tree sequence
-        been written out in (defaults to "early").
+        been written out in (defaults to "early"; must be "early" or "late").
     :param str reference_sequence: A reference sequence of length
         equal to ts.sequence_length.
     :param bool annotate_mutations: Whether to replace mutation metadata
@@ -604,8 +604,8 @@ def annotate_tables(tables, model_type, tick, cycle=None, stage="early", referen
     takes tables as produced by ``msprime``, and makes them look like the
     tables as output by SLiM. See :func:`annotate_defaults` for details.
     '''
-    if stage not in ("first", "early", "late"):
-        raise ValueError(f"stage must be 'first', 'early', or 'late' (provided {stage})")
+    if stage not in ("early", "late"):
+        raise ValueError(f"stage must be 'early' or 'late' (provided {stage})")
     if (type(tick) is not int) or (tick < 1):
         raise ValueError("tick must be an integer and at least 1.")
     # set_nodes must come before set_populations
