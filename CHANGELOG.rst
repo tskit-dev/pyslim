@@ -6,18 +6,14 @@
 
 - Removed `SlimTreeSequence` class entirely.
 
+- TODO: Deprecated `util.unique_labels_by_group`.
+
 - TODO: what about `slim_ts.mutation_at` and `slim_ts.nucleotide_at` (used in a Recipe)
 
 - Moved some methods of `SlimTreeSequence` to pyslim:
     * instead of `slim_ts.slim_time(t)` do `pyslim.slim_time(ts, t)`
     * instead of `slim_ts.individuals_alive_at(t)` do `pyslim.individuals_alive_at(ts, t)`
     * instead of `slim_ts.individuals_parents(t)` do `pyslim.individuals_parents(ts, t)`
-
-- Methods for getting time, population, and location information about individuals
-  are now in tskit:
-    * instead of `slim_ts.individual_times` use `ts.individual_times()`
-    * instead of `slim_ts.individual_populations` use `ts.individual_populations()`
-    * instead of `slim_ts.individual_locations` use `ts.individual_locations()`
 
 - In SLiM v4 "generation" has been renamed to "tick", and so corresponding things
   in pyslim have been renamed: top-level metadata now has `ts.metadata["SLiM"]["tick"]`
@@ -42,6 +38,15 @@
     for `generation`; the latter will be deprecated at some point in the future.
 
 - TODO: Individual properties `time` and `population` now moved to tskit
+
+- Methods for getting time, population, and location information about individuals
+  are now in tskit:
+    * `SlimTreeSequence.individual_times` is now `TreeSequence.individuals_time()`
+    * `SlimTreeSequence.individual_populations` is now `TreeSequence.individualx_population()`
+    * `SlimTreeSequence.individual_locations` is now `TreeSequence.individuals_location()`
+  However, this will be invisible to the user. In each case note the the
+  location of the "s" has moved (to "individual*s* time" instead of "individual
+  time*s*"), but the original version remains an undocumented alias.
 
 
 ********************
