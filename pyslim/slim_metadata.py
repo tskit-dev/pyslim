@@ -832,10 +832,37 @@ def _old_metadata_schema(name, file_version):
     return ms
 
 
+def is_current_version(ts, _warn=False):
+    """
+    Tests whether the tree sequence or table collection provided is the current
+    SLiM file format or not. If not, use `pyslim.update( )` to bring it up to
+    date.
+
+    :param TreeSequence ts: The tree sequence or table collection.
+    :return bool: Whether the tree sequence is the current version.
+    """
+    out = (
+        isinstance(ts.metadata, dict)
+        and
+        ('SLiM' in ts.metadata)
+        and
+        (ts.metadata['SLiM']['file_version'] == slim_file_version)
+    )
+    if _warn and not out:
+        warnings.warn(
+                "This tree sequence is not the current SLiM format, "
+                "so some operations may not work. "
+                "Use `pyslim.update( )` to update the tree sequence."
+        )
+    return out
+
+
 def update(ts):
     """
     Update a tree sequence produced by a previous verion of SLiM
     to the current file version.
+
+    :return TreeSequence: The updated tree sequence.
     """
     tables = ts.dump_tables()
     update_tables(tables)
@@ -845,6 +872,7 @@ def update(ts):
 def update_tables(tables):
     """
     Update tables produced by a previous verion of SLiM to the current file version.
+    Modifies the tables in place.
     """
     # First we ensure we can find the file format version number
     # in top-level metadata. Then we proceed to fix up the tables as necessary.

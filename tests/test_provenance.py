@@ -129,63 +129,55 @@ class TestProvenance(tests.PyslimTestCase):
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.0.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.0.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def get_0_2_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.2.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.2.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def get_0_3_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.3.1.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.3.1.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def get_0_4_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.4.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.4.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def get_0_5_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.5.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.5.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def get_0_6_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.6.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.6.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def get_0_7_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.7.trees'),
             os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v3.7.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def get_mixed_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.5_and_v3.6.trees'),
         ]:
-            with pytest.warns(Warning):
-                yield tskit.load(filename)
+            yield tskit.load(filename)
 
     def test_provenance_creation(self):
         record = pyslim.make_pyslim_provenance_dict()
@@ -207,7 +199,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_1_files(self):
         for ts in self.get_0_1_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -230,7 +225,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_2_files(self):
         for ts in self.get_0_2_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -253,7 +251,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_3_files(self):
         for ts in self.get_0_3_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -278,7 +279,10 @@ class TestProvenance(tests.PyslimTestCase):
         # Note that with version 0.5 and above, we *don't* get information from
         # provenance, we get it from top-level metadata
         for ts in self.get_0_4_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -301,7 +305,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_5_files(self):
         for ts in self.get_0_5_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -324,7 +331,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_6_files(self):
         for ts in self.get_0_6_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -347,7 +357,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_0_7_files(self):
         for ts in self.get_0_7_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -370,7 +383,10 @@ class TestProvenance(tests.PyslimTestCase):
 
     def test_convert_mixed_files(self):
         for ts in self.get_mixed_slim_examples():
-            pts = pyslim.update(ts)
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
             self.verify_upgrade(pts)
             assert ts.num_provenances == 1
             assert pts.num_provenances == 2
@@ -390,3 +406,12 @@ class TestProvenance(tests.PyslimTestCase):
                 assert t.parent(u) == pt.parent(u)
                 if t.parent(u) != tskit.NULL:
                     assert t.branch_length(u) == pt.branch_length(u)
+
+    def test_file_warnings(self):
+        for ts in self.get_0_6_slim_examples():
+            with pytest.warns(Warning, match="pyslim.update"):
+                with pytest.raises(KeyError, match="tick"):
+                    _ = pyslim.recapitate(ts, ancestral_Ne=10)
+            with pytest.warns(Warning, match="pyslim.update"):
+                with pytest.raises(KeyError, match="tick"):
+                    _ = pyslim.slim_time(ts, 0)

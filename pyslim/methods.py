@@ -44,6 +44,7 @@ def recapitate(ts,
         as well as ``demography``.
     :param dict kwargs: Any other arguments to :func:`msprime.sim_ancestry`.
     '''
+    is_current_version(ts, _warn=True)
     if ancestral_Ne is not None:
         if "demography" in kwargs:
             raise ValueError("You cannot specify both `demography` and `ancestral_Ne`.")
@@ -342,6 +343,7 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     :param bool samples_only: Whether to return only individuals who have at
         least one node marked as samples.
     """
+    is_current_version(ts, _warn=True)
     if stage not in ("late", "early"):
         raise ValueError(f"Unknown stage '{stage}': "
                           "should be either 'early' or 'late'.")
@@ -473,6 +475,7 @@ def slim_time(ts, time, stage="late"):
     :param string stage: The stage of the SLiM life cycle that the SLiM time
         should be computed for.
     """
+    is_current_version(ts, _warn=True)
     slim_time = ts.metadata['SLiM']['tick'] - time
     if ts.metadata['SLiM']['model_type'] == "WF":
         if (ts.metadata['SLiM']['stage'] == "early" and stage == "late"):
@@ -485,8 +488,9 @@ def slim_time(ts, time, stage="late"):
 def _do_individual_parents_stuff(ts, return_parents=False):
     # Helper for has_individual_parents and individual_parents,
     # which share a lot of machinery.
-    edges = ts.tables.edges
-    nodes = ts.tables.nodes
+    tables = ts.tables
+    edges = tables.edges
+    nodes = tables.nodes
     edge_parent_indiv = nodes.individual[edges.parent]
     edge_child_indiv = nodes.individual[edges.child]
     # nodes whose parent nodes are all in the same individual

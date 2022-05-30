@@ -24,6 +24,8 @@ class TestAnnotate(tests.PyslimTestCase):
         Verify that the tables returned after annotation are equal, up to the
         expected forgetting of metadata, flags, and other things.
         '''
+        assert pyslim.is_current_version(ts1)
+        assert pyslim.is_current_version(ts2)
         tables1 = ts1.dump_tables()
         tables2 = ts2.dump_tables()
         # compare nodes
