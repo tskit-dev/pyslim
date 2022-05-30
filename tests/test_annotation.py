@@ -344,6 +344,24 @@ class TestAnnotate(tests.PyslimTestCase):
         pre_mutations.metadata_schema = tables.mutations.metadata_schema
         assert tables.mutations.equals(pre_mutations)
 
+    def test_no_populations_errors(self, helper_functions, tmp_path):
+        # test SLiM errors when individuals are in non-SLiM populations
+        ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=456)
+        ts = pyslim.annotate(ts, model_type='nonWF', tick=1, stage="late")
+        t = ts.dump_tables()
+        t.populations.clear()
+        t.populations.add_row(metadata={})
+        ts = t.tree_sequence()
+        for p in ts.populations():
+            assert "slim_id" not in p.metadata
+        with pytest.raises(RuntimeError):
+            _ = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_WF.slim",
+                    tmp_path,
+                    WF=True,
+            )
+
     def test_empty_populations_errors(self, helper_functions, tmp_path):
         # test SLiM errors on having empty populations in a WF model
         ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
@@ -358,7 +376,7 @@ class TestAnnotate(tests.PyslimTestCase):
         for p in ts.populations():
             assert "slim_id" in p.metadata
         with pytest.raises(RuntimeError):
-            sts = helper_functions.run_slim_restart(
+            _ = helper_functions.run_slim_restart(
                     ts,
                     "restart_WF.slim",
                     tmp_path,
@@ -425,6 +443,7 @@ class TestAnnotate(tests.PyslimTestCase):
         del md['description']
         md['slim_id'] = 1
         d.add_population(initial_size=10, name="B", extra_metadata=md)
+        d.add_population(initial_size=10, name="C", extra_metadata={"abc": 123})
         ts = msprime.sim_ancestry(
                 samples={"B": 5},
                 demography=d,
@@ -438,13 +457,115 @@ class TestAnnotate(tests.PyslimTestCase):
                 tmp_path,
                 WF=True,
         )
-        assert sts.num_populations == 2
+        assert sts.num_populations == 3
         assert np.all(ts.tables.nodes.population == 1)
         p = sts.population(0)
         assert p.metadata['name'] == "A"
         assert p.metadata['pi'] == 3.1415
         p = sts.population(1)
         assert p.metadata['name'] == "B"
+        p = sts.population(2)
+        assert p.metadata['name'] == "C"
+        assert p.metadata['abc'] == 123
+
+    def test_remapping_errors(self, helper_functions, tmp_path):
+        ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
+        ts = pyslim.annotate(ts, model_type='nonWF', tick=1, stage="late")
+        # test can't map the same subpop to two different pops
+        with pytest.raises(RuntimeError):
+            _ = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_WF.slim",
+                    tmp_path,
+                    WF=True,
+                    subpop_map = {
+                        "p0" : 0,
+                        "p1" : 0,
+                    }
+            )
+
+    @pytest.mark.skip(reason="not working")
+    def test_remapping(self, helper_functions, tmp_path):
+        d = msprime.Demography()
+        d.add_population(initial_size=10, name="A", extra_metadata={"pi": 3.1415})
+        md = pyslim.default_slim_metadata('population')
+        del md['name']
+        del md['description']
+        md['slim_id'] = 1
+        md['migration_records'] = [
+            {
+                "migration_rate" : 0.1,
+                "source_subpop" : 3,
+            }
+        ]
+        d.add_population(initial_size=10, name="B", extra_metadata=md)
+        d.add_population(initial_size=10, name="C", extra_metadata={"abc": 123})
+        md = pyslim.default_slim_metadata('population')
+        del md['name']
+        del md['description']
+        md['slim_id'] = 3
+        md['migration_records'] = [
+            {
+                "migration_rate" : 0.9,
+                "source_subpop" : 1,
+            }
+        ]
+        d.add_population(initial_size=10, name="D", extra_metadata=md)
+        d.add_population_split(time=1.0, derived=["B", "D"], ancestral="A")
+        ts = msprime.sim_ancestry(
+                samples={"B": 5, "D": 5},
+                demography=d,
+                sequence_length=100,
+                random_seed=455
+        )
+        ts = pyslim.annotate(ts, model_type='WF', tick=1)
+        # test can run without remapping
+        sts = helper_functions.run_slim_restart(
+                ts,
+                "restart_WF.slim",
+                tmp_path,
+                WF=True,
+        )
+        assert sts.num_populations == 4
+        for n in ts.samples():
+            assert ts.node(n).population in [1, 3]
+        sts = helper_functions.run_slim_restart(
+                ts,
+                "restart_WF.slim",
+                tmp_path,
+                WF=True,
+                subpop_map = {
+                    "p0" : 1,
+                    "p1" : 0,
+                    "p3" : 2,
+                    "p5" : 3,
+                }
+        )
+        assert sts.num_populations == 6
+        for n in ts.samples():
+            assert ts.node(n).population in [0, 5]
+        p = sts.population(1)
+        assert p.metadata['name'] == "A"
+        assert p.metadata['pi'] == 3.1415
+        p = sts.population(0)
+        assert p.metadata['name'] == "B"
+        mr = p.metadata['migration_records']
+        assert len(mr) == 1
+        assert mr['migration_rate'] == 0.1
+        assert mr['source_subpop'] == 5
+        p = sts.population(3)
+        assert p.metadata['name'] == "C"
+        assert p.metadata['abc'] == 123
+        p = sts.population(5)
+        assert p.metadata['name'] == "D"
+        mr = p.metadata['migration_records']
+        assert len(mr) == 1
+        assert mr['migration_rate'] == 0.9
+        assert mr['source_subpop'] == 0
+        p = sts.population(2)
+        assert p.metadata is None
+        p = sts.population(4)
+        assert p.metadata is None
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])

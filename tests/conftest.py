@@ -138,6 +138,9 @@ class HelperFunctions:
         if 'STAGE' not in kwargs:
             kwargs['STAGE'] = in_ts.metadata['SLiM']['stage']
         if subpop_map is not None:
+            # subpopMap argument has entries like { "p1" : 2 },
+            # meaning that when loaded in, subpop p1 will be the second row
+            # in the population table
             spm = "Dictionary(" + ", ".join([f"\"{a}\", {b}" for a, b in subpop_map.items()]) + ")"
             kwargs['SUBPOP_MAP'] = spm
         results = run_slim(recipe, out_dir, **kwargs)
