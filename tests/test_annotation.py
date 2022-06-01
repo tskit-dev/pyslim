@@ -470,6 +470,88 @@ class TestAnnotate(tests.PyslimTestCase):
         assert p.metadata['name'] == "C"
         assert p.metadata['abc'] == 123
 
+    def verify_remapping(self, ts, rts, subpop_map):
+        # note that this restart does not do additional simulation
+        do_remap = (subpop_map is not None)
+        if not do_remap:
+            subpop_map = { f"p{k}" : k for k in range(ts.num_populations) }
+        fwd_map = {-1 : -1}
+        rev_map = {-1 : -1}
+        for pk in subpop_map:
+            rts_k = int(pk[1:])
+            assert rts_k < rts.num_populations
+            ts_k = subpop_map[pk]
+            assert ts_k < ts.num_populations
+            fwd_map[ts_k] = rts_k
+            rev_map[rts_k] = ts_k
+
+        # all pops in ts should be present
+        for pop in ts.populations():
+            assert pop.id in fwd_map
+
+        # any extra pops in rts should have empty metadata
+        for pop in rts.populations():
+            if pop.id not in rev_map:
+                assert pop.metadata is None
+
+        for ts_k, rts_k in fwd_map.items():
+            if ts_k != -1:
+                ts_pop = ts.population(ts_k)
+                rts_pop = rts.population(rts_k)
+                ts_md = ts_pop.metadata
+                rts_md = rts_pop.metadata
+                if ts_md is None:
+                    assert rts_md is None
+                else:
+                    if do_remap and (
+                            ts_md['name'] == f"p{ts_pop.id}"
+                            or ts_md['name'] == f"pop_{ts_pop.id}"
+                    ):
+                        ts_md['name'] = f"p{rts_pop.id}"
+                    assert ts_md['name'] == rts_md['name']
+                    if "slim_id" not in ts_md:
+                        assert ts_md == rts_md
+                    else:
+                        assert ts_md["slim_id"] == ts_pop.id
+                        assert rts_md["slim_id"] == rts_pop.id
+                        k = "migration_records"
+                        assert (k in ts_md) == (k in rts_md)
+                        if k in ts_md:
+                            assert len(ts_md[k]) == len(rts_md[k])
+                            for x, y in zip(ts_md[k], rts_md[k]):
+                                assert x['migration_rate'] == y['migration_rate']
+                                assert fwd_map[x['source_subpop']] == y['source_subpop']
+
+        # check other tables have been remapped
+        # (uses the fact that no additional simulation has been done)
+        assert ts.num_nodes == rts.num_nodes
+        for n, rn in zip(ts.nodes(), rts.nodes()):
+            n.population = fwd_map[n.population]
+            assert n == rn
+
+        assert ts.num_migrations == rts.num_migrations
+        for m, rm in zip(ts.migrations(), rts.migrations()):
+            m.source = fwd_map[m.source]
+            m.dest = fwd_map[m.dest]
+            assert m == rm
+
+        assert ts.num_mutations == rts.num_mutations
+        for m, rm in zip(ts.mutations(), rts.mutations()):
+            md = m.metadata
+            rmd = rm.metadata
+            assert len(md['mutation_list']) == len(rmd['mutation_list'])
+            for x, y in zip(md['mutation_list'], rmd['mutation_list']):
+                x['subpopulation'] = fwd_map[x['subpopulation']]
+                assert x == y
+
+        assert ts.num_individuals == rts.num_individuals
+        for i, ri in zip(ts.individuals(), rts.individuals()):
+            md = i.metadata
+            rmd = ri.metadata
+            md['subpopulation'] = fwd_map[md['subpopulation']]
+            assert md == rmd
+
+
     def test_remapping_errors(self, helper_functions, tmp_path):
         ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
         ts = pyslim.annotate(ts, model_type='nonWF', tick=1, stage="late")
@@ -486,10 +568,11 @@ class TestAnnotate(tests.PyslimTestCase):
                     }
             )
 
-    @pytest.mark.skip(reason="not working")
     def test_remapping(self, helper_functions, tmp_path):
         d = msprime.Demography()
+        # pop 0
         d.add_population(initial_size=10, name="A", extra_metadata={"pi": 3.1415})
+        # pop 1
         md = pyslim.default_slim_metadata('population')
         del md['name']
         del md['description']
@@ -500,8 +583,10 @@ class TestAnnotate(tests.PyslimTestCase):
                 "source_subpop" : 3,
             }
         ]
-        d.add_population(initial_size=10, name="B", extra_metadata=md)
-        d.add_population(initial_size=10, name="C", extra_metadata={"abc": 123})
+        d.add_population(initial_size=10, name="pop_1", extra_metadata=md)
+        # pop 2
+        d.add_population(initial_size=10, name="pop_2", extra_metadata={"abc": 123})
+        # pop 3
         md = pyslim.default_slim_metadata('population')
         del md['name']
         del md['description']
@@ -513,61 +598,36 @@ class TestAnnotate(tests.PyslimTestCase):
             }
         ]
         d.add_population(initial_size=10, name="D", extra_metadata=md)
-        d.add_population_split(time=1.0, derived=["B", "D"], ancestral="A")
+        d.add_population_split(time=1.0, derived=["pop_1", "D"], ancestral="A")
         ts = msprime.sim_ancestry(
-                samples={"B": 5, "D": 5},
+                samples={"pop_1": 5, "D": 5},
                 demography=d,
                 sequence_length=100,
                 random_seed=455
         )
         ts = pyslim.annotate(ts, model_type='WF', tick=1)
-        # test can run without remapping
-        sts = helper_functions.run_slim_restart(
+        ts = msprime.sim_mutations(
                 ts,
-                "restart_WF.slim",
-                tmp_path,
-                WF=True,
+                rate=1e-2,
+                random_seed=9,
+                model=msprime.SLiMMutationModel(type=1),
         )
-        assert sts.num_populations == 4
-        for n in ts.samples():
-            assert ts.node(n).population in [1, 3]
-        sts = helper_functions.run_slim_restart(
-                ts,
-                "restart_WF.slim",
-                tmp_path,
-                WF=True,
-                subpop_map = {
-                    "p0" : 1,
-                    "p1" : 0,
-                    "p3" : 2,
-                    "p5" : 3,
-                }
-        )
-        assert sts.num_populations == 6
-        for n in ts.samples():
-            assert ts.node(n).population in [0, 5]
-        p = sts.population(1)
-        assert p.metadata['name'] == "A"
-        assert p.metadata['pi'] == 3.1415
-        p = sts.population(0)
-        assert p.metadata['name'] == "B"
-        mr = p.metadata['migration_records']
-        assert len(mr) == 1
-        assert mr['migration_rate'] == 0.1
-        assert mr['source_subpop'] == 5
-        p = sts.population(3)
-        assert p.metadata['name'] == "C"
-        assert p.metadata['abc'] == 123
-        p = sts.population(5)
-        assert p.metadata['name'] == "D"
-        mr = p.metadata['migration_records']
-        assert len(mr) == 1
-        assert mr['migration_rate'] == 0.9
-        assert mr['source_subpop'] == 0
-        p = sts.population(2)
-        assert p.metadata is None
-        p = sts.population(4)
-        assert p.metadata is None
+        assert ts.num_mutations > 0
+        for subpop_map in (
+                None,
+                {"p0" : 0, "p1" : 1, "p2" : 2, "p3" : 3},
+                {"p0" : 1, "p1" : 0, "p2" : 2, "p3" : 3},
+                {"p5" : 0, "p0" : 1, "p7" : 2, "p2" : 3},
+        ):
+            rts = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_WF.slim",
+                    tmp_path,
+                    WF=True,
+                    subpop_map = subpop_map,
+            )
+            self.verify_remapping(ts, rts, subpop_map)
+
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
@@ -582,6 +642,19 @@ class TestAnnotate(tests.PyslimTestCase):
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         # check for equality, in everything but the last provenance
         self.verify_slim_restart_equality(in_ts, out_ts)
+        # test for restarting with a subpop map
+        for j, k in [(1, 7), (5, 7)]:
+            subpop_map = {
+                    f"p{i * j % k}" : i
+                    for i in range(in_ts.num_populations)
+            }
+            out_ts = helper_functions.run_slim_restart(
+                    in_ts,
+                    restart_name,
+                    tmp_path,
+                    subpop_map=subpop_map
+            )
+            self.verify_remapping(in_ts, out_ts, subpop_map)
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
