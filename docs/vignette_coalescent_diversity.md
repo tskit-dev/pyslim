@@ -116,7 +116,7 @@ First, we'll add SLiM metadata to all of these things,
 a procedure we call "annotating".
 
 ```{code-cell}
-ots = pyslim.annotate_defaults(ots, model_type="WF", slim_generation=1)
+ots = pyslim.annotate(ots, model_type="WF", tick=1)
 ```
 
 This method adds default metadata to everything that needs it:
@@ -124,7 +124,7 @@ in this case, all individuals, all nodes that are part of alive individuals,
 and all populations referenced by nodes.
 These default values are returned by {meth}`.slim_default_metadata`
 (e.g., all individuals are hermaphrodite, all chromosomes are autosomal);
-see {func}`.annotate_defaults` for more information.
+see {func}`.annotate` for more information.
 
 ## Add SLiM mutations
 
@@ -227,12 +227,12 @@ util.pp(tables.metadata)
 ```
 
 We should edit this to match our planned slimulation
-- particularly the ``model_type`` (WF or nonWF) and the ``generation``.
-The ``generation`` tells SLiM what generation to set the generation counter to
+- particularly the ``model_type`` (WF or nonWF) and the ``tick``.
+The ``tick`` tells SLiM what value to set the tick counter to
 once this tree sequence is loaded. In principle, it can be set to anything,
 independently of the times in the tree sequence,
 because the times in the tree sequence are measured in units of
-"time before the end"; and the ``generation`` that gets
+"time before the end"; and the ``tick`` that gets
 passed to SLiM sets what that "end time" is, in SLiM's time.
 However, if you change this, the ``slim_time`` attributes in mutation metadata
 will not be accurate. This is harmless, unless you do something with mutations'
@@ -286,9 +286,10 @@ This runs quickly, since it's only 100 generations.
 
 First, let's look at what mutations are present.
 ```{code-cell}
-ts = pyslim.load("vignette_annotated.trees")
+ts = tskit.load("vignette_annotated.trees")
 num_stacked = np.array([len(m.metadata["mutation_list"]) for m in ts.mutations()])
-old_mut = np.array([m.time > ts.slim_generation - 1 - 1e-12 for m in ts.mutations()])
+init_time = ts.metadata['SLiM']['tick']
+old_mut = np.array([m.time > init_time - 1 - 1e-12 for m in ts.mutations()])
 assert sum(old_mut) == ots.num_mutations
 print(f"There are {ts.num_mutations} present at {ts.num_sites} distinct sites.")
 print(f"Of these, {np.sum(num_stacked > 1)} have more than one stacked mutation,")
@@ -311,7 +312,9 @@ First, we'll compute all allele frequencies
 among both the first generation and the final generation:
 
 ```{code-cell}
-times = list(set(ts.individual_times))
+# TODO: will work on next tskit release
+# times = list(set(ts.individual_times))
+times = [ts.node(ind.nodes[0]).time for ind in ts.individuals()]
 times.sort()
 print("The times ago at which individuals in the tree sequence were born:", times)
 # The times ago at which individuals in the tree sequence were born: [0.0, 100.0]
@@ -324,9 +327,8 @@ s = np.array([sum([sum([md["selection_coeff"] for md in m.metadata["mutation_lis
                   for m in site.mutations]) for site in ts.sites()])
 ```
 
-To do this, we used {meth}`.SLiMTreeSequence.individuals_alive_at` to find the individuals
-alive at each of the two times (0 and 100 generations ago);
-extracted the list of nodes corresponding to each of these lists of individuals,
+To do this, we used the `time=t` argument to :meth:`tskit.TreeSequence.samples`
+to find the nodes alive at each of the two times (0 and 100 generations ago);
 then computed an array ``p`` of allele frequencies, with one row per site,
 the first column giving the frequency among the initial generation,
 and the second giving the frequency at the end.

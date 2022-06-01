@@ -14,6 +14,8 @@
     * instead of `slim_ts.slim_time(t)` do `pyslim.slim_time(ts, t)`
     * instead of `slim_ts.individuals_alive_at(t)` do `pyslim.individuals_alive_at(ts, t)`
     * instead of `slim_ts.individuals_parents(t)` do `pyslim.individuals_parents(ts, t)`
+    * instead of `slim_ts.individuals_ages(t)` do `pyslim.individuals_ages(ts, t)`
+
 
 - In SLiM v4 "generation" has been renamed to "tick", and so corresponding things
   in pyslim have been renamed: top-level metadata now has `ts.metadata["SLiM"]["tick"]`
@@ -31,6 +33,8 @@
 
 - The method `pyslim.set_tree_sequence_metadata` now has arguments `tick` and `cycle`
   instead of `generation`.
+
+- Removed `pyslim.make_slim_provenance_dict`.
 
 **Other notable changes**:
 

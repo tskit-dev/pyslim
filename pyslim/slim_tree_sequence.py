@@ -1,10 +1,6 @@
-import attr
-import struct
 import msprime
 import tskit
-import kastore
 import json
-from collections import OrderedDict
 import warnings
 import numpy as np
 
@@ -24,6 +20,10 @@ INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
 # A nucleotide k in mutation metadata actually means
 # something that in reference_sequence is NUCLEOTIDES[k]
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
+
+
+def load(*args, **kwargs):
+    raise RuntimeError("This method has been removed: use tskit.load( ) instead.")
 
 
 def mutation_at(ts, node, position, time=None):

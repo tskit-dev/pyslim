@@ -1,5 +1,3 @@
-import attr
-import struct
 import tskit
 import json
 import warnings

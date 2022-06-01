@@ -24,7 +24,6 @@ class TestAnnotate(tests.PyslimTestCase):
         Verify that the tables returned after annotation are equal, up to the
         expected forgetting of metadata, flags, and other things.
         '''
-        assert pyslim.is_current_version(ts1)
         assert pyslim.is_current_version(ts2)
         tables1 = ts1.dump_tables()
         tables2 = ts2.dump_tables()
@@ -471,7 +470,7 @@ class TestAnnotate(tests.PyslimTestCase):
         assert p.metadata['abc'] == 123
 
     def verify_remapping(self, ts, rts, subpop_map):
-        # note that this restart does not do additional simulation
+        # below we assume the restart has not done additional simulation
         do_remap = (subpop_map is not None)
         if not do_remap:
             subpop_map = { f"p{k}" : k for k in range(ts.num_populations) }
@@ -628,6 +627,20 @@ class TestAnnotate(tests.PyslimTestCase):
             )
             self.verify_remapping(ts, rts, subpop_map)
 
+    @pytest.mark.parametrize(
+        'restart_name, recipe', restarted_recipe_eq("remove_subpop"), indirect=["recipe"])
+    def test_keep_slim_names(self, restart_name, recipe, helper_functions, tmp_path):
+        # test that SLiM retains names of SLim populations
+        # even when those are removed
+        in_ts = recipe["ts"]
+        # this recipe moves everyone to subpop 0
+        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
+        for n in out_ts.samples(time=0):
+            assert out_ts.node(n).population == 0
+        for j in range(1, in_ts.num_populations):
+            in_md = in_ts.population(j).metadata
+            out_md = out_ts.population(j).metadata
+            assert in_md['name'] == out_md['name']
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
@@ -639,6 +652,9 @@ class TestAnnotate(tests.PyslimTestCase):
         # recapitate, reload
         in_ts = self.do_recapitate(ts, recombination_rate=1e-2, ancestral_Ne=10, random_seed=25)
         # put it through SLiM (which just reads in and writes out)
+        print("IN")
+        for p in in_ts.populations():
+            print(p)
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
         # check for equality, in everything but the last provenance
         self.verify_slim_restart_equality(in_ts, out_ts)

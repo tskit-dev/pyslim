@@ -62,7 +62,7 @@ slim -s 23 vignette_space.slim
 Ok, now let's have a quick look at the output:
 
 ```{code-cell}
-slim_ts = pyslim.load("spatial_sim.trees")
+slim_ts = tskit.load("spatial_sim.trees")
 print(f"The tree sequence has {slim_ts.num_trees} trees\n"
       f"on a genome of length {slim_ts.sequence_length},\n"
       f"{slim_ts.num_individuals} individuals, {slim_ts.num_samples} 'sample' genomes,\n"
@@ -78,8 +78,11 @@ Let's have a look at how old those individuals are,
 by tabulating when they were born:
 
 ```{code-cell}
-for t in np.unique(slim_ts.individual_times):
-    print(f"There are {np.sum(slim_ts.individual_times == t)} individuals from time {t}.")
+# TODO: will work on next tskit release
+# individual_times = slim_ts.individual_times
+individual_times = np.array([slim_ts.node(ind.nodes[0]).time for ind in slim_ts.individuals()])
+for t in np.unique(individual_times):
+    print(f"There are {np.sum(individual_times == t)} individuals from time {t}.")
 ```
 
 These "times" record the birth times of each individual.
@@ -96,7 +99,7 @@ Let's check that all these individuals are alive at either (a) today or (b) 1000
 
 ```{code-cell}
 for t in [0, 1000]:
-  alive = slim_ts.individuals_alive_at(t)
+  alive = pyslim.individuals_alive_at(slim_ts, t)
   print(f"There were {len(alive)} individuals alive {t} time steps in the past.")
 ```
 
@@ -139,14 +142,12 @@ we would need to pass ``keep_input_roots=True`` to allow recapitation.
 
 ```{code-cell}
 recap_ts = pyslim.recapitate(slim_ts, recombination_rate=1e-8, ancestral_Ne=1000)
-ts = pyslim.SlimTreeSequence(
-       msprime.sim_mutations(
+ts = msprime.sim_mutations(
          recap_ts,
          rate=1e-8,
          model=msprime.SLiMMutationModel(type=0),
          keep=True,
-       )
-     )
+)
 ts.dump("spatial_sim.recap.trees")
 
 print(f"The tree sequence now has {ts.num_trees} trees,\n"
@@ -155,13 +156,6 @@ print(f"The tree sequence now has {ts.num_trees} trees,\n"
 See {ref}`sec_tutorial_adding_neutral_mutations` for discussion of the options to
 {func}`msprime.sim_mutations`.
 
-
-:::{note}
-   Since {func}`sim_mutations <msprime.sim_mutations>` is an msprime method,
-   it does not return a pyslim
-   tree sequence, so we need to convert it back, by wrapping the call
-   in {class}`.SlimTreeSequence`.
-:::
 
 We will have no further use for ``slim_ts`` or for ``recap_ts``;
 we've just given them separate names for tidyness.
@@ -187,8 +181,10 @@ We'll get genomes to work with by pulling out
 
 np.random.seed(23)
 
-alive = ts.individuals_alive_at(0)
-locs = ts.individual_locations[alive, :]
+alive = pyslim.individuals_alive_at(ts, 0)
+# TODO: will work in the next tskit release
+# locs = ts.individual_locations[alive, :]
+locs = np.array([ts.individual(ind).location for ind in alive])
 
 W = 35
 w = 5
@@ -201,7 +197,7 @@ groups = {
                                   np.abs(locs[:, 1] - W/2) < w/2)]
   }
 
-old_ones = ts.individuals_alive_at(1000)
+old_ones = pyslim.individuals_alive_at(ts, 1000)
 groups['ancient'] = np.random.choice(old_ones, size=5)
 
 for k in groups:
@@ -218,7 +214,10 @@ Let's do a quick consistency check, that everyone in ``ancient`` was actually bo
 ```{code-cell}
 for i in groups["ancient"]:
   ind = ts.individual(i)
-  assert(ind.time >= 1000 and ind.time < 1020)
+  # TODO: will work on next tskit release
+  # assert(ind.time >= 1000 and ind.time < 1020)
+  time = ts.node(ind.nodes[0]).time
+  assert(time >= 1000 and time < 1020)
 ```
 No errors occurred, so that checks out.
 
@@ -236,11 +235,14 @@ we can pull out the locations of the "topleft" individuals
 by indexing the rows of the individual location array:
 ```{code-cell}
 print("Locations:")
-print(ts.individual_locations)
+# TODO: will work in next tskit release
+# all_locs = ts.individual_locations
+all_locs = np.array([ind.location for ind in ts.individuals()])
+print(all_locs)
 print("shape:")
-ts.individual_locations.shape
+all_locs.shape
 print("topleft locations shape:")
-ts.individual_locations[groups["topleft"], :].shape
+all_locs[groups["topleft"], :].shape
 ```
 
 Using this, we can easily plot the locations of all the individuals from today
@@ -257,7 +259,9 @@ ind_colors = np.repeat(0, ts.num_individuals)
 for j, k in enumerate(group_order):
   ind_colors[groups[k]] = 1 + j
 
-old_locs = ts.individual_locations[old_ones, :]
+# TODO: will work in next tskit release
+# old_locs = ts.individual_locations[old_ones, :]
+old_locs = np.array([ind.location for ind in ts.individuals()])[old_ones, :]
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6), dpi=300)
 ax1.set_title("today")
@@ -358,7 +362,9 @@ We'll also need pairwise geographic distances:
 
 ```{code-cell}
 geog_dist = np.repeat(0.0, len(pairs))
-locs = ts.individual_locations
+# TODO: will work in next tskit release
+# locs = ts.individual_locations
+locs = np.array([ind.location for ind in ts.individuals()])
 for k, (i, j) in enumerate(pairs):
   geog_dist[k] = np.sqrt(np.sum(
                     (locs[ind_ids[i], :]
@@ -420,7 +426,8 @@ with open("spatial_sim_individuals.txt", "w") as indfile:
            ind = ts.individual(i)
            vcf_label = f"tsk_{ind.id}"
            indivnames.append(vcf_label)
-           data = [vcf_label, str(ind.id), str(ind.metadata["pedigree_id"]), str(ind.time),
+           time = ts.node(ind.nodes[0]).time
+           data = [vcf_label, str(ind.id), str(ind.metadata["pedigree_id"]), str(time),
                    str(ind.metadata["age"]), str(ind.location[0]), str(ind.location[1])]
            indfile.writelines("\t".join(data) + "\n")
 

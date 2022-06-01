@@ -25,6 +25,20 @@ tables = ts.tables
 
 # Migrating from previous versions of pyslim
 
+## 1.0
+
+TODO: explain changes.
+Rough outline:
+
+1. change `generation` to `tick`
+2. change `pyslim.load( )` to `tskit.load( )`
+3. remove `SlimTreeSequence( )`
+4. change `ts.individuals_alive_at(t)` to `pyslim.individuals_alive_at(ts, t)`
+5. change `pyslim.annotate_defaults( )` to `pyslim.annotate( )`
+
+
+## 0.700
+
 A number of features that were first introduced in pyslim have been made part of core
 tskit functionality. For instance, reference sequence support was provided (although
 loosely) inpyslim to support SLiM's nucleotide models, but is now part of a standard

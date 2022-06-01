@@ -107,6 +107,7 @@ class TestPopulationSize(tests.PyslimTestCase):
             with pytest.warns(UserWarning):
                 pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="early")
 
+    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_population_size(self, recipe):
         # compare output to the right answer

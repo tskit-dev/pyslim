@@ -19,7 +19,7 @@ import numpy as np
 import random
 random.seed(23)
 
-ts = pyslim.load("example_sim.trees")
+ts = tskit.load("example_sim.trees")
 tables = ts.tables
 ```
 
@@ -47,7 +47,8 @@ If `ts` is your tree sequence, then `ts.metadata` is a dict,
 and `ts.metadata["SLiM"]` contains information about the simulation:
 
 - `file_version`: the version of the SLiM tree sequence file format
-- `generation`: the value of `sim.generation` within SLiM when the file was written out
+- `tick`: the value of `community.tick` within SLiM when the file was written out
+- `cycle`: the value of `sim.cycle` within SLiM when the file was written out
 - `model_type`: either `"WF"` or `"nonWF"`
 - `nucleotide_based`: whether this is a nucleotide-based simulation
 - `separate_sexes`: whether the simulation has separate sexes or not
@@ -99,7 +100,7 @@ So, `ts.mutation(12).metadata["mutation_list"]` is a list, each of whose entries
 - `mutation_type`: the numeric ID of the `MutationType` within SLiM
 - `selection_coeff`: the selection coefficient
 - `subpopulation`: the numeric ID of the subpopulation the mutation occurred in
-- `slim_time`: the value of `sim.generation` when the mutation occurred
+- `slim_time`: the value of `community.tick` when the mutation occurred
 - `nucleotide`: either `-1` if there is no associated nucleotide, or the numeric code for the nucleotide (see {data}`.NUCLEOTIDES`)
 
 
@@ -132,19 +133,19 @@ Mostly, you don't have to convert between the two,
 unless you want to match up information in a tree sequence
 with information written out by SLiM itself.
 In other words, SLiM's time counter measures the number of time steps
-("generations") since the start of the simulation,
+("tick") since the start of the simulation,
 and times in the tree sequence record how long before the end of the simulation.
 However, there are Some Details, and off-by-one errors are easy to make,
 so we'll spell it out in detail.
 
-SLiM's time counter is called the "generation"
+SLiM's time counter is called the "tick"
 (although a "year" or "life cycle" would be a more appropriate name for a nonWF model).
-The SLiM generation starts at 1, and records which round of the life cycle the simulation is in.
+The SLiM tick starts at 1, and records which round of the life cycle the simulation is in.
 However, the order of the life cycle differs between WF and nonWF models:
 in a WF model, it is "*early* {math}`\to` *birth* {math}`\to` *late*",
 while in a nonWF model, it is "*birth* {math}`\to` *early* {math}`\to` *late*".
-Usually, the first set of individuals are created in the *early()* phase of generation 1,
-and so in a WF model reproduce immediately, in the same generation they were "born".
+Usually, the first set of individuals are created in the *early()* phase of tick 1,
+and so in a WF model reproduce immediately, in the same tick they were "born".
 Parents and offspring cannot have the same birth time in the tree sequence,
 and so some clever bookkeeping was required.
 You'll want to refer to the tables below to see what's going on.
@@ -159,7 +160,7 @@ tskit time ago is recorded as minus one times the number of birth phases so far.
 When the tree sequence is output, the current cumulative number of birth phases
 is added to this,
 so "tskit time ago" is, equivalently, "how many birth phases happened since this time".
-In a nonWF model, the two counters ("generation" and "number of birth phases")
+In a nonWF model, the two counters ("tick" and "number of birth phases")
 are always in sync; but in a WF they are not (during *early*).
 The extra wrinkle this introduces is that the correspondence between "tskit time ago"
 and "SLiM time" depends on *which phase the tree sequence was recorded in*,
@@ -170,10 +171,10 @@ To help keep all this straight, here are schematics for WF and nonWF models.
 
 ```{tabbed} WF model
 
-For a WF model, the SLiM generation (first column) can be obtained by subtracting the
-tskit time ago from the SLiM generation at time of output only during the same stage that output occured in.
+For a WF model, the SLiM tick (first column) can be obtained by subtracting the
+tskit time ago from the SLiM tick at time of output only during the same stage that output occured in.
 
-|    generation      |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
+|    tick            |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
 |--------------------|---------------------|--------------------|--------------------------------|-------------------------------|-------------------------------|
 |       1            |       early         |       0            | {math}`\leftarrow` add subpops |        n-1                    |         n                     |
 |       1            |       birth         |       1            |                                |        n-2                    |         n-1                   |
@@ -199,10 +200,10 @@ tskit time ago from the SLiM generation at time of output only during the same s
 
 ```{tabbed} nonWF model
 
-Note that for nonWF models the SLiM generation (first column) can always be obtained by subtracting the
-tskit time ago from the SLiM generation at time of output.
+Note that for nonWF models the SLiM time (first column) can always be obtained by subtracting the
+tskit time ago from the SLiM time at time of output.
 
-|    generation      |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
+|    tick            |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
 |--------------------|---------------------|--------------------|--------------------------------|-------------------------------|-------------------------------|
 |       1            |       birth         |       1            |                                |        n-1                    |         n-1                   |
 |       1            |       early         |       1            | {math}`\leftarrow` add subpops |        n-1                    |         n-1                   |
@@ -225,17 +226,16 @@ tskit time ago from the SLiM generation at time of output.
 |       n            |       late          |       n            |                                | treeSeqOutput {math}`\to`     |         0                     |
 
 ```
-When the tree sequence is written out, SLiM records the value of its current generation,
-which can be found in the metadata: ``ts.metadata['SLiM']['generation']``
-(or, the ``ts.slim_generation`` attribute).
+When the tree sequence is written out, SLiM records the value of its current tick,
+which can be found in the metadata: ``ts.metadata['SLiM']['tick']``.
 In most cases, the "SLiM time" referred to by a ``time`` in the tree sequence
-(i.e., the value that would be reported by ``sim.generation``
+(i.e., the value that would be reported by ``community.tick``
 within SLiM at the point in time thus referenced)
-can be obtained by subtracting ``time`` from ``ts.slim_generation``.
+can be obtained by subtracting ``time`` from ``ts.metadata['SLiM']['tick']``.
 **However,** in WF models, birth happens between the "early()" and "late()" stages,
 so if the tree sequence was written out using ``sim.treeSeqOutput()`` during "early()" in a WF model,
 the tree sequence's times measure time before the last set of individuals are born,
-i.e., before SLiM time step ``ts.slim_generation - 1``.
+i.e., before SLiM time step ``ts.metadata['SLiM']['tick'] - 1``.
 The stage that the tree sequence was saved is recorded in the metadata of the tree sequence,
 as ``ts.metadata['SLiM']['stage']``.
 Using this, we can convert from the times of a tree sequence ``ts``
@@ -243,7 +243,7 @@ to SLiM time as follows:
 
 ```{code-cell}
 def slim_time(ts, time, stage):
-  slim_time = ts.metadata["SLiM"]["generation"] - time
+  slim_time = ts.metadata["SLiM"]["tick"] - time
   if ts.metadata['SLiM']['model_type'] == "WF":
     if (ts.metadata['SLiM']['stage'] == "early"
         and stage == "late"):
@@ -257,7 +257,7 @@ def slim_time(ts, time, stage):
 This is what is computed by the {meth}`.SlimTreeSequence.slim_time` method
 (which also has a ``stage`` argument).
 
-Some of the other methods in pyslim -- those that depend on {meth}`.SlimTreeSequence.individuals_alive_at`
+Some of the other methods in pyslim -- those that depend on {meth}`pyslim.individuals_alive_at`
 -- need you to tell them during which stage the tree sequence was saved with ``sim.treeSeqOutput``,
 and need this to be the same as the stage that any individuals were saved with ``sim.treeSeqRememberIndividuals``.
 This argument, ``remembered_stage``, defaults to "late()";

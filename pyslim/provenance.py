@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import platform
 import warnings
-import attr
 import json
 import msprime
 import tskit

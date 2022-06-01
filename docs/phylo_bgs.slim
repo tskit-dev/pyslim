@@ -1,7 +1,7 @@
 // The following constants need to be defined:
 // - outfile: path to save the tree sequence of the simulation.
 // - popsize: population size.
-// - num_gens: run simulation for num_gens generations.
+// - num_gens: run simulation for num_gens ticks.
 // - infile: a string with path to tree sequence to start from; optional.
 initialize()
 {
@@ -19,7 +19,7 @@ initialize()
     if (infile == "") {
         p = sim.addSubpop("p1", popsize);
     } else {
-        // relaoding must happen in late()
+        // reloading must happen in late()
         sim.readFromPopulationFile(infile);
         parent = sim.subpopulations[0];
         p = sim.addSubpopSplit(max(sim.subpopulations.id) + 1, popsize, parent);
@@ -30,8 +30,8 @@ initialize()
 
 // schedule the end of the simulation
 1 late() {
-    finalgen = num_gens + sim.generation;
-    sim.rescheduleScriptBlock(s0, generations=finalgen);
+    finaltick = num_gens + community.tick;
+    community.rescheduleScriptBlock(s0, ticks=finaltick);
 }
 
 // event that saves the tree sequence

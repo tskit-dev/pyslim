@@ -238,16 +238,6 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     return tables.tree_sequence()
 
 
-def individual_locations(ts):
-    """
-    Returns the ages of all individuals in the tree sequence, extracted
-    from metadata. The result is a array of length equal to the number of
-    individuals, with k-th entry equal to ``ts.individual(k).metadata["age"]``.
-    """
-    x = ts.tables.individuals.location
-    x.shape = (ts.num_individuals, 3)
-    return x
-
 def individual_ages(ts):
     """
     Returns the ages of all individuals in the tree sequence, extracted
@@ -259,6 +249,17 @@ def individual_ages(ts):
     else:
         ages = np.zeros(ts.num_individuals, dtype='int')
     return ages
+
+
+def individual_locations(ts):
+    """
+    Returns the ages of all individuals in the tree sequence, extracted
+    from metadata. The result is a array of length equal to the number of
+    individuals, with k-th entry equal to ``ts.individual(k).metadata["age"]``.
+    """
+    x = ts.tables.individuals.location
+    x.shape = (ts.num_individuals, 3)
+    return x
 
 
 def individual_times(ts):

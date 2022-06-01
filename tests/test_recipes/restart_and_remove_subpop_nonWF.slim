@@ -18,23 +18,27 @@ initialize()
 1 early() { 
   if (STAGE == "early") {
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
+    community.rescheduleScriptBlock(s1, community.tick + 1);
+    community.rescheduleScriptBlock(s2, community.tick + 10);
   }
 }
 
 1 late() { 
   if (STAGE == "late") {
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
+    community.rescheduleScriptBlock(s1, ticks=community.tick + 2);
+    community.rescheduleScriptBlock(s2, ticks=community.tick + 10);
   }
 }
 
-10 early() {
+s1 10 early() {
 	old_pops = sim.subpopulations;
-	p = sim.addSubpop(10, 0);
+	p = sim.addSubpop("p0", 0);
 	p.takeMigrants(old_pops.individuals);
 	old_pops.removeSubpopulation();
 }
 
-20 early() {
+s2 20 early() {
     catn("Done.");
     sim.treeSeqOutput(TREES_FILE);
     sim.simulationFinished();

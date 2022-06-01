@@ -33,14 +33,14 @@ jobs:
         uses: actions/cache@v2
         env:
           # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 2
+          CACHE_NUM: 3
         with:
           path: |
             c:\Miniconda\envs\anaconda-client-env
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI/pip-requirements.txt') }}-${{ hashFiles('requirements/CI/conda-requirements.txt') }}
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI-pip/requirements.txt') }}-${{ hashFiles('requirements/CI-conda/requirements.txt') }}-${{ hashFiles('requirements/CI-docs/requirements.txt') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
@@ -66,12 +66,14 @@ jobs:
           # if [ "$RUNNER_OS" != "Windows" ]; then
           #   conda install --yes slim
           # fi
-          conda install --yes --file=requirements/CI/conda-requirements.txt
+          conda install --yes --file=requirements/CI-conda/requirements.txt
 
       - name: Install pip deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
-        run: pip install -r requirements/CI/pip-requirements.txt
+        run: |
+          pip install -r requirements/CI-pip/requirements.txt
+          pip install -r requirements/CI-docs/requirements.txt
 
       - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
@@ -100,7 +102,7 @@ jobs:
         run: |
           source ~/.profile
           conda activate anaconda-client-env
-          export PATH=$PATH:$PWD/SLiM/Release
+          export PATH=$PWD/SLiM/Release:$PATH
           pytest -xv -n2 tests
 
       - name: Build docs

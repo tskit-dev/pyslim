@@ -389,6 +389,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         first_gen.discard(tskit.NULL)
         return np.array(list(first_gen), dtype='int')
 
+    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_everyone(self, recipe):
         # since everyone is recorded, only the initial individuals should
@@ -401,6 +402,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_answer, has_parents)
         self.verify_has_parents(ts)
 
+    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_post_recap(self, recipe):
         # the same should be true after recapitation
@@ -414,6 +416,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_answer, has_parents)
         self.verify_has_parents(ts)
 
+    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_post_simplify(self, recipe):
         ts = recipe["ts"]
