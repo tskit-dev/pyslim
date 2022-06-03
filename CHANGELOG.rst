@@ -2,6 +2,10 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+***************************
+[1.0 beta] - 2022-06-03
+***************************
+
 **Breaking changes**:
 
 - Removed `SlimTreeSequence` class entirely.
