@@ -1,7 +1,8 @@
-# pySLiM
+# pyslim
 
-`pyslim` is a python module to allow reading and writing of SLiM-produced tree sequences
-as a thin interface to [tskit](https://tskit.dev/tskit).
+`pyslim` is a python module that provides a few extra tools for dealing with tree sequences
+produced by SLiM and for preparing other tree seuqences for use with SLiM.
+Most tree sequence functionality is provided by [tskit](https://tskit.dev/tskit).
 Please see [our documentation](https://tskit.dev/pyslim/docs/stable/) for more information.
 (That link is to documentation for the last release release;
 instead, [the latest](https://tskit.dev/pyslim/docs/latest) documentation

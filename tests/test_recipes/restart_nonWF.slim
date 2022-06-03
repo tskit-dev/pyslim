@@ -11,24 +11,25 @@ initialize()
     initializeGenomicElementType("g1", m1, 1.0);
     initializeGenomicElement(g1, 0, 99);
     initializeRecombinationRate(1e-2);
+    if (!exists("SUBPOP_MAP")) defineConstant("SUBPOP_MAP", NULL);
 }
 
 // output immediately! Nothing should have changed.
 1 early() { 
   if (STAGE == "early") {
-    sim.readFromPopulationFile(TREES_IN);
+    sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
     sim.treeSeqOutput(TREES_FILE, simplify=F);
   }
 }
 
 1 late() { 
   if (STAGE == "late") {
-    sim.readFromPopulationFile(TREES_IN);
+    sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
     sim.treeSeqOutput(TREES_FILE, simplify=F);
   }
 }
 
-20 {
+20 early() {
     catn("Done.");
     sim.simulationFinished();
 }

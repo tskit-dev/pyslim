@@ -3,7 +3,7 @@ import tskit
 import warnings
 import numpy as np
 
-from .slim_tree_sequence import *
+from .methods import *
 
 
 def _in_location_bin(locations, x0, x1, y0, y1):
@@ -125,7 +125,7 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
         birth_offset = 1
     else:
         birth_offset = 0
-    birth_times = ts.individual_times - birth_offset
+    birth_times = individual_times(ts) - birth_offset
     if (ts.metadata['SLiM']['model_type'] == "WF"
             or stage == remembered_stage):
         age_offset = 0
@@ -135,7 +135,7 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
             age_offset = -1
         else:
             age_offset = 1
-    ages = ts.individual_ages + age_offset
+    ages = individual_ages(ts) + age_offset
     death_times = birth_times - ages
 
     time_breaks = time_bins
@@ -147,7 +147,7 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
     ntbins = len(time_breaks) - 1
     popsize = np.empty((nxbins, nybins, ntbins))
 
-    locations = ts.individual_locations
+    locations = individual_locations(ts)
 
     for i in np.arange(nxbins):
         for j in np.arange(nybins):

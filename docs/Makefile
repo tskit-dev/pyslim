@@ -16,6 +16,9 @@ dist: prereqs
 
 clean:
 	rm -fR _build
+	rm -f *.trees
 
-prereqs:
-	slim -s 23 example_sim.slim
+example_sim.trees : example_sim.slim
+	slim -s 23 $<
+
+prereqs: example_sim.trees

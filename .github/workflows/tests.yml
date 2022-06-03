@@ -33,14 +33,14 @@ jobs:
         uses: actions/cache@v2
         env:
           # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 2
+          CACHE_NUM: 3
         with:
           path: |
             c:\Miniconda\envs\anaconda-client-env
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI/pip-requirements.txt') }}-${{ hashFiles('requirements/CI/conda-requirements.txt') }}
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI-pip/requirements.txt') }}-${{ hashFiles('requirements/CI-conda/requirements.txt') }}-${{ hashFiles('requirements/CI-docs/requirements.txt') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
@@ -62,15 +62,18 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
         run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            conda install --yes slim
-          fi
-          conda install --yes --file=requirements/CI/conda-requirements.txt
+          # TODO: uncomment when SLiM v4 is released
+          # if [ "$RUNNER_OS" != "Windows" ]; then
+          #   conda install --yes slim
+          # fi
+          conda install --yes --file=requirements/CI-conda/requirements.txt
 
       - name: Install pip deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
-        run: pip install -r requirements/CI/pip-requirements.txt
+        run: |
+          pip install -r requirements/CI-pip/requirements.txt
+          pip install -r requirements/CI-docs/requirements.txt
 
       - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
@@ -84,20 +87,23 @@ jobs:
           sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
 
       # Installing SLiM from conda now.
-      # - name: Build SLiM
-      #   run: |
-      #     git clone https://github.com/messerlab/SLiM.git
-      #     mkdir -p SLiM/Release
-      #     cd SLiM/Release
-      #     cmake -D CMAKE_BUILD_TYPE=Release ..
-      #     make -j 2
+      # TODO: comment this out again when SLiM v4 is released
+      - name: Build SLiM
+        run: |
+          git clone https://github.com/messerlab/SLiM.git
+          cd SLiM
+          git checkout -b multispecies origin/multispecies
+          mkdir -p Release
+          cd Release
+          cmake -D CMAKE_BUILD_TYPE=Release ..
+          make -j 2
 
       - name: Run tests
         run: |
           source ~/.profile
           conda activate anaconda-client-env
-          export PATH=$PATH:$PWD/SLiM/Release
-          pytest -xv -n2
+          export PATH=$PWD/SLiM/Release:$PATH
+          pytest -xv -n2 tests
 
       - name: Build docs
         run: |

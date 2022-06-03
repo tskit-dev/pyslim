@@ -18,7 +18,7 @@ reproduction(p1) {
 1 early() { 
    sim.readFromPopulationFile("initialize_nonWF.trees");
    catn("Loaded " + length(sim.subpopulations)
-        + " populations from a file; now in generation " + sim.generation);
+        + " populations from a file; now in generation " + sim.cycle);
    catn("Population sizes: " + paste(sim.subpopulations.individualCount));
 }
 
@@ -26,7 +26,7 @@ reproduction(p1) {
    p0.fitnessScaling = K / p0.individualCount;
 }
 
-10 {
+10 early() {
    sim.treeSeqOutput("nonWF_restart.trees");
    catn("Done.");
    sim.simulationFinished();

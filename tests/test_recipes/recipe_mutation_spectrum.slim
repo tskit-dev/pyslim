@@ -1,0 +1,64 @@
+initialize()
+{
+	setSeed(23);
+	defineConstant("L", 100);
+	if (!exists("TREES_FILE"))
+		defineGlobal("TREES_FILE", "out.trees");
+	if (!exists("MUTATIONS_FILE"))
+		defineGlobal("MUTATIONS_FILE", "out_mutations.json");
+	initializeSLiMOptions(nucleotideBased=T);
+	initializeTreeSeq();
+	initializeAncestralNucleotides(randomNucleotides(L));
+	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(1e-3));
+	initializeGenomicElement(g1, 0, L - 1);
+	initializeRecombinationRate(1e-6);
+	defineGlobal("M", Dictionary());
+	for (a in c("A", "C", "G", "T"))
+		for (b in c("A", "C", "G", "T"))
+			for (c in c("A", "C", "G", "T"))
+				for (d in c("A", "C", "G", "T"))
+					M.setValue(a+b+c+","+d, 0);
+}
+
+// record mutation spectrum
+mutation(NULL)
+{
+	if (mut.position > 0 & mut.position < L - 1) {
+		context = substr(REFSEQ, mut.position - 1, mut.position + 1);
+		for (k in 0:2) {
+			mut_k = which(genome.mutations.position == mut.position + k - 1);
+			if (length(mut_k) > 0) {
+				muts = genome.mutations[mut_k];
+				parent_mut = muts[whichMax(muts.originTick)];
+				context = (
+					substr(context, 0, k-1)
+					+ parent_mut.nucleotide
+					+ substr(context, k + 1, 2)
+				);
+			}
+		}
+		M.setValue(context + "," + mut.nucleotide, M.getValue(context + "," + mut.nucleotide) + 1);
+	}
+	return T;
+}
+
+1 early()
+{
+	sim.addSubpop("p1", 100);
+	sim.treeSeqRememberIndividuals(p1.individuals);
+	defineConstant("REFSEQ", sim.chromosome.ancestralNucleotides());
+}
+
+1: late()
+{
+	sim.treeSeqRememberIndividuals(p1.individuals);
+}
+
+10 late()
+{
+	sim.treeSeqOutput(TREES_FILE);
+	writeFile(MUTATIONS_FILE, M.serialize(format="json"));
+	catn("Done.");
+	sim.simulationFinished();
+}

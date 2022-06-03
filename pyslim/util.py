@@ -9,7 +9,7 @@ def unique_labels_by_group(group, label, minlength=0):
     return value will be of length at least ``minlength``.
 
     In other words, if the result is ``x``, then
-    ``x[j]`` is ``len(set(label[group == j])) == 1``.
+    ``x[j]`` is ``len(set(label[group == j])) <= 1``.
     '''
     w = label.astype("float64")
     n = np.bincount(1 + group, minlength=minlength + 1)
@@ -20,4 +20,4 @@ def unique_labels_by_group(group, label, minlength=0):
     w -= xm[1 + group]
     gw = np.bincount(1 + group, weights=np.abs(w), minlength=minlength + 1)[1:]
     # after subtracting groupwise means, should be all zero
-    return np.logical_and(n[1:] > 0, np.abs(gw) < 1e-7)
+    return np.abs(gw) < 1e-7

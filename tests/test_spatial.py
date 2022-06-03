@@ -41,8 +41,8 @@ class TestPopulationSize(tests.PyslimTestCase):
         popsize = np.empty((nxbins, nybins, ntbins))
 
         # Location, times, and ages of individuals
-        locations = ts.individual_locations
-        times = ts.individual_times
+        locations = pyslim.individual_locations(ts)
+        times = pyslim.individual_times(ts)
 
         # Iterate through location bins and time bins
         for i in np.arange(nxbins):
@@ -55,7 +55,7 @@ class TestPopulationSize(tests.PyslimTestCase):
                     t0, t1 = time_breaks[k], time_breaks[k + 1]
                     alive = 0
                     for t in np.arange(np.ceil(t0), t1):
-                        for ind_id in ts.individuals_alive_at(t, **kwargs):
+                        for ind_id in pyslim.individuals_alive_at(ts, t, **kwargs):
                             ind = ts.individual(ind_id)
                             if (ind.location[0] < x1 and ind.location[0] >= x0 and ind.location[1] < y1 and ind.location[1] >= y0):
                                 alive += 1/(t1-t0)
@@ -63,12 +63,13 @@ class TestPopulationSize(tests.PyslimTestCase):
         return(popsize)
 
     def make_bins(self, ts):
+        locs = pyslim.individual_locations(ts)
         for nx in np.arange(1, 20, 10):
             for ny in np.arange(1, 20, 10):
                 for nt in np.arange(1, 60, 30):
-                    yield [np.linspace(0, round(max(ts.individual_locations[:,0])), nx + 1), 
-                           np.linspace(0, round(max(ts.individual_locations[:,1])), ny + 1),
-                           np.round(np.linspace(0, max(nt, max(ts.individual_times)), nt + 1))]  
+                    yield [np.linspace(0, round(max(locs[:,0])), nx + 1), 
+                           np.linspace(0, round(max(locs[:,1])), ny + 1),
+                           np.round(np.linspace(0, max(nt, max(pyslim.individual_times(ts))), nt + 1))]  
 
     def verify(self, ts, remembered_stage):
         for bins in self.make_bins(ts):
@@ -106,6 +107,7 @@ class TestPopulationSize(tests.PyslimTestCase):
             with pytest.warns(UserWarning):
                 pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="early")
 
+    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_population_size(self, recipe):
         # compare output to the right answer
@@ -116,7 +118,7 @@ class TestPopulationSize(tests.PyslimTestCase):
     def test_known_answer(self):
         # a simple example to make sure we've got the edge cases right
         tables = tskit.TableCollection(sequence_length=1)
-        pyslim.set_tree_sequence_metadata(tables,  model_type='nonWF', generation=0)
+        pyslim.set_tree_sequence_metadata(tables,  model_type='nonWF', tick=0)
         pyslim.set_metadata_schemas(tables)
         locs = [[0, 0], # alive at 0, 1
                 [0, 1], # alive at 0, 1, 2
@@ -141,9 +143,7 @@ class TestPopulationSize(tests.PyslimTestCase):
         for j, b in enumerate(births):
             tables.nodes.add_row(time=b, individual=j)
 
-        ts = pyslim.SlimTreeSequence(
-                tables.tree_sequence()
-        )
+        ts = tables.tree_sequence()
 
         # check we've got this right
         for k, n in enumerate([
@@ -153,7 +153,7 @@ class TestPopulationSize(tests.PyslimTestCase):
                 [7]]):
             np.testing.assert_array_equal(
                     n,
-                    ts.individuals_alive_at(k)
+                    pyslim.individuals_alive_at(ts, k)
             )
 
         # no-one

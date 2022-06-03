@@ -17,7 +17,7 @@ import pyslim, tskit, msprime
 from IPython.display import SVG
 import numpy as np
 
-ts = pyslim.load("example_sim.trees")
+ts = tskit.load("example_sim.trees")
 tables = ts.tables
 ```
 
@@ -38,11 +38,15 @@ Here is a quick reference to some of the methods:
 .. autosummary::
 
   recapitate
+  annotate
+  individuals_alive_at
+  individual_ages_at
+  slim_time
   convert_alleles
   generate_nucleotides
-  update_tables
   population_size
   default_slim_metadata
+  update
 ```
 
 
@@ -64,7 +68,7 @@ Here is a quick reference to some of the methods:
 ```
 
 ```{eval-rst}
-.. autofunction::  update_tables
+.. autofunction::  update
 ```
 
 ## Summarizing tree sequences
@@ -72,24 +76,20 @@ Here is a quick reference to some of the methods:
 Additionally, ``pyslim`` contains the following methods:
 
 ```{eval-rst}
-.. autofunction::  population_size
+.. autofunction::  individuals_alive_at
 ```
 
+```{eval-rst}
+.. autofunction::  individual_ages_at
+```
 
-## Additions to the tree sequence
+```{eval-rst}
+.. autofunction::  slim_time
+```
 
-The {class}`tskit.TreeSequence` class represents a sequence of trees
-that describes the genealogical history of a population.
-Here, we describe pyslim's additions to this class.
-
-
-### The SLiM Tree Sequence
-
-
-:::{eval-rst}
-.. autoclass:: pyslim.SlimTreeSequence()
-    :members:
-:::
+```{eval-rst}
+.. autofunction::  population_size
+```
 
 
 ## Metadata
@@ -110,24 +110,13 @@ These two functions will add default SLiM metadata to a tree sequence (or the
 underlying tables), which can then be modified and loaded into SLiM.
 
 :::{eval-rst}
-.. autofunction:: pyslim.annotate_defaults
+.. autofunction:: pyslim.annotate
 :::
 
 :::{eval-rst}
-.. autofunction:: pyslim.annotate_defaults_tables
+.. autofunction:: pyslim.annotate_tables
 :::
 
-
-### Provenances
-
-:::{eval-rst}
-.. autoclass:: pyslim.ProvenanceMetadata
-   :members:
-:::
-
-:::{eval-rst}
-.. autofunction:: pyslim.get_provenance
-:::
 
 
 (sec_constants_and_flags)=

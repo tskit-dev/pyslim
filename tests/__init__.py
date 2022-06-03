@@ -193,11 +193,8 @@ class PyslimTestCase:
         # assert t1 == t2
 
     def do_recapitate(self, ts, *args, **kwargs):
-        if ts.metadata['SLiM']['model_type'] != "WF":
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore', msprime.TimeUnitsMismatchWarning)
-                recap = pyslim.recapitate(ts, *args, **kwargs)
-        else:
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', msprime.TimeUnitsMismatchWarning)
             recap = pyslim.recapitate(ts, *args, **kwargs)
         return recap
 

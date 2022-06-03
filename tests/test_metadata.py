@@ -90,9 +90,8 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
     def validate_model_type(self, ts, model_type):
         assert ts.metadata['SLiM']['file_version'] == pyslim.slim_file_version
         assert ts.metadata['SLiM']['model_type'] == model_type
-        assert ts.metadata['SLiM']['generation'] > 0
-        assert ts.metadata['SLiM']['generation'] >= np.max(ts.tables.nodes.time)
-
+        assert ts.metadata['SLiM']['tick'] > 0
+        assert ts.metadata['SLiM']['tick'] >= np.max(ts.tables.nodes.time)
 
     @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)
     def test_set_tree_sequence_metadata_errors(self, recipe):
@@ -125,13 +124,17 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                 assert tables.metadata[k] == dummy_metadata[k]
             self.validate_slim_metadata(tables)
             assert tables.metadata['SLiM']['model_type'] == "nonWF"
-            assert tables.metadata['SLiM']['generation'] == 0
+            assert tables.metadata['SLiM']['tick'] == 0
 
     @pytest.mark.parametrize('recipe', arbitrary_recipe, indirect=True)
     def test_set_tree_sequence_metadata(self, recipe):
         tables = recipe["ts"].dump_tables()
         pyslim.set_tree_sequence_metadata(
-                tables, "WF", 99,
+                tables,
+                "WF",
+                tick=99,
+                cycle=40,
+                stage="early",
                 spatial_dimensionality='xy',
                 spatial_periodicity='y',
                 separate_sexes=False,
@@ -139,13 +142,13 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
         )
         self.validate_slim_metadata(tables)
         assert tables.metadata['SLiM']['model_type'] == "WF"
-        assert tables.metadata['SLiM']['generation'] == 99
+        assert tables.metadata['SLiM']['tick'] == 99
+        assert tables.metadata['SLiM']['cycle'] == 40
+        assert tables.metadata['SLiM']['stage'] == 'early'
         assert tables.metadata['SLiM']['spatial_dimensionality'] == 'xy'
         assert tables.metadata['SLiM']['spatial_periodicity'] == 'y'
         assert tables.metadata['SLiM']['separate_sexes'] == False
         assert tables.metadata['SLiM']['nucleotide_based'] == True
-
-
 
     @pytest.mark.parametrize('recipe', recipe_eq("WF"), indirect=True)
     def test_WF_model_type(self, recipe):
@@ -163,8 +166,14 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
         tables = ts.dump_tables()
         tables.metadata_schema = tskit.MetadataSchema(None)
         tables.metadata = b''
-        new_ts = pyslim.load_tables(tables)
-        assert new_ts.metadata == ts.metadata
+        pyslim.update_tables(tables)
+        md = tables.metadata
+        assert 'SLiM' in md
+        for k in ts.metadata['SLiM']:
+            assert k in md['SLiM']
+            # slim does not write out empty descriptions
+            if k != 'description' or ts.metadata['SLiM'][k] != "":
+                assert ts.metadata['SLiM'][k] == md['SLiM'][k]
 
     @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)
     def test_user_metadata(self, recipe):
@@ -187,83 +196,6 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
         p = ts.population(3)
         assert p.metadata['name'] == "other_population"
         assert p.metadata['description'] == "i'm the other population"
-
-
-class TestDumpLoad(tests.PyslimTestCase):
-    '''
-    Test reading and writing.
-    '''
-
-    def verify_times(self, ts, slim_ts):
-        gen = slim_ts.metadata['SLiM']['generation']
-        assert ts.num_nodes == slim_ts.num_nodes
-        # verify internal consistency
-        for j in range(slim_ts.num_nodes):
-            assert slim_ts.node(j).time == slim_ts.tables.nodes.time[j]
-        # verify consistency between tree sequences
-        for n1, n2 in zip(ts.nodes(), slim_ts.nodes()):
-            assert n1.time == n2.time
-
-    def test_load_tables(self, recipe):
-        ts = recipe["ts"]
-        assert isinstance(ts, pyslim.SlimTreeSequence)
-        tables = ts.dump_tables()
-        new_ts = pyslim.load_tables(tables)
-        assert isinstance(new_ts, pyslim.SlimTreeSequence)
-        new_tables = new_ts.dump_tables()
-        assert tables == new_tables
-
-    def test_load(self, recipe):
-        fn = recipe["path"]["ts"]
-        # load in msprime then switch
-        msp_ts = tskit.load(fn)
-        assert isinstance(msp_ts, tskit.TreeSequence)
-        # transfer tables
-        msp_tables = msp_ts.dump_tables()
-        new_ts = pyslim.load_tables(msp_tables)
-        assert isinstance(new_ts, pyslim.SlimTreeSequence)
-        self.verify_times(msp_ts, new_ts)
-        new_tables = new_ts.dump_tables()
-        self.assertTableCollectionsEqual(msp_tables, new_tables)
-        # convert directly
-        new_ts = pyslim.SlimTreeSequence(msp_ts)
-        assert isinstance(new_ts, pyslim.SlimTreeSequence)
-        self.verify_times(msp_ts, new_ts)
-        new_tables = new_ts.dump_tables()
-        self.assertTableCollectionsEqual(msp_tables, new_tables)
-        # load to pyslim from file
-        slim_ts = pyslim.load(fn)
-        assert isinstance(slim_ts, pyslim.SlimTreeSequence)
-        slim_tables = slim_ts.dump_tables()
-        self.assertTableCollectionsEqual(msp_tables, slim_tables)
-        assert slim_ts.metadata['SLiM']['generation'] == new_ts.metadata['SLiM']['generation']
-
-    def test_dump_equality(self, recipe, tmp_path):
-        """
-        Test that we can dump a copy of the specified tree sequence
-        to the specified file, and load an identical copy.
-        """
-        tmp_file = os.path.join(tmp_path, "test_dump.trees")
-        ts = recipe["ts"]
-        ts.dump(tmp_file)
-        ts2 = pyslim.load(tmp_file)
-        assert ts.num_samples == ts2.num_samples
-        assert ts.sequence_length == ts2.sequence_length
-        assert ts.tables == ts2.dump_tables()
-        assert ts.has_reference_sequence() == ts2.has_reference_sequence()
-        if ts.has_reference_sequence():
-            assert ts.reference_sequence.data == ts2.reference_sequence.data
-
-    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
-    def test_legacy_error(self, recipe, tmp_path):
-        tmp_file = os.path.join(tmp_path, "test_legacy.trees")
-        ts = recipe["ts"]
-        ts.dump(tmp_file)
-        with pytest.raises(ValueError, match="legacy metadata tools"):
-            _ = pyslim.load(tmp_file, legacy_metadata=True)
-        with pytest.raises(ValueError, match="legacy metadata tools"):
-            _ = pyslim.SlimTreeSequence(ts, legacy_metadata=True)
-
 
 
 class TestAlleles(tests.PyslimTestCase):
@@ -293,82 +225,3 @@ class TestNucleotides(tests.PyslimTestCase):
             for u in mut.metadata['mutation_list']:
                 assert u["nucleotide"] >= -1
                 assert u["nucleotide"] <= 3
-
-
-@pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
-class TestMetadataAttributeError(tests.PyslimTestCase):
-    """
-    These are all only tested on a single recipe, the first grabbed from recipe
-    """
-
-    def test_population_error(self, recipe):
-        ts = recipe["ts"]
-        for x in ts.populations():
-            if x.metadata is not None:
-                with pytest.raises(AttributeError) as exec_info:
-                    _ = x.metadata.slim_id
-                assert 'legacy' in str(exec_info)
-                with pytest.raises(AttributeError) as exec_info:
-                    _ = x.metadata.selfing_fraction
-                assert 'legacy' in str(exec_info)
-                with pytest.raises(AttributeError) as exec_info:
-                    _ = x.metadata.sex_ratio
-                assert 'legacy' in str(exec_info)
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.ping
-            assert "has no attribute 'ping'" in str(exec_info)
-            break
-
-    def test_individual_error(self, recipe):
-        ts = recipe["ts"]
-        for x in ts.individuals():
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.pedigree_id
-            assert 'legacy' in str(exec_info)
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.age
-            assert 'legacy' in str(exec_info)
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.subpopulation
-            assert 'legacy' in str(exec_info)
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.sex
-            assert 'legacy' in str(exec_info)
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.flags
-            assert 'legacy' in str(exec_info)
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.pong
-            assert "has no attribute 'pong'" in str(exec_info)
-            break
-
-    def test_node_error(self, recipe):
-        ts = recipe["ts"]
-        for x in ts.nodes():
-            if x.metadata is not None:
-                with pytest.raises(AttributeError) as exec_info:
-                    _ = x.metadata.slim_id
-                assert 'legacy' in str(exec_info)
-                with pytest.raises(AttributeError) as exec_info:
-                    _ = x.metadata.is_null
-                assert 'legacy' in str(exec_info)
-                with pytest.raises(AttributeError) as exec_info:
-                    _ = x.metadata.genome_type
-                assert 'legacy' in str(exec_info)
-            with pytest.raises(AttributeError) as exec_info:
-                _ = x.metadata.pang
-            assert "has no attribute 'pang'" in str(exec_info)
-            break
-
-    def test_mutation_error(self, recipe):
-        ts = recipe["ts"]
-        for x in ts.mutations():
-            with pytest.raises(KeyError) as exec_info:
-                _ = x.metadata[0]
-            assert 'legacy' in str(exec_info)
-            with pytest.raises(KeyError) as exec_info:
-                _ = x.metadata[999]
-            assert 'legacy' in str(exec_info)
-            with pytest.raises(KeyError):
-                _ = x.metadata['ping']
-            break
