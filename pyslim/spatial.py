@@ -14,7 +14,7 @@ def _in_location_bin(locations, x0, x1, y0, y1):
     otherwise.  This is a helper function for `population_size`, and may change
     or be removed in the future.
 
-    :param array locations: An n x 3 array with rows individuals, the first
+    :param numpy.ndarray locations: An n x 3 array with rows individuals, the first
         column the x coordinates, and the second column the y coordinates.
     :param float x0: The lower x coordinate boundary.
     :param float x1: The upper x coordinate boundary.
@@ -57,8 +57,8 @@ def _average_time_alive(birth_times, death_times, t0, t1):
     on the right and it was born at t1). So the average population size is (3 +
     1 + 2 + 0)/(4-1) = 2.
 
-    :param array birth_times: Birth times of individuals.
-    :param array death_times: Death times of individuals. Should be the same
+    :param numpy.ndarray birth_times: Birth times of individuals.
+    :param numpy.ndarray death_times: Death times of individuals. Should be the same
         length as `birth_times`. Death times are less than or equal to birth times.
     :param float t0: Lower time endpoint.
     :param float t1: Upper time endpoint. t1 is greater than t0.
@@ -91,10 +91,10 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
     interval and have location in the relevant location bin, then taking the
     mean of these recorded population sizes.
 
-    :param TreeSequence ts: The tree sequence to calculate population size from.
-    :param array x_bins: The x-coordinates of the boundaries of the location bins.
-    :param array y_bins: The y-coordinates of the boundaries of the location bins.
-    :param array time_bins: The endpoints of the time bins.
+    :param tskit.TreeSequence ts: The tree sequence to calculate population size from.
+    :param numpy.ndarray x_bins: The x-coordinates of the boundaries of the location bins.
+    :param numpy.ndarray y_bins: The y-coordinates of the boundaries of the location bins.
+    :param numpy.ndarray time_bins: The endpoints of the time bins.
     :param str stage: The stage in the SLiM life cycle that the endpoints of
         the time bins refer to (either "early" or "late"; defaults to "late").
     :param str remembered_stage: The stage in the SLiM life cycle during which

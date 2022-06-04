@@ -6,12 +6,33 @@ from ._version import *
 from .provenance import *
 
 GENOME_TYPE_AUTOSOME = 0
+"""
+A value used in node metadata ("genome_type") to indicate the node is an autosome.
+"""
 GENOME_TYPE_X = 1
+"""
+A value used in node metadata ("genome_type") to indicate the node is an X chromosome.
+"""
 GENOME_TYPE_Y = 2
+"""
+A value used in node metadata ("genome_type") to indicate the node is a Y chromosome.
+"""
 INDIVIDUAL_TYPE_HERMAPHRODITE = -1
+"""
+A value used in individual metadata ("sex") to indicate the individual is a hermaphrodite.
+"""
 INDIVIDUAL_TYPE_FEMALE = 0
+"""
+A value used in individual metadata ("sex") to indicate the individual is a male.
+"""
 INDIVIDUAL_TYPE_MALE = 1
+"""
+A value used in individual metadata ("sex") to indicate the individual is a female.
+"""
 INDIVIDUAL_FLAG_MIGRATED = 0x01
+"""
+An individual flag indicating the individual is a migrant.
+"""
 
 # These are copied from slim_globals.h and modified to be python not json (eg false->False)
 _raw_slim_metadata_schemas = {
@@ -414,19 +435,22 @@ _raw_slim_metadata_schemas = {
     }
 }
 
-slim_metadata_schemas = {k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k])
-        for k in _raw_slim_metadata_schemas}
+slim_metadata_schemas = {k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k]) for k in _raw_slim_metadata_schemas}
+"""
+A dictionary containing the metadata schemas used by SLiM for each of the tables,
+and for top-level metadata.
+"""
 
 
 def default_slim_metadata(name):
-    '''
+    """
     Returns default metadata of type ``name``, where ``name`` is one of
     "tree_sequence", "edge", "site", "mutation", "mutation_list_entry",
     "node", "individual", or "population".
 
     :param str name: The type of metadata requested.
     :rtype dict:
-    '''
+    """
     if name == "tree_sequence":
         out = {
              "SLiM" : {

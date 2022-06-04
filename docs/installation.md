@@ -21,7 +21,7 @@ Pyslim can be installed using the standard [pip](https://pypi.org/project/pip/) 
 python3 -m pip install pyslim
 ```
 
-Alternatively, you can install from source as described in {ref}`sec_development`.
+Alternatively, you can install from source as described in [](sec_development).
 
 
 ## Troubleshooting

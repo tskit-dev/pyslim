@@ -11,15 +11,30 @@ from .util import *
 from .slim_metadata import _old_metadata_schema
 
 INDIVIDUAL_ALIVE = 2**16
+"""
+Used in ``individual.flags`` to denote the individual is alive
+when the tree sequence was written out.
+"""
 INDIVIDUAL_REMEMBERED = 2**17
+"""
+Used in ``individual.flags`` to denote the individual was
+marked as "remembered".
+"""
 INDIVIDUAL_RETAINED = 2**18
+"""
+Used in ``individual.flags`` to denote the individual was
+marked as "retained".
+"""
 # deprecated but keep it around for backwards compatibility
 # (also, it means effectively the same thing as RETAINED)
 INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
 
-# A nucleotide k in mutation metadata actually means
-# something that in reference_sequence is NUCLEOTIDES[k]
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
+"""
+Mutation metadata records the nucleotide as an integer,
+translated to ACGT by indexing this array,
+so a nucleotide value of ``k`` actually means NUCLEOTIDES[k].
+"""
 
 
 def load(*args, **kwargs):

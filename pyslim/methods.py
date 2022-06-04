@@ -38,7 +38,7 @@ def recapitate(ts,
     that if neither ``recombination_rate`` or a ``recombination_map`` are
     provided, there will be *no* recombination.
 
-    :param TreeSequence ts: The tree sequence to transform.
+    :param tskit.TreeSequence ts: The tree sequence to transform.
     :param float ancestral_Ne: If specified, then will simulate from a single
         ancestral population of this size. It is an error to specify this
         as well as ``demography``.
@@ -106,7 +106,7 @@ def convert_alleles(ts):
     valid reference sequence or if any mutations do not have nucleotides: to first
     generate these, see :func:`.generate_nucleotides`.
 
-    :param TreeSequence ts: The tree sequence to transform.
+    :param tskit.TreeSequence ts: The tree sequence to transform.
     """
     tables = ts.dump_tables()
     has_refseq = (
@@ -181,7 +181,7 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     differs from the previous state, but this is not always possible in certain
     unlikely cases.
 
-    :param TreeSequence ts: The tree sequence to transform.
+    :param tskit.TreeSequence ts: The tree sequence to transform.
     :param bool reference_sequence: A reference sequence, or None to randomly generate one.
     :param bool keep: Whether to leave existing nucleotides in mutations that already have one.
     :param int seed: The random seed for generating new alleles.
@@ -243,6 +243,8 @@ def individual_ages(ts):
     Returns the ages of all individuals in the tree sequence, extracted
     from metadata. The result is a array of length equal to the number of
     individuals, with k-th entry equal to ``ts.individual(k).metadata["age"]``.
+
+    :return: An array of ages of individuals.
     """
     if ts.metadata['SLiM']['model_type'] != "WF":
         ages = ts.tables.individuals.metadata_vector("age")
@@ -303,7 +305,7 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     alive at the given time ago.  This is determined using their birth time
     ago (given by their `time` attribute) and, for nonWF models,
     their `age` attribute (which is equal to their age at the last time
-    they were Remembered). See also :meth:`.individual_ages_at`.
+    they were Remembered). See also {func}`.individual_ages_at`.
 
     In WF models, birth occurs after "early()", so that individuals are only
     alive during "late()" for the time step when they have age zero,
@@ -332,7 +334,7 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     given time step are those that are alive during "early()" of that time
     step or are alive during "late()" of the previous time step.
 
-    :param TreeSequence ts: A tree sequence.
+    :param tskit.TreeSequence ts: A tree sequence.
     :param float time: The number of time steps ago.
     :param str stage: The stage in the SLiM life cycle that we are inquiring
         about (either "early" or "late"; defaults to "late").
@@ -425,11 +427,11 @@ def individual_ages_at(ts, time, stage="late", remembered_stage="late"):
     will be zero.
 
     In a WF model, this method does not provide any more information than
-    does :meth:`.individuals_alive_at`, but for consistency, non-nan ages
+    does {func}`.individuals_alive_at`, but for consistency, non-nan ages
     will be 0 in "late" and 1 in "early".
-    See :meth:`.individuals_alive_at` for further discussion.
+    See {func}`.individuals_alive_at` for further discussion.
 
-    :param TreeSequence ts: A tree sequence.
+    :param tskit.TreeSequence ts: A tree sequence.
     :param float time: The reference time ago.
     :param str stage: The stage in the SLiM life cycle used to determine who
         is alive (either "early" or "late"; defaults to "late").
@@ -471,9 +473,9 @@ def slim_time(ts, time, stage="late"):
     this may not return what you expect. See :ref:`sec_metadata_converting_times`
     for more discussion.
 
-    :param TreeSequence ts: A SLiM-compatible TreeSequence.
-    :param array time: An array of times to be converted.
-    :param string stage: The stage of the SLiM life cycle that the SLiM time
+    :param tskit.TreeSequence ts: A SLiM-compatible TreeSequence.
+    :param numpy.ndarray time: An array of times to be converted.
+    :param str stage: The stage of the SLiM life cycle that the SLiM time
         should be computed for.
     """
     is_current_version(ts, _warn=True)
@@ -542,12 +544,12 @@ def individual_parents(ts):
     Finds all parent-child relationships in the tree sequence (as far as we
     can tell). The output will be a two-column array with row [i,j]
     indicating that individual i is a parent of individual j.  See
-    :meth:`.has_individual_parents` for exactly which parents are returned.
+    {func}`.has_individual_parents` for exactly which parents are returned.
 
-    See :meth:`.individuals_alive_at` for further discussion about how
+    See {func}`.individuals_alive_at` for further discussion about how
     this is determined based on when the individuals were Remembered.
 
-    :param TreeSequence ts: A :class:`TreeSequence`.
+    :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
     :return: An array of individual IDs, with row [i, j] if individual i is
         a parent of individual j.
     '''
@@ -569,10 +571,10 @@ def has_individual_parents(ts):
     these are true. Note in particular that individuals with only *one*
     recorded parent are *not* counted as "having parents".
 
-    See :meth:`.individuals_alive_at` for further discussion about how
+    See {func}`.individuals_alive_at` for further discussion about how
     this is determined based on when the individuals were Remembered.
 
-    :param TreeSequence ts: A :class:`TreeSequence`.
+    :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
     :return: A boolean array of length equal to ``targets``.
     '''
     return _do_individual_parents_stuff(ts, return_parents=False)
@@ -582,10 +584,10 @@ def annotate(ts, **kwargs):
     '''
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
-    mostly default values. Returns a :class:`TreeSequence`.
+    mostly default values. Returns a :class:`tskit.TreeSequence`.
 
-    :param TreeSequence ts: A :class:`TreeSequence`.
-    :param string model_type: SLiM model type: either "WF" or "nonWF".
+    :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
+    :param str model_type: SLiM model type: either "WF" or "nonWF".
     :param int tick: What tick number in SLiM correponds to
         ``time=0`` in the tree sequence.
     :param int cycle: What cycle number in SLiM correponds to
@@ -605,9 +607,9 @@ def annotate(ts, **kwargs):
 def annotate_tables(tables, model_type, tick, cycle=None, stage="early", reference_sequence=None,
         annotate_mutations=True):
     '''
-    Does the work of :func:`annotate_defaults()`, but modifies the tables in place: so,
+    Does the work of :func:`annotate`, but modifies the tables in place: so,
     takes tables as produced by ``msprime``, and makes them look like the
-    tables as output by SLiM. See :func:`annotate_defaults` for details.
+    tables as output by SLiM. See :func:`annotate` for details.
     '''
     if stage not in ("early", "late"):
         raise ValueError(f"stage must be 'early' or 'late' (provided {stage})")

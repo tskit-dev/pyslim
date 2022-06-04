@@ -254,10 +254,10 @@ def slim_time(ts, time, stage):
   return slim_time
 ```
 
-This is what is computed by the {meth}`.SlimTreeSequence.slim_time` method
+This is what is computed by the {func}`.slim_time` method
 (which also has a ``stage`` argument).
 
-Some of the other methods in pyslim -- those that depend on {meth}`pyslim.individuals_alive_at`
+Some of the other methods in pyslim -- those that depend on {func}`.individuals_alive_at`
 -- need you to tell them during which stage the tree sequence was saved with ``sim.treeSeqOutput``,
 and need this to be the same as the stage that any individuals were saved with ``sim.treeSeqRememberIndividuals``.
 This argument, ``remembered_stage``, defaults to "late()";
@@ -270,7 +270,7 @@ since the stage defaults to "early()"!)
 ## Modifying SLiM metadata
 
 For more on working with metadata,
-see {ref}`tskit's metadata documentation <tskit:sec_metadata>`.
+see [tskit's metadata documentation](tskit:sec_metadata).
 
 
 ### Top-level metadata
@@ -333,7 +333,7 @@ mod_ts.dump("modified_ts.trees")
 
 SLiM records additional information in the metadata columns of Individual, Node, and Mutation tables,
 in a binary format using the python ``struct`` module.
-See {ref}`tskit's metadata documentation <tskit:sec_metadata>`
+See [tskit's metadata documentation](tskit:sec_metadata)
 for details on how this works.
 Nothing besides this binary information can be stored in the metadata of these tables if the tree sequence is to be used by SLiM,
 and so when ``pyslim`` annotates an existing tree sequence, anything in those columns is overwritten.

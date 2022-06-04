@@ -21,8 +21,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 import util
+```
 
-np.random.seed(1234)
+```{eval-rst}
+.. currentmodule:: pyslim
 ```
 
 (sec_vignette_coalescent_diversity)=
@@ -116,13 +118,13 @@ First, we'll add SLiM metadata to all of these things,
 a procedure we call "annotating".
 
 ```{code-cell}
-ots = pyslim.annotate(ots, model_type="WF", tick=1)
+ots = pyslim.annotate(ots, model_type="WF", tick=1, stage="late")
 ```
 
 This method adds default metadata to everything that needs it:
 in this case, all individuals, all nodes that are part of alive individuals,
 and all populations referenced by nodes.
-These default values are returned by {meth}`.slim_default_metadata`
+These default values are returned by {func}`.slim_default_metadata`
 (e.g., all individuals are hermaphrodite, all chromosomes are autosomal);
 see {func}`.annotate` for more information.
 
@@ -190,6 +192,7 @@ in the tree sequence, we will build a map from SLiM ID to selection coefficient:
 SLiM mutation ID ``k``.
 
 ```{code-cell}
+rng = np.random.default_rng(seed=1234)
 tables = ots.tables
 tables.mutations.clear()
 mut_map = {}
@@ -199,7 +202,7 @@ for m in ots.mutations():
   assert len(slim_ids) == len(md_list)
   for sid, md in zip(slim_ids, md_list):
      if sid not in mut_map:
-        mut_map[sid] = np.random.exponential(scale=0.04)
+        mut_map[sid] = rng.exponential(scale=0.04)
      md["selection_coeff"] = mut_map[sid]
   _ = tables.mutations.append(
           m.replace(metadata={"mutation_list": md_list})
@@ -314,7 +317,7 @@ among both the first generation and the final generation:
 ```{code-cell}
 # TODO: will work on next tskit release
 # times = list(set(ts.individual_times))
-times = [ts.node(ind.nodes[0]).time for ind in ts.individuals()]
+times = list(set([ts.node(ind.nodes[0]).time for ind in ts.individuals()]))
 times.sort()
 print("The times ago at which individuals in the tree sequence were born:", times)
 # The times ago at which individuals in the tree sequence were born: [0.0, 100.0]

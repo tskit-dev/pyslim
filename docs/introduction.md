@@ -16,10 +16,10 @@ kernelspec:
 # Introduction
 
 This is the documentation for pyslim, a Python API
-for reading and modifying {ref}`tskit <tskit:sec_introduction>` tree sequence files
+for reading and modifying [tskit](tskit:sec_introduction) tree sequence files
 produced by [SLiM](https://messerlab.org/slim/), 
 or modifying files produced by other programs (e.g.,
-{ref}`msprime <msprime:sec_intro>`,
+[msprime](msprime:sec_intro),
 [fwdpy11](https://fwdpy11.readthedocs.io/en/stable/pages/tsoverview.html),
 and [tsinfer](https://tsinfer.readthedocs.io/)) for use in SLiM. 
 
@@ -36,13 +36,13 @@ tree sequence file.
 
 A tree sequence is a way of storing both the full genetic history and the genotypes
 of a bunch of genomes.
-See {ref}`the tskit documentation <tskit:sec_introduction>`
+See [the tskit documentation](tskit:sec_introduction)
 for more description of the tree sequence and underlying data structure,
 and definitions of the important terms.
 Each (haploid) genome is associated with a *node*,
 and the "focal" nodes are called *sample nodes* or simply *samples*.
 Many operations on tree sequences act on the sample nodes by default (see the
-{ref}`tskit data model <tskit:sec_nodes_or_individuals>`
+[tskit data model](tskit:sec_nodes_or_individuals)
 for more on this topic), and the tree sequence always describes the genealogy of the
 entire genome of all the samples, at at least over the simulated time period.
 (Other nodes in the tree sequence represent ancestral genomes
@@ -104,7 +104,7 @@ circles, representing historical (i.e., dead) individuals, have vanished, althou
 sometimes their nodes remain. By default, only individuals with sample nodes are recorded
 in the tree sequence; that means the other, remaining, nodes lose any information about
 which individuals they were in (the tutorial explains ways to
-{ref}`retain this information <sec_retaining_individuals>`).
+[retain this information](sec_retaining_individuals).
 
 As well as the historical individuals, many historical *nodes*  have been removed too,
 along with with their genealogical relationships (i.e. the lines, which in
@@ -127,5 +127,5 @@ Enough information is stored in the tree sequence
 to completely reconstruct the state of the SLiM simulation
 (except for user-defined data, like a `tag`).
 Most of this is stored as *metadata*, which pyslim makes accessible:
-see {ref}`sec_metadata`.
+see [](sec_metadata).
 

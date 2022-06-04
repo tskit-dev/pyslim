@@ -125,32 +125,28 @@ underlying tables), which can then be modified and loaded into SLiM.
 
 
 :::{eval-rst}
-.. data:: NUCLEOTIDES == ['A', 'C', 'G', 'T']
-
-   Nucleotide states in nucleotide models are encoded as integers (0, 1, 2, 3),
-   so a nucleotide encoded as ``k`` refers to nucleotide
-   ``pyslim.NUCLEOTIDES[k]``.
+.. autodata:: NUCLEOTIDES
 :::
 
 These flags are the possible values for ``node.metadata["genome_type"]``:
 
 :::{eval-rst}
-.. data:: GENOME_TYPE_AUTOSOME == 0
+.. autodata:: GENOME_TYPE_AUTOSOME
 
-.. data:: GENOME_TYPE_X == 1
+.. autodata:: GENOME_TYPE_X
 
-.. data:: GENOME_TYPE_Y == 2
+.. autodata:: GENOME_TYPE_Y
 :::
 
 
 These flags are the possible values for ``individual.metadata["sex"]``:
 
 :::{eval-rst}
-.. data:: INDIVIDUAL_TYPE_HERMAPHRODITE == -1
+.. autodata:: INDIVIDUAL_TYPE_HERMAPHRODITE
 
-.. data:: INDIVIDUAL_TYPE_FEMALE == 0
+.. autodata:: INDIVIDUAL_TYPE_FEMALE
 
-.. data:: INDIVIDUAL_TYPE_MALE == 1
+.. autodata:: INDIVIDUAL_TYPE_MALE
 :::
 
 This is a flag used in ``individual.metadata["flags"]``:
@@ -161,10 +157,10 @@ This is a flag used in ``individual.metadata["flags"]``:
 Finally, these are used in ``individual.flags``:
 
 :::{eval-rst}
-.. data:: INDIVIDUAL_ALIVE == 2**16
+.. autodata:: INDIVIDUAL_ALIVE
 
-.. data:: INDIVIDUAL_REMEMBERED == 2**17
+.. autodata:: INDIVIDUAL_REMEMBERED
 
-.. data:: INDIVIDUAL_RETAINED == 2**18
+.. autodata:: INDIVIDUAL_RETAINED
 :::
 

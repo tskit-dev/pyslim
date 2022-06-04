@@ -1,4 +1,4 @@
-name: Tests
+name: Docs
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: [ 3.8, 3.9 ]
+        python: [ 3.9 ]
         os:  [ macos-latest, ubuntu-latest ]
     defaults:
       run:
@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache@v2
         env:
           # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 3
+          CACHE_NUM: 0
         with:
           path: |
             c:\Miniconda\envs\anaconda-client-env
@@ -98,10 +98,15 @@ jobs:
           cmake -D CMAKE_BUILD_TYPE=Release ..
           make -j 2
 
-      - name: Run tests
+      - name: Build docs
         run: |
           source ~/.profile
           conda activate anaconda-client-env
           export PATH=$PWD/SLiM/Release:$PATH
           slim -v
-          pytest -xv -n2 tests
+          touch docs/_static/{pedigree0.svg,pedigree1.svg,pedigree2.svg,pedigree_recapitate.svg,pedigree_simplify.svg,pedigree_mutate.svg}
+          touch docs/_static/{pedigree01.png,pedigree0.png,pedigree1.png,pedigree2.png,pedigree_recapitate.png,pedigree_simplify.png,pedigree_mutate.png}
+          cd docs && make
+
+
+
