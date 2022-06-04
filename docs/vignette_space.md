@@ -153,7 +153,7 @@ ts.dump("spatial_sim.recap.trees")
 print(f"The tree sequence now has {ts.num_trees} trees,\n"
        " and {ts.num_mutations} mutations.")
 ```
-See {ref}`sec_tutorial_adding_neutral_mutations` for discussion of the options to
+See [](sec_tutorial_adding_neutral_mutations) for discussion of the options to
 {func}`msprime.sim_mutations`.
 
 
@@ -441,11 +441,11 @@ with open("spatial_sim_genotypes.vcf", "w") as vcffile:
 1. The distinction between "nodes" (i.e., genomes) and "individuals" can be confusing,
    as well as the idea of "samples".
    Please see the
-   {ref}`tskit documentation <tskit:sec_data_model>`
+   [tskit documentation](tskit:sec_data_model)
    for more explanation about these concepts.
 
 2. The general interface for computing statistics (explaining, for instance, the "indexes"
-   argument above) is described in {ref}`tskit documentation <tskit:sec_stats>` also.
+   argument above) is described in [tskit documentation](tskit:sec_stats) also.
 
 
 ## What about simplification?

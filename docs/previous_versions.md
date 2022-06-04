@@ -44,10 +44,10 @@ tskit functionality. For instance, reference sequence support was provided (alth
 loosely) inpyslim to support SLiM's nucleotide models, but is now part of a standard
 tskit {class}`tskit.TreeSequence`. Similarly, metadata processing in tskit made
 code to do this within pyslim obsolete; this "legacy metadata" code has been removed
-and instructions for how to migrate your code are {ref}`below <sec_legacy_metadata>`.
+and instructions for how to migrate your code are [below](sec_legacy_metadata).
 
 In fact, we are now at the (very good) place where we don't really need
-the {class}`pyslim.SlimTreeSequence` class any longer,
+the `pyslim.SlimTreeSequence` class any longer,
 and it will soon be deprecated.
 So, pyslim is migrating to be purely functional: instead of providing the SlimTreeSequence
 class with specialized methods, all methods will be functions of TreeSequences,
@@ -81,7 +81,7 @@ we'd have ``n.metadata`` as a ``NodeMetadata`` object,
 with attributes ``n.metadata.slim_id`` and ``n.metadata.is_null`` and ``n.metadata.genome_type``.
 However, with tskit 0.3,
 the capacity to deal with structured metadata
-was implemented in {ref}`tskit itself <tskit:sec_metadata>`,
+was implemented in [tskit itself](tskit:sec_metadata),
 and so pyslim shifted to using the tskit-native metadata tools.
 As a result, parsed metadata is provided as a dictionary instead of an object,
 so that now ``n.metadata`` would be a dict,

@@ -9,6 +9,7 @@ only_build_toc_files: true
 
 execute:
   execute_notebooks: cache
+  timeout: 100
 
 repository:
   url: https://github.com/tskit-dev/pyslim
@@ -43,6 +44,7 @@ sphinx:
         msprime: ["https://tskit.dev/msprime/docs/stable", null]
         tutorials: ["https://tskit.dev/tutorials/", null]
         stdpopsim: ["https://popsim-consortium.github.io/stdpopsim-docs/stable", null]
+        numpy: ["https://numpy.org/doc/stable/", null]
       myst_enable_extensions:
       - colon_fence
       - deflist
