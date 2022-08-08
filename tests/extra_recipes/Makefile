@@ -1,7 +1,7 @@
 export SHELL=/bin/bash
 .PRECIOUS : recipe_17.4.trees
 
-check : recipe_17.1_overlaid.log recipe_17.3.log recipe_17.4.png recipe_17.5.png recipe_17.7.log recipe_17.8_III.log recipe_17.9.log recipe_nucleotides_II.log recipe_nucleotides_III.log
+check : recipe_17.1_overlaid.log recipe_17.3.log recipe_17.4.png recipe_17.5.png recipe_17.7.log recipe_17.8_III.log recipe_17.9.log recipe_17.10.log recipe_nucleotides_II.log recipe_nucleotides_III.log
 	echo "-------------"
 	echo "17.1 + 17.2"
 	cat recipe_17.1_overlaid.log
@@ -24,6 +24,9 @@ check : recipe_17.1_overlaid.log recipe_17.3.log recipe_17.4.png recipe_17.5.png
 	echo "-------------"
 	echo "17.9"
 	cat recipe_17.9.log 
+	echo "-------------"
+	echo "17.10"
+	cat recipe_17.10.log 
 	echo "-------------"
 	echo "18.13 II"
 	cat recipe_nucleotides_II.log
@@ -88,6 +91,12 @@ recipe_17.9.trees : Recipe\ 17.9\ -\ Starting\ a\ sexual\ nonWF\ model\ with\ a\
 
 recipe_17.9.log : Recipe\ 17.9\ -\ Starting\ a\ sexual\ nonWF\ model\ with\ a\ coalescent\ history\ II.txt recipe_17.9.trees
 	slim -s 2345 "$<" &> $@
+
+recipe_17.10.log : Recipe\ 17.10\ -\ Adding\ a\ neutral\ burn-in\ after\ simulation\ with\ recapitation\ II.py recipe_17.10_decap.trees
+	python3 "$<" &> $@
+
+recipe_17.10_decap.trees : Recipe\ 17.10\ -\ Adding\ a\ neutral\ burn-in\ after\ simulation\ with\ recapitation\ I.txt
+	slim -s 2344 "$<" &> $@.log
 
 recipe_nucleotides.trees : Recipe\ 18.13\ -\ Tree-sequence\ recording\ and\ nucleotide-based\ models\ I.txt
 	slim -s 2345 "$<" &> $@.log
