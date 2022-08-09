@@ -28,7 +28,6 @@ jobs:
             sudo apt-get install cmake
             git clone https://github.com/MesserLab/SLiM.git
             cd SLiM
-            git checkout multispecies # TODO: remove this!!
             if [ ! -e /home/circleci/.local/SLiM.hash ]; then
               git rev-parse HEAD > /home/circleci/.local/SLiM.hash
             fi

@@ -116,6 +116,97 @@ class TestAnnotate(tests.PyslimTestCase):
         out_tables.sort()
         self.assertTableCollectionsEqual(in_tables, out_tables, skip_provenance=-1)
 
+    def verify_remapping(self, ts, rts, subpop_map):
+        # below we assume the restart has not done additional simulation
+        do_remap = (subpop_map is not None)
+        if not do_remap:
+            subpop_map = { f"p{k}" : k for k in range(ts.num_populations) }
+        fwd_map = {-1 : -1}
+        rev_map = {-1 : -1}
+        for pk in subpop_map:
+            # keys are requried to be of the form "pK"
+            rts_k = int(pk[1:])
+            assert rts_k < rts.num_populations
+            ts_k = subpop_map[pk]
+            assert ts_k < ts.num_populations
+            assert ts_k not in fwd_map
+            fwd_map[ts_k] = rts_k
+            assert rts_k not in rev_map
+            rev_map[rts_k] = ts_k
+
+        # all pops in ts should be present UNLESS they have no metadata
+        for pop in ts.populations():
+            assert pop.id in fwd_map or pop.metadata is None
+
+        # any extra pops in rts should have empty metadata
+        for pop in rts.populations():
+            if pop.id not in rev_map:
+                assert pop.metadata is None
+
+        for ts_k, rts_k in fwd_map.items():
+            if ts_k != -1:
+                ts_pop = ts.population(ts_k)
+                rts_pop = rts.population(rts_k)
+                ts_md = ts_pop.metadata
+                rts_md = rts_pop.metadata
+                if ts_md is None:
+                    assert rts_md is None
+                else:
+                    if do_remap and (
+                            ts_md['name'] == f"p{ts_pop.id}"
+                            or ts_md['name'] == f"pop_{ts_pop.id}"
+                    ):
+                        ts_md['name'] = f"p{rts_pop.id}"
+                    assert ts_md['name'] == rts_md['name']
+                    if "slim_id" not in ts_md:
+                        assert ts_md == rts_md
+                    else:
+                        assert ts_md["slim_id"] == ts_pop.id
+                        assert rts_md["slim_id"] == rts_pop.id
+                        k = "migration_records"
+                        if k in ts_md:
+                            assert k in rts_md or len(ts_md[k]) == 0
+                        else:
+                            assert k not in rts_md or len(rts_md[k]) == 0
+                        if k in ts_md and k in rts_md:
+                            assert len(ts_md[k]) == len(rts_md[k])
+                            for x, y in zip(ts_md[k], rts_md[k]):
+                                assert x['migration_rate'] == y['migration_rate']
+                                assert fwd_map[x['source_subpop']] == y['source_subpop']
+
+        # check other tables have been remapped
+        # (uses the fact that no additional simulation has been done)
+        assert ts.num_nodes == rts.num_nodes
+        for n, rn in zip(ts.nodes(), rts.nodes()):
+            n.population = fwd_map[n.population]
+            # there can be rounding error due to time shift
+            assert np.isclose(n.time, rn.time, atol=1e-16)
+            n.time = rn.time
+            assert n == rn
+
+        assert ts.num_migrations == rts.num_migrations
+        for m, rm in zip(ts.migrations(), rts.migrations()):
+            m.source = fwd_map[m.source]
+            m.dest = fwd_map[m.dest]
+            assert m == rm
+
+        assert ts.num_mutations == rts.num_mutations
+        for m, rm in zip(ts.mutations(), rts.mutations()):
+            md = m.metadata
+            rmd = rm.metadata
+            assert len(md['mutation_list']) == len(rmd['mutation_list'])
+            for x, y in zip(md['mutation_list'], rmd['mutation_list']):
+                x['subpopulation'] = fwd_map[x['subpopulation']]
+                assert x == y
+
+        assert ts.num_individuals == rts.num_individuals
+        for i, ri in zip(ts.individuals(), rts.individuals()):
+            md = i.metadata
+            rmd = ri.metadata
+            md['subpopulation'] = fwd_map[md['subpopulation']]
+            assert md == rmd
+
+
     def test_annotate_errors(self, helper_functions):
         for ts in helper_functions.get_msprime_examples():
             with pytest.raises(ValueError):
@@ -348,25 +439,40 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_no_populations_errors(self, helper_functions, tmp_path):
         # test SLiM errors when individuals are in non-SLiM populations
         ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=456)
-        ts = pyslim.annotate(ts, model_type='nonWF', tick=1, stage="late")
         t = ts.dump_tables()
-        t.populations.clear()
-        t.populations.add_row(metadata={})
+        p = t.populations.add_row(metadata={'name': '', 'description': ''})
+        i = t.individuals.add_row()
+        t.nodes.add_row(time=0.0, flags=tskit.NODE_IS_SAMPLE, individual=i)
+        t.nodes.add_row(time=0.0, flags=tskit.NODE_IS_SAMPLE, individual=i)
+        pyslim.annotate_tables(t, model_type='nonWF', tick=1, stage="late")
+        pop = t.populations[-1]
+        t.populations[-1] = pop.replace(metadata = {'name' : 'not_slim', 'description' : ''})
+        ind = t.individuals[-1]
+        md = ind.metadata
+        md['subpopulation'] = (t.populations.num_rows - 1)
+        t.individuals[-1] = ind.replace(metadata=md)
         ts = t.tree_sequence()
-        for p in ts.populations():
-            assert "slim_id" not in p.metadata
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError, match='individual has a subpopulation id .1.'):
             _ = helper_functions.run_slim_restart(
                     ts,
-                    "restart_WF.slim",
+                    "restart_nonWF.slim",
                     tmp_path,
-                    WF=True,
+                    WF=False,
             )
 
     def test_empty_populations_errors(self, helper_functions, tmp_path):
         # test SLiM errors on having empty populations in a WF model
         ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
         ts = pyslim.annotate(ts, model_type='WF', tick=1, stage="late")
+        # first make sure does not error without the empty pops
+        rts = helper_functions.run_slim_restart(
+                ts,
+                "restart_WF.slim",
+                tmp_path,
+                WF=True,
+        )
+        assert rts.num_populations == 1
+        # now add empty subpops
         t = ts.dump_tables()
         for k in range(5):
             md = pyslim.default_slim_metadata('population')
@@ -376,7 +482,7 @@ class TestAnnotate(tests.PyslimTestCase):
         ts = t.tree_sequence()
         for p in ts.populations():
             assert "slim_id" in p.metadata
-        with pytest.raises(RuntimeError):
+        with pytest.raises(RuntimeError, match='subpopulation.*empty'):
             _ = helper_functions.run_slim_restart(
                     ts,
                     "restart_WF.slim",
@@ -387,7 +493,7 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_empty_populations(self, helper_functions, tmp_path):
         # test SLiM doesn't error on having empty populations in a nonWF model
         # however, it may rewrite the metadata
-        ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
+        ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=456)
         ts = pyslim.annotate(ts, model_type='nonWF', tick=1)
         t = ts.dump_tables()
         for k in range(5):
@@ -397,16 +503,20 @@ class TestAnnotate(tests.PyslimTestCase):
             md['description'] = f"the {k}-th added pop"
             t.populations.add_row(metadata=md)
         ts = t.tree_sequence()
-        sts = helper_functions.run_slim_restart(
-                ts,
-                "restart_nonWF.slim",
-                tmp_path,
-                WF=False,
-        )
-        assert ts.num_populations == sts.num_populations
-        for p, q in zip(ts.populations(), sts.populations()):
-            assert p.metadata['name'] == q.metadata['name']
-            assert p.metadata['slim_id'] == q.metadata['slim_id']
+        for subpop_map in (
+                None,
+                {"p0": 0, "p1": 1, "p2": 2, "p3": 3, "p4": 4, "p5": 5},
+                {"p0": 0, "p2": 1, "p1": 2, "p9": 3, "p4": 4, "p6": 5},
+                {"p10": 0, "p2": 1, "p1": 2, "p9": 3, "p4": 4, "p6": 5},
+            ):
+            sts = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_nonWF.slim",
+                    tmp_path,
+                    WF=False,
+                    subpop_map=subpop_map,
+            )
+            self.verify_remapping(ts, sts, subpop_map)
 
     def test_many_populations(self, helper_functions, tmp_path):
         # test we can add more than one population and that names are preserved
@@ -434,6 +544,50 @@ class TestAnnotate(tests.PyslimTestCase):
         for k in range(1, 6):
             md = sts.population(k).metadata
             assert md['name'] == f"new_pop_num_{k}"
+
+    def test_many_species_errors(self, helper_functions, tmp_path):
+        # should error when there are population conflicts between species
+        fox_ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
+        fox_ts = pyslim.annotate(fox_ts, model_type='WF', tick=1)
+        mouse_ts = msprime.sim_ancestry(5, population_size=20, sequence_length=1000, random_seed=234)
+        mouse_ts = pyslim.annotate(mouse_ts, model_type='WF', tick=1)
+        with pytest.raises(RuntimeError, match='p0 has been used already'):
+            _ = helper_functions.run_multispecies_slim_restart(
+                    {'fox': fox_ts, 'mouse': mouse_ts},
+                    'restart_multispecies_WF.slim',
+                    tmp_path,
+                    WF=True,
+            )
+        with pytest.raises(RuntimeError, match='p1 has been used already'):
+            _ = helper_functions.run_multispecies_slim_restart(
+                    {'fox': fox_ts, 'mouse': mouse_ts},
+                    'restart_multispecies_WF.slim',
+                    tmp_path,
+                    WF=True,
+                    subpop_map={'fox': {'p1': 0}, 'mouse': {'p1': 0}},
+            )
+
+    def test_many_species(self, helper_functions, tmp_path):
+        # verify we can load more than one species
+        for wf in (True, False):
+            fox_ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
+            mouse_ts = msprime.sim_ancestry(5, population_size=20, sequence_length=1000, random_seed=234)
+            fox_ts = pyslim.annotate(fox_ts, model_type="WF" if wf else "nonWF", tick=1)
+            mouse_ts = pyslim.annotate(mouse_ts, model_type="WF" if wf else "nonWF", tick=1)
+            for subpop_map in (
+                        {'fox' : None, 'mouse' : {'p1' : 0}},
+                        {'fox' : {'p1' : 0}, 'mouse' : None},
+                        {'fox' : {'p3' : 0}, 'mouse' : {'p0' : 0}},
+                    ):
+                tsd = helper_functions.run_multispecies_slim_restart(
+                        {'fox': fox_ts, 'mouse': mouse_ts},
+                        'restart_multispecies_WF.slim' if wf else 'restart_multispecies_nonWF.slim',
+                        tmp_path,
+                        WF=wf,
+                        subpop_map = subpop_map,
+                )
+                self.verify_remapping(fox_ts, tsd['fox'], subpop_map['fox'])
+                self.verify_remapping(mouse_ts, tsd['mouse'], subpop_map['mouse'])
 
     def test_keeps_extra_populations(self, helper_functions, tmp_path):
         # test that non-SLiM metadata is not removed
@@ -469,103 +623,93 @@ class TestAnnotate(tests.PyslimTestCase):
         assert p.metadata['name'] == "C"
         assert p.metadata['abc'] == 123
 
-    def verify_remapping(self, ts, rts, subpop_map):
-        # below we assume the restart has not done additional simulation
-        do_remap = (subpop_map is not None)
-        if not do_remap:
-            subpop_map = { f"p{k}" : k for k in range(ts.num_populations) }
-        fwd_map = {-1 : -1}
-        rev_map = {-1 : -1}
-        for pk in subpop_map:
-            rts_k = int(pk[1:])
-            assert rts_k < rts.num_populations
-            ts_k = subpop_map[pk]
-            assert ts_k < ts.num_populations
-            fwd_map[ts_k] = rts_k
-            rev_map[rts_k] = ts_k
-
-        # all pops in ts should be present
-        for pop in ts.populations():
-            assert pop.id in fwd_map
-
-        # any extra pops in rts should have empty metadata
-        for pop in rts.populations():
-            if pop.id not in rev_map:
-                assert pop.metadata is None
-
-        for ts_k, rts_k in fwd_map.items():
-            if ts_k != -1:
-                ts_pop = ts.population(ts_k)
-                rts_pop = rts.population(rts_k)
-                ts_md = ts_pop.metadata
-                rts_md = rts_pop.metadata
-                if ts_md is None:
-                    assert rts_md is None
-                else:
-                    if do_remap and (
-                            ts_md['name'] == f"p{ts_pop.id}"
-                            or ts_md['name'] == f"pop_{ts_pop.id}"
-                    ):
-                        ts_md['name'] = f"p{rts_pop.id}"
-                    assert ts_md['name'] == rts_md['name']
-                    if "slim_id" not in ts_md:
-                        assert ts_md == rts_md
-                    else:
-                        assert ts_md["slim_id"] == ts_pop.id
-                        assert rts_md["slim_id"] == rts_pop.id
-                        k = "migration_records"
-                        assert (k in ts_md) == (k in rts_md)
-                        if k in ts_md:
-                            assert len(ts_md[k]) == len(rts_md[k])
-                            for x, y in zip(ts_md[k], rts_md[k]):
-                                assert x['migration_rate'] == y['migration_rate']
-                                assert fwd_map[x['source_subpop']] == y['source_subpop']
-
-        # check other tables have been remapped
-        # (uses the fact that no additional simulation has been done)
-        assert ts.num_nodes == rts.num_nodes
-        for n, rn in zip(ts.nodes(), rts.nodes()):
-            n.population = fwd_map[n.population]
-            assert n == rn
-
-        assert ts.num_migrations == rts.num_migrations
-        for m, rm in zip(ts.migrations(), rts.migrations()):
-            m.source = fwd_map[m.source]
-            m.dest = fwd_map[m.dest]
-            assert m == rm
-
-        assert ts.num_mutations == rts.num_mutations
-        for m, rm in zip(ts.mutations(), rts.mutations()):
-            md = m.metadata
-            rmd = rm.metadata
-            assert len(md['mutation_list']) == len(rmd['mutation_list'])
-            for x, y in zip(md['mutation_list'], rmd['mutation_list']):
-                x['subpopulation'] = fwd_map[x['subpopulation']]
-                assert x == y
-
-        assert ts.num_individuals == rts.num_individuals
-        for i, ri in zip(ts.individuals(), rts.individuals()):
-            md = i.metadata
-            rmd = ri.metadata
-            md['subpopulation'] = fwd_map[md['subpopulation']]
-            assert md == rmd
-
-
     def test_remapping_errors(self, helper_functions, tmp_path):
-        ts = msprime.sim_ancestry(5, population_size=10, sequence_length=100, random_seed=455)
+        d = msprime.Demography()
+        d.add_population(initial_size=10, name="p0")
+        d.add_population(initial_size=10, name="p1")
+        d.add_population(initial_size=10, name="A")
+        d.add_population_split(time=1.0, derived=["p0", "p1"], ancestral="A")
+        ts = msprime.sim_ancestry(
+                {"p0": 5, "p1": 5},
+                demography=d,
+                sequence_length=100,
+                random_seed=455,
+        )
         ts = pyslim.annotate(ts, model_type='nonWF', tick=1, stage="late")
-        # test can't map the same subpop to two different pops
-        with pytest.raises(RuntimeError):
+        # test must refer to all subpopulations
+        with pytest.raises(RuntimeError, match='subpopulation id 2 is used.*but is not remapped'):
             _ = helper_functions.run_slim_restart(
                     ts,
-                    "restart_WF.slim",
+                    "restart_nonWF.slim",
                     tmp_path,
-                    WF=True,
+                    WF=False,
+                    subpop_map = {
+                        "p0" : 0,
+                        "p1" : 1,
+                    }
+            )
+        # test can't map the same subpop to two different pops
+        with pytest.raises(RuntimeError, match='subpopMap value .0. is not unique'):
+            _ = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_nonWF.slim",
+                    tmp_path,
+                    WF=False,
                     subpop_map = {
                         "p0" : 0,
                         "p1" : 0,
+                        "p2" : 1,
+                        "p3" : 2,
                     }
             )
+        # test errors if it refers to non-existing subpop
+        with pytest.raises(RuntimeError):
+            _ = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_nonWF.slim",
+                    tmp_path,
+                    WF=False,
+                    subpop_map = {
+                        "p0" : 0,
+                        "p1" : 1,
+                        "p2" : 2,
+                        "p3" : 3,
+                    }
+            )
+
+    def test_remapping_empty_pops(self, helper_functions, tmp_path):
+        # test that subpop_map doesn't need to explicitly refer to empty pops
+        d = msprime.Demography()
+        d.add_population(initial_size=10, name="p0")
+        d.add_population(initial_size=10, name="p1")
+        d.add_population(initial_size=10, name="p2") # unused
+        d.add_population(initial_size=10, name="A")
+        d.add_population_split(time=1.0, derived=["p0", "p1"], ancestral="A")
+        ts = msprime.sim_ancestry(
+                {"p0": 5, "p1": 5},
+                demography=d,
+                sequence_length=100,
+                random_seed=456,
+        )
+        ts = pyslim.annotate(ts, model_type='nonWF', tick=1, stage="late")
+        t = ts.dump_tables()
+        r = t.populations[2].replace(metadata=None)
+        # make both pop 2 and 4 empty
+        t.populations[2] = r
+        t.populations.append(r)
+        ts = t.tree_sequence()
+        for subpop_map in (
+                {"p0" : 0, "p1" : 1, "p2" : 2, "p3" : 3, "p4" : 4},
+                    {"p0" : 0, "p1" : 1, "p3": 3},
+                ):
+            rts = helper_functions.run_slim_restart(
+                    ts,
+                    "restart_nonWF.slim",
+                    tmp_path,
+                    WF=False,
+                    subpop_map = subpop_map
+            )
+            self.verify_remapping(ts, rts, subpop_map)
 
     def test_remapping(self, helper_functions, tmp_path):
         d = msprime.Demography()
@@ -597,6 +741,8 @@ class TestAnnotate(tests.PyslimTestCase):
             }
         ]
         d.add_population(initial_size=10, name="D", extra_metadata=md)
+        # pop 4
+        d.add_population(initial_size=10, name="XYZ", extra_metadata={"abc": 5123})
         d.add_population_split(time=1.0, derived=["pop_1", "D"], ancestral="A")
         ts = msprime.sim_ancestry(
                 samples={"pop_1": 5, "D": 5},
@@ -614,9 +760,9 @@ class TestAnnotate(tests.PyslimTestCase):
         assert ts.num_mutations > 0
         for subpop_map in (
                 None,
-                {"p0" : 0, "p1" : 1, "p2" : 2, "p3" : 3},
-                {"p0" : 1, "p1" : 0, "p2" : 2, "p3" : 3},
-                {"p5" : 0, "p0" : 1, "p7" : 2, "p2" : 3},
+                {"p0" : 0, "p1" : 1, "p2" : 2, "p3" : 3, "p4" : 4},
+                {"p0" : 1, "p1" : 0, "p2" : 2, "p3" : 3, "p4" : 4},
+                {"p5" : 0, "p0" : 1, "p7" : 2, "p2" : 3, "p9" : 4},
         ):
             rts = helper_functions.run_slim_restart(
                     ts,
@@ -627,11 +773,38 @@ class TestAnnotate(tests.PyslimTestCase):
             )
             self.verify_remapping(ts, rts, subpop_map)
 
+    @pytest.mark.skip(reason="migration table not supported by simplify")
+    def test_remaps_migration_table(self, helper_functions, tmp_path):
+        d = msprime.Demography()
+        d.add_population(initial_size=10, name="p0")
+        d.add_population(initial_size=10, name="p1")
+        d.add_population(initial_size=10, name="A")
+        d.add_population_split(time=1.0, derived=["p0", "p1"], ancestral="A")
+        d.set_migration_rate(0, 1, 0.1)
+        d.set_migration_rate(1, 0, 0.1)
+        ts = msprime.sim_ancestry(
+                {"p0": 5, "p1": 5},
+                demography=d,
+                sequence_length=100,
+                random_seed=455,
+                record_migrations=True
+        )
+        ts = pyslim.annotate(ts, model_type='WF', tick=1, stage="late")
+        assert ts.num_migrations > 0
+        rts = helper_functions.run_slim_restart(
+                ts,
+                "restart_WF.slim",
+                tmp_path,
+                WF=True,
+                subpop_map = {"p5" : 0, "p2" : 1, "p0" : 2 },
+        )
+        self.verify_remapping(ts, rts, subpop_map)
+
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("remove_subpop"), indirect=["recipe"])
     def test_keep_slim_names(self, restart_name, recipe, helper_functions, tmp_path):
-        # test that SLiM retains names of SLim populations
-        # even when those are removed
+        # test that SLiM retains names of SLiM populations
+        # even when those populations are removed
         in_ts = recipe["ts"]
         # this recipe moves everyone to subpop 0
         out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)

@@ -92,7 +92,6 @@ jobs:
         run: |
           git clone https://github.com/messerlab/SLiM.git
           cd SLiM
-          git checkout -b multispecies origin/multispecies
           mkdir -p Release
           cd Release
           cmake -D CMAKE_BUILD_TYPE=Release ..

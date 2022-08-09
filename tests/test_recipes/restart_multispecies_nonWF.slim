@@ -1,0 +1,57 @@
+// as well as any bespoke TREES_FILE for output, you need to define:
+//  TREES_IN = (dictionary with values = paths to trees to initialise)
+
+species all initialize()
+{
+    setSeed(23);
+    initializeSLiMModelType("nonWF");
+}
+
+species fox initialize()
+{
+    if (!exists("TREES_FILE_fox"))
+    	defineGlobal("TREES_FILE_fox", "fox_out.trees");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+    if (!exists("SUBPOP_MAP"))
+    	defineConstant("SUBPOP_MAP", Dictionary());
+}
+
+species mouse initialize()
+{
+    if (!exists("TREES_FILE_mouse"))
+    	defineGlobal("TREES_FILE_mouse", "mouse_out.trees");
+    initializeTreeSeq();
+    initializeMutationRate(1e-2);
+    initializeMutationType("m2", 0.5, "f", -0.1);
+    initializeGenomicElementType("g2", m2, 1.0);
+    initializeGenomicElement(g2, 0, 999);
+    initializeRecombinationRate(1e-2);
+}
+
+// output immediately! Nothing should have changed.
+ticks all 1 early() { 
+  if (STAGE == "early") {
+    for (sp in community.allSpecies) {
+	    sp.readFromPopulationFile(TREES_IN.getValue(sp.name), subpopMap=SUBPOP_MAP.getValue(sp.name));
+   	 sp.treeSeqOutput(executeLambda("TREES_FILE_" + sp.name + ";"), simplify=F);
+    }
+  }
+}
+ticks all 1 late() { 
+  if (STAGE == "late") {
+    for (sp in community.allSpecies) {
+	    sp.readFromPopulationFile(TREES_IN.getValue(sp.name), subpopMap=SUBPOP_MAP.getValue(sp.name));
+   	 sp.treeSeqOutput(executeLambda("TREES_FILE_" + sp.name + ";"), simplify=F);
+    }
+  }
+}
+
+ticks all 20 early() {
+    catn("Done.");
+    community.simulationFinished();
+}
