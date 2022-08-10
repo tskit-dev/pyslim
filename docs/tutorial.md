@@ -661,7 +661,7 @@ Several fields associated with individuals are also available as numpy arrays,
 across all individuals at once:
 {attr}`tskit.TreeSequence.individuals_location`,
 {attr}`tskit.TreeSequence.individuals_population`,
-{attr}`tskit.TreeSequence.individual_times` (also see
+{attr}`tskit.TreeSequence.individuals_time` (also see
 {func}`.individual_ages` and {func}`.individual_ages_at`).
 Using these can sometimes be easier than
 iterating over individuals as above. For example,

@@ -125,7 +125,7 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
         birth_offset = 1
     else:
         birth_offset = 0
-    birth_times = individual_times(ts) - birth_offset
+    birth_times = ts.individuals_time - birth_offset
     if (ts.metadata['SLiM']['model_type'] == "WF"
             or stage == remembered_stage):
         age_offset = 0
@@ -147,7 +147,7 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
     ntbins = len(time_breaks) - 1
     popsize = np.empty((nxbins, nybins, ntbins))
 
-    locations = individual_locations(ts)
+    locations = ts.individuals_location
 
     for i in np.arange(nxbins):
         for j in np.arange(nybins):

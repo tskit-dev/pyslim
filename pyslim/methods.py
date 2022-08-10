@@ -253,51 +253,6 @@ def individual_ages(ts):
     return ages
 
 
-def individual_locations(ts):
-    """
-    Returns the ages of all individuals in the tree sequence, extracted
-    from metadata. The result is a array of length equal to the number of
-    individuals, with k-th entry equal to ``ts.individual(k).metadata["age"]``.
-    """
-    x = ts.tables.individuals.location
-    x.shape = (ts.num_individuals, 3)
-    return x
-
-
-def individual_times(ts):
-    """
-    TODO: implement in tskit
-    """
-    nodes = ts.tables.nodes
-    if not np.all(unique_labels_by_group(nodes.individual,
-                                         nodes.time)):
-        raise ValueError("Individual has nodes from more than one time.")
-    individual_times = np.zeros(ts.num_individuals)
-    has_indiv = (nodes.individual >= 0)
-    which_indiv = nodes.individual[has_indiv]
-    # if we did not do the sanity check above then an individual with nodes
-    # with more than one time would get the time of their last node in the list
-    individual_times[which_indiv] = nodes.time[has_indiv]
-    return individual_times
-
-
-def individual_populations(ts):
-    """
-    TODO: implement in tskit
-    """
-    nodes = ts.tables.nodes
-    if not np.all(unique_labels_by_group(nodes.individual,
-                                         nodes.population)):
-        raise ValueError("Individual has nodes from more than one population.")
-    individual_populations = np.repeat(np.int32(-1), ts.num_individuals)
-    has_indiv = (nodes.individual >= 0)
-    which_indiv = nodes.individual[has_indiv]
-    # if we did not do the sanity check above then an individual with nodes in
-    # more than one pop would get the pop of their last node in the list
-    individual_populations[which_indiv] = nodes.population[has_indiv]
-    return individual_populations
-
-
 def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
                          population=None, samples_only=False):
     """
@@ -367,7 +322,7 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     # birth_time is the time ago that they were first alive in 'late'
     # in a nonWF model they are alive for the same time step's 'early'
     # but in a WF model the first 'early' they were alive for is one more recent
-    birth_times = individual_times(ts)
+    birth_times = ts.individuals_time
     # birth_times - birth_offset is the first time ago they were alive
     # during stage 'stage'
     if stage == "early" and ts.metadata['SLiM']['model_type'] == "WF":
@@ -397,7 +352,7 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
 
     if population is not None:
         alive_bool &= np.isin(
-                individual_populations(ts),
+                ts.individuals_population,
                 population
         )
     if samples_only:
@@ -445,7 +400,7 @@ def individual_ages_at(ts, time, stage="late", remembered_stage="late"):
             stage=stage,
             remembered_stage=remembered_stage
     )
-    ages[alive] = individual_times(ts)[alive] - time
+    ages[alive] = ts.individuals_time[alive] - time
     return ages
 
 
@@ -509,7 +464,7 @@ def _do_individual_parents_stuff(ts, return_parents=False):
             unique_parent_edges)
     # individual edges where the parent was alive during "late"
     # of the time step before the child is born
-    ind_times = individual_times(ts)
+    ind_times = ts.individuals_time
     ind_ages = individual_ages(ts)
     child_births = ind_times[edge_child_indiv[indiv_edges]]
     parent_births = ind_times[edge_parent_indiv[indiv_edges]]

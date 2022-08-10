@@ -315,9 +315,7 @@ First, we'll compute all allele frequencies
 among both the first generation and the final generation:
 
 ```{code-cell}
-# TODO: will work on next tskit release
-# times = list(set(ts.individual_times))
-times = list(set([ts.node(ind.nodes[0]).time for ind in ts.individuals()]))
+times = list(set(ts.individuals_time))
 times.sort()
 print("The times ago at which individuals in the tree sequence were born:", times)
 # The times ago at which individuals in the tree sequence were born: [0.0, 100.0]
