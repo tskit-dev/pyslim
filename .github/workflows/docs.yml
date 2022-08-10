@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache@v2
         env:
           # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 0
+          CACHE_NUM: 1
         with:
           path: |
             c:\Miniconda\envs\anaconda-client-env
@@ -62,10 +62,9 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
         run: |
-          # TODO: uncomment when SLiM v4 is released
-          # if [ "$RUNNER_OS" != "Windows" ]; then
-          #   conda install --yes slim
-          # fi
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            conda install --yes slim
+          fi
           conda install --yes --file=requirements/CI-conda/requirements.txt
 
       - name: Install pip deps
@@ -86,16 +85,15 @@ jobs:
           mkdir -p /usr/local/miniconda/envs
           sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
 
-      # Installing SLiM from conda now.
-      # TODO: comment this out again when SLiM v4 is released
-      - name: Build SLiM
-        run: |
-          git clone https://github.com/messerlab/SLiM.git
-          cd SLiM
-          mkdir -p Release
-          cd Release
-          cmake -D CMAKE_BUILD_TYPE=Release ..
-          make -j 2
+      # # Retaining commented block for next devel cycle
+      # - name: Build SLiM
+      #   run: |
+      #     git clone https://github.com/messerlab/SLiM.git
+      #     cd SLiM
+      #     mkdir -p Release
+      #     cd Release
+      #     cmake -D CMAKE_BUILD_TYPE=Release ..
+      #     make -j 2
 
       - name: Build docs
         run: |
