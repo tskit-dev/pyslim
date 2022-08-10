@@ -23,10 +23,22 @@ initialize()
 }
 
 // PEDIGREE OUTPUT
-1 late() {
+1 first() {
     writeFile(PEDIGREE_FILE,
        paste(c("generation", "stage", "individual", "age", "parent1", "parent2"),
              sep="\t"));
+}
+
+1: first() {
+    for (pop in sim.subpopulations) {
+        for (ind in pop.individuals) {
+            age = community.modelType == "nonWF" ? ind.age else -1;
+            writeFile(PEDIGREE_FILE,
+             paste(c(sim.cycle, community.cycleStage, ind.pedigreeID, age, ind.pedigreeParentIDs),
+                   sep='\t'),
+             append=T);
+        }
+    }
 }
 
 1: early() {
@@ -34,7 +46,7 @@ initialize()
         for (ind in pop.individuals) {
             age = community.modelType == "nonWF" ? ind.age else -1;
             writeFile(PEDIGREE_FILE,
-             paste(c(sim.cycle, 'early', ind.pedigreeID, age, ind.pedigreeParentIDs),
+             paste(c(sim.cycle, community.cycleStage, ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
         }
@@ -46,7 +58,7 @@ initialize()
         for (ind in pop.individuals) {
             age = community.modelType == "nonWF" ? ind.age else -1;
             writeFile(PEDIGREE_FILE,
-             paste(c(sim.cycle, 'late', ind.pedigreeID, age, ind.pedigreeParentIDs),
+             paste(c(sim.cycle, community.cycleStage, ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
         }

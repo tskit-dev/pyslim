@@ -177,34 +177,19 @@ class TestRecapitate(tests.PyslimTestCase):
         # times than others)
         ts = recipe["ts"]
         root_time = ts.metadata['SLiM']['tick']
-        if (ts.metadata['SLiM']['stage'] == 'early'
-                or ts.metadata['SLiM']['model_type'] == 'nonWF'):
+        is_wf = (ts.metadata['SLiM']['model_type'] == 'WF')
+        remembered_stage = ts.metadata['SLiM']['stage']
+        if (not is_wf) or (remembered_stage != 'late'):
             root_time -= 1
-        if (ts.metadata['SLiM']['model_type'] == 'WF' and "begun_late" in recipe):
+        if (not is_wf) and ("begun_first" in recipe):
+            root_time += 1
+        if (not is_wf) and ("remembered_first" in recipe):
+            root_time -= 1
+        if is_wf and ("begun_late" in recipe):
             root_time -= 1
         for t in ts.trees():
             for u in t.roots:
                 assert ts.node(u).time == root_time
-
-
-class TestMutationMetadata(tests.PyslimTestCase):
-    '''
-    Tests for extra stuff related to Mutations.
-    '''
-
-    @pytest.mark.parametrize('recipe', recipe_eq(exclude=("init_mutated", "long")), indirect=True)
-    def test_slim_time(self, recipe):
-        ts = recipe["ts"]
-        # check that slim_times make sense, i.e., that
-        # slim_generation == (time + slim_time + (model_type == "WF" and stage="early"))
-        offset = (
-            (ts.metadata["SLiM"]["model_type"] == "WF")
-            and
-            (ts.metadata["SLiM"]["stage"] == "early")
-        )
-        for mut in ts.mutations():
-            mut_slim_time = max([u["slim_time"] for u in mut.metadata["mutation_list"]])
-            assert ts.metadata['SLiM']['tick'] == mut_slim_time + mut.time + offset
 
 
 class TestIndividualAges(tests.PyslimTestCase):
@@ -277,23 +262,33 @@ class TestIndividualAges(tests.PyslimTestCase):
     def test_ages(self, recipe):
         ts = recipe["ts"]
         info = recipe["info"]
-        remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
+        remembered_stage = 'late'
+        if 'remembered_first' in recipe:
+            remembered_stage = 'first' 
+        elif 'remembered_early' in recipe:
+            remembered_stage = 'early' 
         assert remembered_stage == ts.metadata['SLiM']['stage']
         max_time_ago = ts.metadata['SLiM']['tick']
-        if remembered_stage == 'early':
+        if remembered_stage in ('first', 'early'):
             max_time_ago -= 1
         for time in range(0, max_time_ago):
-            # if written out during 'early' in a WF model,
-            # tskit time 0 will be the SLiM time step *before* slim_generation
-            slim_time = ts.metadata['SLiM']['tick'] - time
-            if remembered_stage == 'early' and ts.metadata["SLiM"]["model_type"] == "WF":
-                slim_time -= 1
-            if remembered_stage == 'early' and time == 0:
-                # if we remember in early we don't know who's still there
-                # in late of the last time step
-                check_stages = ('early',)
-            else:
-                check_stages = ('early', 'late')
+            slim_tick = ts.metadata['SLiM']['tick'] - time
+            check_stages = ('first', 'early', 'late')
+            if time == 0:
+                if remembered_stage == 'first':
+                    # if we remember in first we don't know who's still there
+                    # in later stages of that time step
+                    check_stages = ('first', )
+                elif remembered_stage == 'early':
+                    check_stages = ('first', 'early')
+            if time == max_time_ago:
+                if remembered_stage == 'early':
+                    # if we set up the population in early there aren't individuals in first
+                    # of the very first time step
+                    check_stages = ('early', 'late')
+                elif remembered_stage == 'late':
+                    # similarly for late
+                    check_stages = ('late', )
             for stage in check_stages:
                 alive = pyslim.individuals_alive_at(
                             ts,
@@ -309,17 +304,20 @@ class TestIndividualAges(tests.PyslimTestCase):
                 )
                 for ind in ts.individuals():
                     ind_time = ts.node(ind.nodes[0]).time
-                    if 'everyone' in recipe or ind_time == 0:
+                    # bad things can happen for the very first individuals
+                    # depending on when the subpops are created
+                    if (('everyone' in recipe or ind_time == 0) and
+                            (remembered_stage == "early" or ind_time < max_time_ago)):
                         slim_id = ind.metadata["pedigree_id"]
                         assert slim_id in info
-                        slim_alive = (slim_time, stage) in info[slim_id]['age']
+                        slim_alive = (slim_tick, stage) in info[slim_id]['age']
                         pyslim_alive = ind.id in alive
                         assert slim_alive == pyslim_alive
                         if slim_alive:
-                            slim_age = info[slim_id]['age'][(slim_time, stage)]
+                            slim_age = info[slim_id]['age'][(slim_tick, stage)]
                             if ts.metadata["SLiM"]["model_type"] == "WF":
                                 # SLiM records -1 but we return 0 in late and 1 in early
-                                slim_age = 0 + (stage == 'early')
+                                slim_age = 0 + (stage in ('first', 'early'))
                             assert ages[ind.id] == slim_age
                         else:
                             assert np.isnan(ages[ind.id])
@@ -381,10 +379,11 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_parents, parents)
 
     def get_first_gen(self, ts):
-        root_time = ts.metadata["SLiM"]["tick"]
-        if ts.metadata['SLiM']['model_type'] != 'WF' or ts.metadata['SLiM']['stage'] != 'late':
-            root_time -= 1
+        # root_time = ts.metadata["SLiM"]["tick"]
+        # if ts.metadata['SLiM']['model_type'] != 'WF' or ts.metadata['SLiM']['stage'] != 'late':
+        #     root_time -= 1
         nodes = ts.tables.nodes
+        root_time = np.max(nodes.time)
         first_gen = set(nodes.individual[nodes.time == root_time])
         first_gen.discard(tskit.NULL)
         return np.array(list(first_gen), dtype='int')
@@ -396,6 +395,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         ts = recipe["ts"]
         right_answer = np.repeat(True, ts.num_individuals)
         first_gen = self.get_first_gen(ts)
+        assert len(first_gen) > 0
         right_answer[first_gen] = False
         has_parents = pyslim.has_individual_parents(ts)
         assert np.array_equal(right_answer, has_parents)

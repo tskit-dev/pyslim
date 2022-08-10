@@ -1,32 +1,29 @@
-initialize() {
+initialize()
+{
     setSeed(23);
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
-	defineConstant("L", 1e2);
-    initializeSLiMModelType("nonWF");
-	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
+    initializeSLiMOptions(keepPedigrees=T, dimensionality="xy");
     initializeTreeSeq();
-	initializeAncestralNucleotides(randomNucleotides(L));
-	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
-	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
-	initializeGenomicElement(g1, 0, L-1);
-	initializeRecombinationRate(1e-2);
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
     defineConstant("K", 10);
 }
 
-reproduction() {
-    subpop.addCrossed(individual, subpop.sampleIndividuals(1));
+1 first() {
+    sim.addSubpop("p1", 10);
+    for (ind in p1.individuals)
+        ind.setSpatialPosition(p1.pointUniform());
 }
 
-1 early() {
-	sim.addSubpop("p1", 10);
+1: first() {
+    sim.treeSeqRememberIndividuals(p1.individuals);
 }
 
-early() {
-    p1.fitnessScaling = K / p1.individualCount;
-}
-
-10 late() {
+10 first() {
     sim.treeSeqOutput(TREES_FILE);
     catn("Done.");
     sim.simulationFinished();

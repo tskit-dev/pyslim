@@ -270,9 +270,9 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     In both WF and nonWF models, mortality occurs between
     "early()" and "late()", so that individuals are last alive during the
     "early()" stage of the time step of their final age, and if individuals
-    are alive during "late()" they will also be alive during "early()" of the
-    next time step. This means it is important to know during which stage
-    individuals were Remembered - for instance, if the call to
+    are alive during "late()" they will also be alive during "first()" and
+    "early()" of the next time step. This means it is important to know during
+    which stage individuals were Remembered - for instance, if the call to
     sim.treeSeqRememberIndividuals() was made during "early()" of a given time step,
     then those individuals might not have survived until "late()" of that
     time step. Since SLiM does not record the stage at which individuals
@@ -281,18 +281,22 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     ``sim.treeSeqRememberIndividuals()``,  as well as to ``sim.treeSeqOutput()``,
     were made.
 
-    Note also that in nonWF models, birth occurs before "early()", so the
-    possible parents in a given time step are those that are alive in
-    "early()" and have age greater than zero, or, equivalently, are alive in
-    "late()" during the previous time step.
+    Note also that in nonWF models, birth occurs between "first()" and
+    "early()", so the possible parents in a given time step are those that are
+    alive in "early()" and have age greater than zero, or, equivalently, are
+    alive in "late()" during the previous time step.
     In WF models, birth occurs after "early()", so possible parents in a
     given time step are those that are alive during "early()" of that time
     step or are alive during "late()" of the previous time step.
 
+    Since individuals may be created not during the usual 'birth' stage
+    by `addSubPop( )`, and the stage at which they are created is not stored,
+    results may be unreliable for the first-generation individuals.
+
     :param tskit.TreeSequence ts: A tree sequence.
-    :param float time: The number of time steps ago.
+    :param float time: The number of ticks (i.e., time steps) ago.
     :param str stage: The stage in the SLiM life cycle that we are inquiring
-        about (either "early" or "late"; defaults to "late").
+        about (either "first", "early" or "late"; defaults to "late").
     :param str remembered_stage: The stage in the SLiM life cycle
         during which individuals were Remembered (defaults to the stage the
         tree sequence was recorded at, stored in metadata).
@@ -302,16 +306,16 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
         least one node marked as samples.
     """
     is_current_version(ts, _warn=True)
-    if stage not in ("late", "early"):
+    if stage not in ("late", "early", "first"):
         raise ValueError(f"Unknown stage '{stage}': "
-                          "should be either 'early' or 'late'.")
+                          "should be either 'first', 'early' or 'late'.")
 
     if remembered_stage is None:
         remembered_stage = ts.metadata['SLiM']['stage']
 
-    if remembered_stage not in ("late", "early"):
+    if remembered_stage not in ("late", "early", "first"):
         raise ValueError(f"Unknown remembered_stage '{remembered_stage}': "
-                          "should be either 'early' or 'late'.")
+                          "should be either 'first', 'early' or 'late'.")
     if remembered_stage != ts.metadata['SLiM']['stage']:
         warnings.warn(f"Provided remembered_stage '{remembered_stage}' does not"
                       " match the stage at which the tree sequence was saved"
@@ -319,37 +323,35 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
                       " an error, but mismatched stages will lead to inconsistencies:"
                       " make sure you know what you're doing.")
 
-    # birth_time is the time ago that they were first alive in 'late'
-    # in a nonWF model they are alive for the same time step's 'early'
-    # but in a WF model the first 'early' they were alive for is one more recent
+    # An individual's tskit time is the tskit counter at the time of their birth.
+    # The tskit counter clicks once at the start of each reproduction bout.
+    # In a WF model, individuals are alive for all stages with the same value
+    # of the tskit counter. In a nonWF model, an individual of age `a` will be
+    # alive for `a + 1` 'early' events, and `a` 'late' and 'first' events,
+    # starting with the one having the same value of the tskit counter.
+    # Also note that if remembered_stage is 'late', then they are recorded
+    # before their age counter clicks, so they will actually have age one greater.
+    # Since `time` is in "number of time steps ago",
+    # we are inquiring about SLiM tick `n - time`, where `n` is
+    # the value of `ts.metadata["SLiM"]["tick"]`. To convert this along with
+    # our stage information into a tskit time `t`,
+    # let x = 1 if the stage is 'first' or (is 'early' and WF)
+    # and y = 1 if remembered stage is 'late' or (is 'early' and nonWF);
+    # then t = time + x + y - 1 .
+    is_wf = (ts.metadata['SLiM']['model_type'] == "WF")
+    x = (stage == "first" or (stage == "early" and is_wf))
+    y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
+    t = time + x + y - 1
     birth_times = ts.individuals_time
-    # birth_times - birth_offset is the first time ago they were alive
-    # during stage 'stage'
-    if stage == "early" and ts.metadata['SLiM']['model_type'] == "WF":
-        birth_offset = 1
-    else:
-        birth_offset = 0
-    # ages is the number of complete life cycles they are known to have lived through,
-    # and so individuals have lived through at least 'age + 1' of both stages.
-    # In nonWF models, they live for one more 'early' than 'late',
-    # but this is only reflected in their age if Remembered in 'early'.
     ages = individual_ages(ts)
-    # ages + age_offset + 1 is the number of 'stage' stages they are known
-    # to have lived through
-    if (ts.metadata['SLiM']['model_type'] == "WF"
-            or stage == remembered_stage):
-        age_offset = 0
+    if is_wf:
+        alive_bool = (birth_times == t)
     else:
-        if (remembered_stage == "early"
-                and stage == "late"):
-            age_offset = -1
-        else:
-            age_offset = 1
-    # if adjusted age=0 then they are be alive at exactly one time step
-    alive_bool = np.logical_and(
-            birth_times >= time + birth_offset,
-            birth_times - ages <= time + birth_offset + age_offset)
-
+        age_offset = (stage == "early") + (remembered_stage == "late")
+        alive_bool = np.logical_and(
+                birth_times >= t,
+                birth_times - ages < t + age_offset
+        )
     if population is not None:
         alive_bool &= np.isin(
                 ts.individuals_population,
@@ -362,7 +364,6 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
                                 nodes.flags & tskit.NODE_IS_SAMPLE,
                                 minlength=1 + ts.num_individuals)[1:]
         )
-
     return np.where(alive_bool)[0]
 
 
@@ -383,7 +384,7 @@ def individual_ages_at(ts, time, stage="late", remembered_stage="late"):
 
     In a WF model, this method does not provide any more information than
     does {func}`.individuals_alive_at`, but for consistency, non-nan ages
-    will be 0 in "late" and 1 in "early".
+    will be 0 in "late" and 1 in "first" and "early".
     See {func}`.individuals_alive_at` for further discussion.
 
     :param tskit.TreeSequence ts: A tree sequence.
@@ -400,7 +401,11 @@ def individual_ages_at(ts, time, stage="late", remembered_stage="late"):
             stage=stage,
             remembered_stage=remembered_stage
     )
-    ages[alive] = ts.individuals_time[alive] - time
+    # to convert individuals_time to number of ticks ago we subtract (y - 1), so
+    is_wf = (ts.metadata['SLiM']['model_type'] == "WF")
+    y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
+    t = time + y - 1
+    ages[alive] = ts.individuals_time[alive] - t
     return ages
 
 
@@ -413,7 +418,7 @@ def slim_time(ts, time, stage="late"):
 
     When the tree sequence is written out, SLiM records the current
     current tick in the metadata:
-    ``ts.metadata['SLiM']['tick']``. In most cases, the “SLiM time”
+    ``ts.metadata['SLiM']['tick']``. In most cases, the "SLiM time"
     referred to by a time ago in the tree sequence (i.e., the value that would
     be reported by community.tick within SLiM at the point in time thus
     referenced) can be obtained by subtracting that time ago from
@@ -422,7 +427,8 @@ def slim_time(ts, time, stage="late"):
     sequence was written out using sim.treeSeqOutput() during “early()” in
     a WF model, the tree sequence’s times measure time before the last set
     of individuals are born, i.e., before SLiM time step
-    ``ts.metadata['SLiM']['tick'] - 1``.
+    ``ts.metadata['SLiM']['tick'] - 1``. The same thing applies to
+    the "first" stage for both WF and nonWF models.
 
     In some situations (e.g., mutations added during early() in WF models)
     this may not return what you expect. See :ref:`sec_metadata_converting_times`
@@ -434,12 +440,16 @@ def slim_time(ts, time, stage="late"):
         should be computed for.
     """
     is_current_version(ts, _warn=True)
-    slim_time = ts.metadata['SLiM']['tick'] - time
-    if ts.metadata['SLiM']['model_type'] == "WF":
-        if (ts.metadata['SLiM']['stage'] == "early" and stage == "late"):
-            slim_time -= 1
-        if (ts.metadata['SLiM']['stage'] == "late" and stage == "early"):
-            slim_time += 1
+    is_wf = (ts.metadata['SLiM']['model_type'] == "WF")
+    remembered_stage = ts.metadata['SLiM']['stage']
+    x = (stage == "first" or (stage == "early" and is_wf))
+    y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
+    slim_time = ts.metadata['SLiM']['tick'] - time + x + y - 1
+    # if ts.metadata['SLiM']['model_type'] == "WF":
+    #     if (ts.metadata['SLiM']['stage'] == "early" and stage == "late"):
+    #         slim_time -= 1
+    #     if (ts.metadata['SLiM']['stage'] == "late" and stage == "early"):
+    #         slim_time += 1
     return slim_time
 
 

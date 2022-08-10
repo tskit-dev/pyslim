@@ -138,12 +138,11 @@ and times in the tree sequence record how long before the end of the simulation.
 However, there are Some Details, and off-by-one errors are easy to make,
 so we'll spell it out in detail.
 
-SLiM's time counter is called the "tick"
-(although a "year" or "life cycle" would be a more appropriate name for a nonWF model).
+SLiM's time counter is called the "tick".
 The SLiM tick starts at 1, and records which round of the life cycle the simulation is in.
 However, the order of the life cycle differs between WF and nonWF models:
-in a WF model, it is "*early* {math}`\to` *birth* {math}`\to` *late*",
-while in a nonWF model, it is "*birth* {math}`\to` *early* {math}`\to` *late*".
+in a WF model, it is "*first* {math}`\to` "*early* {math}`\to` *birth* {math}`\to` *late*",
+while in a nonWF model, it is "*first* {math}`\to` "*birth* {math}`\to` *early* {math}`\to` *late*".
 Usually, the first set of individuals are created in the *early()* phase of tick 1,
 and so in a WF model reproduce immediately, in the same tick they were "born".
 Parents and offspring cannot have the same birth time in the tree sequence,
@@ -161,10 +160,9 @@ When the tree sequence is output, the current cumulative number of birth phases
 is added to this,
 so "tskit time ago" is, equivalently, "how many birth phases happened since this time".
 In a nonWF model, the two counters ("tick" and "number of birth phases")
-are always in sync; but in a WF they are not (during *early*).
+are always in sync; but in a WF they are not (during *first* and *early*).
 The extra wrinkle this introduces is that the correspondence between "tskit time ago"
-and "SLiM time" depends on *which phase the tree sequence was recorded in*,
-but only for WF models.
+and "SLiM time" depends on *which phase the tree sequence was recorded in*.
 
 To help keep all this straight, here are schematics for WF and nonWF models.
 (To see the nonWF model, click on the tab.)
@@ -173,28 +171,44 @@ To help keep all this straight, here are schematics for WF and nonWF models.
 
 For a WF model, the SLiM tick (first column) can be obtained by subtracting the
 tskit time ago from the SLiM tick at time of output only during the same stage that output occured in.
+Suppose that we want to know what tick counter in SLiM corresponds to a given tskit time ago.
+The answer to this depends on what stage, unfortunately.
+Let {math}`k` be the value of the tick counter, {math}`n` be the total number of ticks,
+i.e., the value of ``ts.metadata["SLiM"]["tick"]``,
+{math}`t` be the tskit time,
+{math}`x=1` if the stage is "first" or "early' and 0 otherwise,
+and {math}`y=1` if the tree sequence was output in "late".
+Then, as can be verified from the table below, {math}`k + t = n + x + y - 1`.
+The right-hand columns show {math}`t`, i.e.,
+what the **tskit time ago** is at the corresponding point in the SLiM simulation.
 
-|    tick            |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
-|--------------------|---------------------|--------------------|--------------------------------|-------------------------------|-------------------------------|
-|       1            |       early         |       0            | {math}`\leftarrow` add subpops |        n-1                    |         n                     |
-|       1            |       birth         |       1            |                                |        n-2                    |         n-1                   |
-|       1            |       late          |       1            |                                |        n-2                    |         n-1                   |
-|       2            |       early         |       1            |                                |        n-2                    |         n-1                   |
-|       2            |       birth         |       2            |                                |        n-3                    |         n-2                   |
-|       2            |       late          |       2            |                                |        n-3                    |         n-2                   |
-|       3            |       early         |       2            |                                |        n-3                    |         n-2                   |
-|       3            |       birth         |       3            |                                |        n-4                    |         n-3                   |
-|       3            |       late          |       3            |                                |        n-4                    |         n-3                   |
-| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`              | {math}`\uparrow`              |
-|       n-2          |       early         |       n-3          |                                |        2                      |         2                     |
-|       n-2          |       birth         |       n-2          |                                |        1                      |         2                     |
-|       n-2          |       late          |       n-2          |                                |        1                      |         2                     |
-|       n-1          |       early         |       n-2          |                                |        1                      |         2                     |
-|       n-1          |       birth         |       n-1          |                                |        0                      |         1                     |
-|       n-1          |       late          |       n-1          |                                |        0                      |         1                     |
-|       n            |       early         |       n-1          |  treeSeqOutput {math}`\to`     |        0                      |         1                     |
-|       n            |       birth         |       n            |                                |                               |         0                     |
-|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to`     |         0                     |
+|    tick            |       stage         |  # births          |                                |  ``first`` output         |  ``early`` output         |   ``late`` output |
+|--------------------|---------------------|--------------------|--------------------------------|---------------------------|---------------------------|-------------------|
+|       1            |       first         |       0            | {math}`\leftarrow` add subpops |        n-1                |        n-1                |         n         |
+|       1            |       early         |       0            |                                |        n-1                |        n-1                |         n         |
+|       1            |       birth         |       1            |                                |        n-2                |        n-2                |         n-1       |
+|       1            |       late          |       1            |                                |        n-2                |        n-2                |         n-1       |
+|       2            |       first         |       1            |                                |        n-2                |        n-2                |         n-1       |
+|       2            |       early         |       1            |                                |        n-2                |        n-2                |         n-1       |
+|       2            |       birth         |       2            |                                |        n-3                |        n-3                |         n-2       |
+|       2            |       late          |       2            |                                |        n-3                |        n-3                |         n-2       |
+|       3            |       first         |       2            |                                |        n-3                |        n-3                |         n-2       |
+|       3            |       early         |       2            |                                |        n-3                |        n-3                |         n-2       |
+|       3            |       birth         |       3            |                                |        n-4                |        n-4                |         n-3       |
+|       3            |       late          |       3            |                                |        n-4                |        n-4                |         n-3       |
+| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`          | {math}`\uparrow`          | {math}`\uparrow`  |
+|       n-2          |       first         |       n-3          |                                |        2                  |        2                  |         2         |
+|       n-2          |       early         |       n-3          |                                |        2                  |        2                  |         2         |
+|       n-2          |       birth         |       n-2          |                                |        1                  |        1                  |         2         |
+|       n-2          |       late          |       n-2          |                                |        1                  |        1                  |         2         |
+|       n-1          |       first         |       n-2          |                                |        1                  |        1                  |         2         |
+|       n-1          |       early         |       n-2          |                                |        1                  |        1                  |         2         |
+|       n-1          |       birth         |       n-1          |                                |        0                  |        0                  |         1         |
+|       n-1          |       late          |       n-1          |                                |        0                  |        0                  |         1         |
+|       n            |       first         |       n-1          |  treeSeqOutput {math}`\to`     |        0                  |        0                  |         1         |
+|       n            |       early         |       n-1          |                                | treeSeqOutput {math}`\to` |        0                  |         1         |
+|       n            |       birth         |       n            |                                |                           |                           |         0         |
+|       n            |       late          |       n            |                                |                           | treeSeqOutput {math}`\to` |         0         |
 
 ```
 
@@ -202,28 +216,44 @@ tskit time ago from the SLiM tick at time of output only during the same stage t
 
 Note that for nonWF models the SLiM time (first column) can always be obtained by subtracting the
 tskit time ago from the SLiM time at time of output.
+Suppose that we want to know what tick counter in SLiM corresponds to a given tskit time ago.
+The answer to this depends on what stage, unfortunately.
+Let {math}`k` be the value of the tick counter, {math}`n` be the total number of ticks,
+i.e., the value of ``ts.metadata["SLiM"]["tick"]``,
+let {math}`t` be the tskit time,
+{math}`x=1` if the stage is "first" and 0 otherwise,
+and {math}`y=1` if the tree sequence was output in "early" or "late".
+Then, as can be verified from the table below, {math}`k + t = n + x + y - 1`.
+The right-hand columns show {math}`t`, i.e.,
+what the **tskit time ago** is at the corresponding point in the SLiM simulation.
 
-|    tick            |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
-|--------------------|---------------------|--------------------|--------------------------------|-------------------------------|-------------------------------|
-|       1            |       birth         |       1            |                                |        n-1                    |         n-1                   |
-|       1            |       early         |       1            | {math}`\leftarrow` add subpops |        n-1                    |         n-1                   |
-|       1            |       late          |       1            |                                |        n-1                    |         n-1                   |
-|       2            |       birth         |       2            |                                |        n-2                    |         n-2                   |
-|       2            |       early         |       2            |                                |        n-2                    |         n-2                   |
-|       2            |       late          |       2            |                                |        n-2                    |         n-2                   |
-|       3            |       birth         |       3            |                                |        n-3                    |         n-3                   |
-|       3            |       early         |       3            |                                |        n-3                    |         n-3                   |
-|       3            |       late          |       3            |                                |        n-3                    |         n-3                   |
-| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`              | {math}`\uparrow`              |
-|       n-2          |       birth         |       n-2          |                                |        2                      |         2                     |
-|       n-2          |       early         |       n-2          |                                |        2                      |         2                     |
-|       n-2          |       late          |       n-2          |                                |        2                      |         2                     |
-|       n-1          |       birth         |       n-1          |                                |        1                      |         1                     |
-|       n-1          |       early         |       n-1          |                                |        1                      |         1                     |
-|       n-1          |       late          |       n-1          |                                |        1                      |         1                     |
-|       n            |       birth         |       n            |                                |        0                      |         0                     |
-|       n            |       early         |       n            |  treeSeqOutput {math}`\to`     |        0                      |         0                     |
-|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to`     |         0                     |
+|    tick            |       stage         |  # births          |                                |  first output              |  early output              |   late output    |
+|--------------------|---------------------|--------------------|--------------------------------|----------------------------|----------------------------|------------------|
+|       1            |       first         |       0            | {math}`\leftarrow` add subpops |        n-1                 |        n                   |         n        |
+|       1            |       birth         |       1            |                                |        n-2                 |        n-1                 |         n-1      |
+|       1            |       early         |       1            | {math}`\leftarrow` add subpops |        n-2                 |        n-1                 |         n-1      |
+|       1            |       late          |       1            |                                |        n-2                 |        n-1                 |         n-1      |
+|       2            |       first         |       1            |                                |        n-2                 |        n-1                 |         n-1      |
+|       2            |       birth         |       2            |                                |        n-3                 |        n-2                 |         n-2      |
+|       2            |       early         |       2            |                                |        n-3                 |        n-2                 |         n-2      |
+|       2            |       late          |       2            |                                |        n-3                 |        n-2                 |         n-2      |
+|       3            |       first         |       2            |                                |        n-3                 |        n-2                 |         n-2      |
+|       3            |       birth         |       3            |                                |        n-4                 |        n-3                 |         n-3      |
+|       3            |       early         |       3            |                                |        n-4                 |        n-3                 |         n-3      |
+|       3            |       late          |       3            |                                |        n-4                 |        n-3                 |         n-3      |
+| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`           | {math}`\uparrow`           | {math}`\uparrow` |
+|       n-2          |       first         |       n-3          |                                |        2                   |        3                   |         3        |
+|       n-2          |       birth         |       n-2          |                                |        1                   |        2                   |         2        |
+|       n-2          |       early         |       n-2          |                                |        1                   |        2                   |         2        |
+|       n-2          |       late          |       n-2          |                                |        1                   |        2                   |         2        |
+|       n-1          |       first         |       n-2          |                                |        1                   |        2                   |         2        |
+|       n-1          |       birth         |       n-1          |                                |        0                   |        1                   |         1        |
+|       n-1          |       early         |       n-1          |                                |        0                   |        1                   |         1        |
+|       n-1          |       late          |       n-1          |                                |        0                   |        1                   |         1        |
+|       n            |       first         |       n-1          |  treeSeqOutput {math}`\to`     |        0                   |        1                   |         1        |
+|       n            |       birth         |       n            |                                |                            |        0                   |         0        |
+|       n            |       early         |       n            |                                |  treeSeqOutput {math}`\to` |        0                   |         0        |
+|       n            |       late          |       n            |                                |                            | treeSeqOutput {math}`\to`  |         0        |
 
 ```
 When the tree sequence is written out, SLiM records the value of its current tick,
