@@ -233,6 +233,24 @@ class TestAnnotate(tests.PyslimTestCase):
             _ = pyslim.annotate(ts, model_type="WF", tick=1)
         assert "not at integer" in str(except_info)
 
+    def test_warns_overwriting_mutations(self, helper_functions):
+        ts = msprime.sim_ancestry(
+                4,
+                population_size=10,
+                sequence_length=10,
+                recombination_rate=0.01,
+                random_seed=100,
+        )
+        ts = msprime.sim_mutations(
+                ts,
+                rate=1,
+                random_seed=12,
+                model=msprime.SLiMMutationModel(type=1)
+        )
+        assert ts.num_mutations > 0
+        with pytest.warns(Warning, match="already has.*metadata"):
+            slim_ts = pyslim.annotate(ts, model_type="WF", tick=1) 
+
     def test_just_simulate(self, helper_functions, tmp_path):
         ts = msprime.sim_ancestry(
                 4,
