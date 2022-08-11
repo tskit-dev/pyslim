@@ -78,9 +78,7 @@ Let's have a look at how old those individuals are,
 by tabulating when they were born:
 
 ```{code-cell}
-# TODO: will work on next tskit release
-# individual_times = slim_ts.individual_times
-individual_times = np.array([slim_ts.node(ind.nodes[0]).time for ind in slim_ts.individuals()])
+individual_times = slim_ts.individuals_time
 for t in np.unique(individual_times):
     print(f"There are {np.sum(individual_times == t)} individuals from time {t}.")
 ```
@@ -182,9 +180,7 @@ We'll get genomes to work with by pulling out
 np.random.seed(23)
 
 alive = pyslim.individuals_alive_at(ts, 0)
-# TODO: will work in the next tskit release
-# locs = ts.individual_locations[alive, :]
-locs = np.array([ts.individual(ind).location for ind in alive])
+locs = ts.individuals_location[alive, :]
 
 W = 35
 w = 5
@@ -227,7 +223,7 @@ We should check this: plot where these individuals lie
 relative to everyone else.
 The individuals locations are available as a property of individuals,
 but to make things easier, it's also present in a `num_individuals x 3`
-numpy array as ``ts.individual_locations``.
+numpy array as ``ts.individuals_location``.
 (There are three columns because SLiM allows for
 `(x, y, z)` coordinates, but we'll just use the first two.)
 Since ``groups["topleft"]`` is an array of individual IDs,
@@ -235,9 +231,7 @@ we can pull out the locations of the "topleft" individuals
 by indexing the rows of the individual location array:
 ```{code-cell}
 print("Locations:")
-# TODO: will work in next tskit release
-# all_locs = ts.individual_locations
-all_locs = np.array([ind.location for ind in ts.individuals()])
+all_locs = ts.individuals_location
 print(all_locs)
 print("shape:")
 all_locs.shape
@@ -259,9 +253,7 @@ ind_colors = np.repeat(0, ts.num_individuals)
 for j, k in enumerate(group_order):
   ind_colors[groups[k]] = 1 + j
 
-# TODO: will work in next tskit release
-# old_locs = ts.individual_locations[old_ones, :]
-old_locs = np.array([ind.location for ind in ts.individuals()])[old_ones, :]
+old_locs = ts.individuals_location[old_ones, :]
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6), dpi=300)
 ax1.set_title("today")
@@ -362,9 +354,7 @@ We'll also need pairwise geographic distances:
 
 ```{code-cell}
 geog_dist = np.repeat(0.0, len(pairs))
-# TODO: will work in next tskit release
-# locs = ts.individual_locations
-locs = np.array([ind.location for ind in ts.individuals()])
+locs = ts.individuals_location
 for k, (i, j) in enumerate(pairs):
   geog_dist[k] = np.sqrt(np.sum(
                     (locs[ind_ids[i], :]

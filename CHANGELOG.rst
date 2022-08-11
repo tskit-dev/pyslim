@@ -50,7 +50,7 @@
 - Methods for getting time, population, and location information about individuals
   are now in tskit:
     * `SlimTreeSequence.individual_times` is now `TreeSequence.individuals_time()`
-    * `SlimTreeSequence.individual_populations` is now `TreeSequence.individualx_population()`
+    * `SlimTreeSequence.individual_populations` is now `TreeSequence.individuals_population()`
     * `SlimTreeSequence.individual_locations` is now `TreeSequence.individuals_location()`
   However, this will be invisible to the user. In each case note the the
   location of the "s" has moved (to "individual*s* time" instead of "individual

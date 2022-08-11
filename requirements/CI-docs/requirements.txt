@@ -4,8 +4,8 @@ jupyter-sphinx==0.3.2
 sphinx==4.5.0
 sphinx-argparse==0.3.1
 sphinx-issues==3.0.1
-tskit==0.4.0
-msprime==1.1.1
+tskit==0.5.2
+msprime==1.2.0
 PyGithub==1.53
 matplotlib==3.5.0
 pandas

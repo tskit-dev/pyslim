@@ -36,6 +36,14 @@ Rough outline:
 4. change `ts.individuals_alive_at(t)` to `pyslim.individuals_alive_at(ts, t)`
 5. change `pyslim.annotate_defaults( )` to `pyslim.annotate( )`
 
+* Several properties previously provided by SlimTreeSequence are now provided
+    by TreeSequence (e.g., `ts.individual_times`); so these need no change.
+    However, these were briefly available as pyslim methods, so would need changing:
+
+    - change `pyslim.individual_times(ts)` to `ts.individuals_time`
+    - change `pyslim.individual_populations(ts)` to `ts.individuals_population`
+    - change `pyslim.individual_locations(ts)` to `ts.individuals_location``
+
 
 ## 0.700
 

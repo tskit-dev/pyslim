@@ -41,8 +41,8 @@ class TestPopulationSize(tests.PyslimTestCase):
         popsize = np.empty((nxbins, nybins, ntbins))
 
         # Location, times, and ages of individuals
-        locations = pyslim.individual_locations(ts)
-        times = pyslim.individual_times(ts)
+        locations = ts.individuals_location
+        times = ts.individuals_times
 
         # Iterate through location bins and time bins
         for i in np.arange(nxbins):
@@ -63,13 +63,14 @@ class TestPopulationSize(tests.PyslimTestCase):
         return(popsize)
 
     def make_bins(self, ts):
-        locs = pyslim.individual_locations(ts)
+        locs = ts.individuals_location
+        max_time = max(ts.individuals_time)
         for nx in np.arange(1, 20, 10):
             for ny in np.arange(1, 20, 10):
                 for nt in np.arange(1, 60, 30):
                     yield [np.linspace(0, round(max(locs[:,0])), nx + 1), 
                            np.linspace(0, round(max(locs[:,1])), ny + 1),
-                           np.round(np.linspace(0, max(nt, max(pyslim.individual_times(ts))), nt + 1))]  
+                           np.round(np.linspace(0, max(nt, max_time), nt + 1))]  
 
     def verify(self, ts, remembered_stage):
         for bins in self.make_bins(ts):

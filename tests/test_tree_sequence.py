@@ -234,7 +234,7 @@ class TestIndividualAges(tests.PyslimTestCase):
     @pytest.mark.parametrize('recipe', recipe_eq("multipop", exclude="remembered_early"), indirect=True)
     def test_population(self, recipe):
         ts = recipe["ts"]
-        individual_populations = pyslim.individual_populations(ts)
+        individual_populations = ts.individuals_population
         all_inds = pyslim.individuals_alive_at(ts, 0)
         assert len(all_inds) > 0
         for p in range(ts.num_populations):
@@ -332,7 +332,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         node_indivs = ts.tables.nodes.individual
         parent_ids = [set() for _ in ts.individuals()]
         node_parent_ids = [set() for _ in ts.nodes()]
-        individual_times = pyslim.individual_times(ts)
+        individual_times = ts.individuals_time
         individual_ages = pyslim.individual_ages(ts)
         for t in ts.trees():
             for i in ts.individuals():
@@ -389,7 +389,6 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         first_gen.discard(tskit.NULL)
         return np.array(list(first_gen), dtype='int')
 
-    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_everyone(self, recipe):
         # since everyone is recorded, only the initial individuals should
@@ -402,7 +401,6 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_answer, has_parents)
         self.verify_has_parents(ts)
 
-    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_post_recap(self, recipe):
         # the same should be true after recapitation
@@ -416,12 +414,11 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_answer, has_parents)
         self.verify_has_parents(ts)
 
-    @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_post_simplify(self, recipe):
         ts = recipe["ts"]
         rng = np.random.default_rng(seed=3)
-        individual_times = pyslim.individual_times(ts)
+        individual_times = ts.individuals_time
         keep_indivs = rng.choice(
                 np.where(individual_times < ts.metadata['SLiM']['tick'] - 1)[0],
                 size=30,
