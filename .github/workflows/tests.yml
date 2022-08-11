@@ -6,17 +6,36 @@ on:
     branches: [main]
 
 jobs:
-
   test:
     name: Python
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: [ 3.8, 3.9 ]
-        os:  [ macos-latest, ubuntu-latest ]
+        python: [3.8, 3.9]
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        sys: [mingw64, ucrt64]
+        env: [x86_64, ucrt-x86_64]
+        exclude:
+          - os: macos-latest
+            sys: ucrt64
+          - os: macos-latest
+            sys: mingw64
+            env: ucrt-x86_64
+          - os: ubuntu-latest
+            sys: ucrt64
+          - os: ubuntu-latest
+            sys: mingw64
+            env: ucrt-x86_64
+          - os: windows-latest
+            sys: ucrt64
+            env: x86_64
+          - os: windows-latest
+            sys: mingw64
+            env: ucrt-x86_64
+
     defaults:
       run:
-        shell: bash
+        shell: bash -l {0}
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.6.0
@@ -25,80 +44,64 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Cache conda and dependancies
-        id: cache
-        uses: actions/cache@v2
-        env:
-          # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 4
-        with:
-          path: |
-            c:\Miniconda\envs\anaconda-client-env
-            /usr/share/miniconda/envs/anaconda-client-env
-            ~/osx-conda
-            ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI-pip/requirements.txt') }}-${{ hashFiles('requirements/CI-conda/requirements.txt') }}-${{ hashFiles('requirements/CI-docs/requirements.txt') }}
 
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v2
-        if: steps.cache.outputs.cache-hit != 'true'
+        uses: mamba-org/provision-with-micromamba@main
         with:
-          activate-environment: anaconda-client-env
-          python-version: ${{ matrix.python }}
-          channels: conda-forge
-          channel-priority: strict
-          auto-update-conda: true
-          use-only-tar-bz2: true
+          environment-name: anaconda-client-env
+          environment-file: requirements/CI-conda/ci-environment.yml
+          cache-env: true
+          extra-specs: |
+            python=${{ matrix.python }}
 
-      - name: Fix windows .profile
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+      - name: Setup MSYS2 ${{matrix.sys}}
+        uses: msys2/setup-msys2@v2
+        if: matrix.os == 'windows-latest'
+        with:
+          msystem: ${{matrix.sys}}
+          release: false
+          install: >-
+            git
+            base-devel
+            msys2-devel
+            mingw-w64-${{matrix.env}}-zstd
+            mingw-w64-${{matrix.env}}-zlib
+            mingw-w64-${{matrix.env}}-toolchain
+            mingw-w64-${{matrix.env}}-cmake
+            mingw-w64-${{matrix.env}}-autotools
+
+      - name: Cache SLiM build
+        if: matrix.os == 'windows-latest'
+        id: cache-slim
+        uses: actions/cache@v3.0.5 # latest version is broken https://github.com/actions/cache/issues/891, so pinning to 3.0.5
+        with:
+          path: D:\a\pyslim\pyslim\SLiM
+          key: ${{runner.os}}-${{matrix.sys}}-${{matrix.env}}-key
+
+      - name: Build SLiM windows
+        if: ( matrix.os == 'windows-latest'  && steps.cache-slim.outputs.cache-hit != 'true' )
+        shell: msys2 {0}
         run: |
-          cp ~/.bash_profile ~/.profile
+          git clone https://github.com/messerlab/SLiM.git
+          mkdir -p SLiM/Release
+          cd SLiM/windows_compat/gnulib
+          touch --date="`date`" aclocal.m4 Makefile.am configure configure.ac config.h.in Makefile.in
+          cd ../..
+          cd Release
+          cmake -G"MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+          make -j 2
 
-      - name: Install conda deps
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: bash -l {0} #We need a login shell to get conda
+      - name: Install SLiM macos / linux
+        if: (matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest')
         run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            conda install --yes slim
-          fi
-          conda install --yes --file=requirements/CI-conda/requirements.txt
-
-      - name: Install pip deps
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: bash -l {0}
-        run: |
-          pip install -r requirements/CI-pip/requirements.txt
-          pip install -r requirements/CI-docs/requirements.txt
-
-      - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
-        run: |
-          cp -r /usr/local/miniconda/envs/anaconda-client-env ~/osx-conda
-
-      - name: Fix OSX Cache Restore
-        if: steps.cache.outputs.cache-hit == 'true' && matrix.os == 'macos-latest'
-        run: |
-          mkdir -p /usr/local/miniconda/envs
-          sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
-
-      # retaining this for the next devel cycle
-      # - name: Build SLiM
-      #   run: |
-      #     git clone https://github.com/messerlab/SLiM.git
-      #     cd SLiM
-      #     mkdir -p Release
-      #     cd Release
-      #     cmake -D CMAKE_BUILD_TYPE=Release ..
-      #     make -j 2
+          micromamba install slim -y
 
       - name: Run tests
+        shell: bash -l {0}
         run: |
-          source ~/.profile
-          conda activate anaconda-client-env
-          export PATH=$PWD/SLiM/Release:$PATH
+          micromamba info
+          micromamba list
+          export PATH=$PWD/SLiM/Release:$PATH 
+          which slim
           slim -v
           pytest -xv -n2 tests
