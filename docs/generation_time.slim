@@ -1,0 +1,42 @@
+initialize() {
+   initializeSLiMModelType("nonWF");
+   initializeSex("A");
+   initializeTreeSeq();
+   initializeMutationRate(0.0);
+   initializeMutationType("m1", 0.5, "f", 0.0);
+   initializeGenomicElementType("g1", m1, 1.0);
+   initializeGenomicElement(g1, 0, 1e8-1);
+   initializeRecombinationRate(1e-8);    
+   defineConstant("K", 1000);
+   defineGlobal("GENTIME", rep(NAN, 100));
+}
+
+reproduction(p1, "F") {
+   for (k in seqLen(rpois(1, individual.age))) {
+      mate = subpop.sampleIndividuals(1, sex="M");
+      offspring = subpop.addCrossed(individual, mate);
+      offspring.tagF = (individual.age + mate.age) / 2;
+   }
+}
+
+1 early() {
+   sim.addSubpop("p1", K);
+   p1.individuals.tagF = 0.0;
+}
+
+early() {
+   p1.fitnessScaling = K / p1.individualCount;
+}
+
+1: late() {
+   // this should happen *after* mortality (so, in late())
+   GENTIME[community.tick - 1] = mean(p1.individuals.tagF);
+}
+
+100 late() {
+   sim.treeSeqOutput(
+      "generation_time.trees",
+      metadata=Dictionary("generation_times", GENTIME)
+   );
+   catn("Done! Mean generation time " + mean(GENTIME[50:99]));
+}

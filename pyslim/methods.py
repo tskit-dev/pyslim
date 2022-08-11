@@ -445,11 +445,6 @@ def slim_time(ts, time, stage="late"):
     x = (stage == "first" or (stage == "early" and is_wf))
     y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
     slim_time = ts.metadata['SLiM']['tick'] - time + x + y - 1
-    # if ts.metadata['SLiM']['model_type'] == "WF":
-    #     if (ts.metadata['SLiM']['stage'] == "early" and stage == "late"):
-    #         slim_time -= 1
-    #     if (ts.metadata['SLiM']['stage'] == "late" and stage == "early"):
-    #         slim_time += 1
     return slim_time
 
 
