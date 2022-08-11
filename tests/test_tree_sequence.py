@@ -741,6 +741,16 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         cts = pyslim.convert_alleles(ts)
         self.verify_converted_nucleotides(ts, cts)
 
+    @pytest.mark.parametrize(
+            'recipe', recipe_eq("nucleotides", exclude="non-nucleotides"), indirect=True
+    )
+    def test_keeps_reference_sequence(self, recipe):
+        ts = recipe["ts"]
+        assert ts.has_reference_sequence()
+        nts = pyslim.generate_nucleotides(ts, seed=123)
+        assert nts.has_reference_sequence()
+        assert ts.reference_sequence == nts.reference_sequence
+
     def test_generate_nucleotides_errors(self):
         ts = msprime.sim_ancestry(4, sequence_length=10, population_size=10, random_seed=777)
         with pytest.raises(ValueError, match="must have length equal"):

@@ -164,7 +164,8 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
 
     If ``reference_sequence`` is a string of nucleotides (A, C, G, and T) of
     length equal to the sequence length, this is used for the reference
-    sequence. Otherwise (the default), a reference sequence of independent and
+    sequence. If no reference sequence is given, the reference_sequence property
+    of ts is used if present; if not then a sequence of independent and
     uniformly random nucleotides is generated.
 
     SLiM stores the nucleotide as an integer in the mutation metadata, with -1 meaning "not
@@ -182,30 +183,33 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     unlikely cases.
 
     :param tskit.TreeSequence ts: The tree sequence to transform.
-    :param bool reference_sequence: A reference sequence, or None to randomly generate one.
+    :param bool reference_sequence: A reference sequence, or None to use an existing reference,
+        or to randomly generate one.
     :param bool keep: Whether to leave existing nucleotides in mutations that already have one.
     :param int seed: The random seed for generating new alleles.
     """
     rng = np.random.default_rng(seed=seed)
     if reference_sequence is None:
-        reference_sequence = rng.choice(
-                np.array([65, 67, 71, 84], dtype=np.int8),
-                int(ts.sequence_length),
-                replace=True,
-        ).tobytes().decode('ascii')
-
-    if len(reference_sequence) != ts.sequence_length:
-        raise ValueError("Reference sequence must have length equal to sequence_length.")
-    if len([x for x in reference_sequence if x not in NUCLEOTIDES]) > 0:
-        raise ValueError("Reference sequence must be a string of A, C, G, and T only.")
+        if not ts.has_reference_sequence():
+            reference_sequence = rng.choice(
+                    np.array([65, 67, 71, 84], dtype=np.int8),
+                    int(ts.sequence_length),
+                    replace=True,
+            ).tobytes().decode('ascii')
+    else:
+        if len(reference_sequence) != ts.sequence_length:
+            raise ValueError("Reference sequence must have length equal to sequence_length.")
+        if len([x for x in reference_sequence if x not in NUCLEOTIDES]) > 0:
+            raise ValueError("Reference sequence must be a string of A, C, G, and T only.")
 
     tables = ts.dump_tables()
-    tables.reference_sequence.data = reference_sequence
+    if reference_sequence is not None:
+        tables.reference_sequence.data = reference_sequence
     tables.mutations.clear()
     sets = [[k for k in range(4) if k != i] for i in range(4)]
     states = np.full((ts.num_mutations,), -1)
     for site in ts.sites():
-        aa = NUCLEOTIDES.index(reference_sequence[int(site.position)])
+        aa = NUCLEOTIDES.index(tables.reference_sequence.data[int(site.position)])
         muts = {}
         for mut in site.mutations:
             if mut.parent == tskit.NULL:
