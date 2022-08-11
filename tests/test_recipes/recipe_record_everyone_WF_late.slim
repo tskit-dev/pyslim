@@ -15,10 +15,8 @@ initialize()
 
 1 early() {
     sim.addSubpop("p1", 10);
-    for (ind in p1.individuals) {
+    for (ind in p1.individuals)
         ind.setSpatialPosition(p1.pointUniform());
-    }
-    // it will help to record the first-gen ones that die as well
     sim.treeSeqRememberIndividuals(p1.individuals);
 }
 
@@ -33,10 +31,22 @@ late() {
 }
 
 // PEDIGREE OUTPUT
-1 early() {
+1 first() {
     writeFile(PEDIGREE_FILE,
        paste(c("generation", "stage", "individual", "age", "parent1", "parent2"),
              sep="\t"));
+}
+
+1: first() {
+    for (pop in sim.subpopulations) {
+        for (ind in pop.individuals) {
+            age = community.modelType == "nonWF" ? ind.age else -1;
+            writeFile(PEDIGREE_FILE,
+             paste(c(sim.cycle, community.cycleStage, ind.pedigreeID, age, ind.pedigreeParentIDs),
+                   sep='\t'),
+             append=T);
+        }
+    }
 }
 
 1: early() {
@@ -44,7 +54,7 @@ late() {
         for (ind in pop.individuals) {
             age = community.modelType == "nonWF" ? ind.age else -1;
             writeFile(PEDIGREE_FILE,
-             paste(c(sim.cycle, 'early', ind.pedigreeID, age, ind.pedigreeParentIDs),
+             paste(c(sim.cycle, community.cycleStage, ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
         }
@@ -56,7 +66,7 @@ late() {
         for (ind in pop.individuals) {
             age = community.modelType == "nonWF" ? ind.age else -1;
             writeFile(PEDIGREE_FILE,
-             paste(c(sim.cycle, 'late', ind.pedigreeID, age, ind.pedigreeParentIDs),
+             paste(c(sim.cycle, community.cycleStage, ind.pedigreeID, age, ind.pedigreeParentIDs),
                    sep='\t'),
              append=T);
         }

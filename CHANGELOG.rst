@@ -45,8 +45,6 @@
 - Top-level metadata now has a `tick` attribute that is (for now) a synonym
     for `generation`; the latter will be deprecated at some point in the future.
 
-- TODO: Individual properties `time` and `population` now moved to tskit
-
 - Methods for getting time, population, and location information about individuals
   are now in tskit:
     * `SlimTreeSequence.individual_times` is now `TreeSequence.individuals_time()`
@@ -55,6 +53,10 @@
   However, this will be invisible to the user. In each case note the the
   location of the "s" has moved (to "individual*s* time" instead of "individual
   time*s*"), but the original version remains an undocumented alias.
+
+**New features**:
+
+- Methods like `pyslim.individuals_alive_at( )` now deal with the new `stage="first"`.
 
 
 ********************

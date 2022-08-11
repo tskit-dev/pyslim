@@ -2,7 +2,6 @@ initialize()
 {
     setSeed(24);
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
-    if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
     initializeSLiMModelType("nonWF");
     initializeSLiMOptions(keepPedigrees=T);
     initializeTreeSeq();
