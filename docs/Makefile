@@ -5,7 +5,7 @@ PYSLIM_VERSION:=$(shell PYTHONPATH=${PYPATH} \
    python3 -c 'import pyslim; print(pyslim.__version__.split("+")[0])')
 
 dev: prereqs
-	$(MAKE) -C _static
+	if (cd _static && md5sum -c pedigrees.ink.svg.md5 | grep -l "FAILED"); then echo "remaking figures with inkscape"; $(MAKE) -C _static; else echo "not remaking figures"; fi
 	PYTHONPATH=${PYPATH} ./build.sh
 
 dist: prereqs

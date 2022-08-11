@@ -101,8 +101,9 @@ jobs:
           conda activate anaconda-client-env
           export PATH=$PWD/SLiM/Release:$PATH
           slim -v
-          touch docs/_static/{pedigree0.svg,pedigree1.svg,pedigree2.svg,pedigree_recapitate.svg,pedigree_simplify.svg,pedigree_mutate.svg}
-          touch docs/_static/{pedigree01.png,pedigree0.png,pedigree1.png,pedigree2.png,pedigree_recapitate.png,pedigree_simplify.png,pedigree_mutate.png}
+          ## no longer necessary:
+          # touch docs/_static/{pedigree0.svg,pedigree1.svg,pedigree2.svg,pedigree_recapitate.svg,pedigree_simplify.svg,pedigree_mutate.svg}
+          # touch docs/_static/{pedigree01.png,pedigree0.png,pedigree1.png,pedigree2.png,pedigree_recapitate.png,pedigree_simplify.png,pedigree_mutate.png}
           cd docs && make
 
 
