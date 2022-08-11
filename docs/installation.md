@@ -15,10 +15,17 @@ kernelspec:
 
 # Installation
 
-Pyslim can be installed using the standard [pip](https://pypi.org/project/pip/) distribution method:
+Pyslim can be installed using the standard [pip](https://pypi.org/project/pyslim/) distribution method:
 
 ```bash
 python3 -m pip install pyslim
+```
+
+To install a [different version](https://pypi.org/project/pyslim/#history), e.g., 
+the 1.0 beta release whose version string is "1.0b1", just append this, like:
+
+```bash
+python3 -m pip install pyslim==1.0b1
 ```
 
 Alternatively, you can install from source as described in [](sec_development).
