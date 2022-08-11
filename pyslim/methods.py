@@ -722,6 +722,11 @@ def _annotate_sites_mutations(tables):
     columns of the Mutation table. We set slim_time in metadata so that
     - tick = floor(tskit time) + slim_time
     '''
+    if len(tables.mutations.metadata) > 0:
+        warnings.warn(
+                "The provided tree sequence already has some mutations with "
+                "metadata; this metadata will be overwritten."
+        )
     num_mutations = tables.mutations.num_rows
     default_mut = default_slim_metadata("mutation_list_entry")
     dsb, dso = tskit.pack_bytes([str(j).encode() for j in range(num_mutations)])
