@@ -141,11 +141,15 @@ def run_slim(recipe, out_dir, recipe_dir="test_recipes", species=None, **kwargs)
     slim_vars = []
     for o in outfiles:
         if o.slim_name != "":
-            slim_vars += ["-d", f"{o.slim_name}=\"{o.path}\""]
+            # for happy windows filepaths
+            tmp_str = o.path.replace('\\', '\\\\')
+            slim_vars += ["-d", f"{o.slim_name}=\"{tmp_str}\""]
     for k in kwargs:
         x = kwargs[k]
         if x is not None:
             if isinstance(x, str) and x[:10] != 'Dictionary':
+                # for happy windows filepaths
+                x = x.replace('\\', '\\\\')
                 x = f"'{x}'"
             if isinstance(x, bool):
                 x = 'T' if x else 'F'
@@ -192,6 +196,8 @@ class HelperFunctions:
         # on it, saving to files in out_dir.
         infile = os.path.join(out_dir, "in.trees")
         in_ts.dump(infile)
+        # for happy windows filepaths       
+        infile_str = infile.replace('\\', '\\\\')
         kwargs['TREES_IN'] = infile
         if 'STAGE' not in kwargs:
             kwargs['STAGE'] = in_ts.metadata['SLiM']['stage']
@@ -211,7 +217,11 @@ class HelperFunctions:
         for sp in in_ts:
             infiles[sp] = os.path.join(out_dir, f"{sp}_in.trees")
             in_ts[sp].dump(infiles[sp])
-        kwargs['TREES_IN'] = _dict_to_eidos(infiles)
+        infiles_str_dict = {}
+        for k, v in infiles.items():
+            # for happy windows filepaths
+            infiles_str_dict[k] = v.replace('\\', '\\\\')        
+        kwargs['TREES_IN'] = _dict_to_eidos(infiles_str_dict)
         if 'STAGE' not in kwargs:
             kwargs['STAGE'] = in_ts[sp].metadata['SLiM']['stage']
         if subpop_map is not None:
