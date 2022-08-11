@@ -1,0 +1,16 @@
+name: anaconda-client-env
+channels:
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - tskit>=0.5.2
+  - msprime>=1.2.0
+  - matplotlib==3.5.0
+  - pandas
+  - numpy
+  - flake8==3.8.4
+  - pytest==6.2.5
+  - pytest-cov==2.10.1
+  - pytest-xdist==2.5.0
+  - filelock
