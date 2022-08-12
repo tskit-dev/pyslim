@@ -702,7 +702,6 @@ def _annotate_populations(tables):
             )
         ]
     )
-    num_pops = max(np.max(tables.nodes.population), np.max(do_pops)) + 1
     for j, p in enumerate(tables.populations):
         if j in do_pops:
             if "slim_id" not in p.metadata:
