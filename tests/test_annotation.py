@@ -418,7 +418,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 md = x.metadata
                 assert np.isclose(md['mutation_list'][0]["selection_coeff"], selcoefs[j])
 
-    def test_dont_annotate_mutations(self, helper_functions):
+    def test_dont_annotate_mutations(self):
         # Test the option to not overwrite mutation annotations
         ts = msprime.sim_ancestry(10, random_seed=5)
         ts = msprime.sim_mutations(ts, rate=5, random_seed=3)
@@ -435,6 +435,13 @@ class TestAnnotate(tests.PyslimTestCase):
         # an empty mutation_list by the schema
         pre_mutations.metadata_schema = tables.mutations.metadata_schema
         assert tables.mutations.equals(pre_mutations)
+
+    def test_annotate_empty(self):
+        t = tskit.TableCollection(sequence_length=10)
+        at = pyslim.annotate_tables(t, model_type='nonWF', tick=1)
+        assert t.metadata_schema == pyslim.slim_metadata_schemas['tree_sequence']
+        for x in ("population", "individual", "node", "site", "mutation"):
+            assert getattr(t, x + "s").metadata_schema == pyslim.slim_metadata_schemas[x]
 
     def test_no_populations_errors(self, helper_functions, tmp_path):
         # test SLiM errors when individuals are in non-SLiM populations
