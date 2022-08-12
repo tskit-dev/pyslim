@@ -8,11 +8,11 @@
 
 **Breaking changes**:
 
-- Removed `SlimTreeSequence` class entirely.
+- Removed `SlimTreeSequence` class entirely (it was previously deprecated).
+    All its methods are either available in `tskit.TreeSequence`
+    or are now called by `pyslim.fn(ts, ...)` instead of `ts.fn(...)`.
 
 - TODO: Deprecated `util.unique_labels_by_group`.
-
-- TODO: what about `slim_ts.mutation_at` and `slim_ts.nucleotide_at` (used in a Recipe)
 
 - Moved some methods of `SlimTreeSequence` to pyslim:
     * instead of `slim_ts.slim_time(t)` do `pyslim.slim_time(ts, t)`
@@ -20,6 +20,8 @@
     * instead of `slim_ts.individuals_parents(t)` do `pyslim.individuals_parents(ts, t)`
     * instead of `slim_ts.individuals_ages(t)` do `pyslim.individuals_ages(ts, t)`
 
+- The methods `slim_ts.mutation_at( )` and `slim_ts.nucleotide_at( )`
+    are now methods of pyslim, whose first argument is the tree sequence.
 
 - In SLiM v4 "generation" has been renamed to "tick", and so corresponding things
   in pyslim have been renamed: top-level metadata now has `ts.metadata["SLiM"]["tick"]`
@@ -32,7 +34,7 @@
   need to set up those individuals yourself.
 
 - To update a tree sequence produced by an old version of SLiM to the current one,
-  use `pyslim.update_tables( )`. (However, note that reading it in to SLiM and
+  use `pyslim.update( )`. (However, note that reading it in to SLiM and
   writing it out again might be even easier.)
 
 - The method `pyslim.set_tree_sequence_metadata` now has arguments `tick` and `cycle`

@@ -27,22 +27,61 @@ tables = ts.tables
 
 ## 1.0
 
-TODO: explain changes.
-Rough outline:
+The pyslim 1.0 release coincides with that of SLiM v4,
+which introduced a number of changes to SLiM.
+pyslim remains backwards compatible, in that pyslim 1.0
+will happily read tree sequences produced by previous versions of SLiM or pyslim,
+and will convert them to the current version.
+However, previous pyslim code may not work, due to two sets of changes:
+(1) much of the functionality originally in pyslim has moved to tskit
+(e.g., metadata processing), and (2) minor changes to terminology in SLiM v4
+("generation" is now "tick").
 
-1. change `generation` to `tick`
-2. change `pyslim.load( )` to `tskit.load( )`
-3. remove `SlimTreeSequence( )`
-4. change `ts.individuals_alive_at(t)` to `pyslim.individuals_alive_at(ts, t)`
-5. change `pyslim.annotate_defaults( )` to `pyslim.annotate( )`
+Converting previous code should be straightforward, as there are exact replacements.
+The most important changes are to remove calls to `pyslim.load( )` or `SlimTreeSequence( )`,
+and change "generation=" arguments to "tick=".
 
-* Several properties previously provided by SlimTreeSequence are now provided
-    by TreeSequence (e.g., `ts.individual_times`); so these need no change.
-    However, these were briefly available as pyslim methods, so would need changing:
+In more detail, to upgrade code you should:
 
-    - change `pyslim.individual_times(ts)` to `ts.individuals_time`
-    - change `pyslim.individual_populations(ts)` to `ts.individuals_population`
-    - change `pyslim.individual_locations(ts)` to `ts.individuals_location``
+1. Change `pyslim.load( )` to `tskit.load( )`.
+2. Remove calls to `SlimTreeSequence( )`. They are not needed.
+3. Change `generation` to `tick` in any arguments to functions, or in metadata.
+4. Change `pyslim.annotate_defaults( )` to `pyslim.annotate( )`.
+    and `pyslim.annotate_defaults_tables( )` to `pyslim.annotate_tables( )`.
+5. Change `pyslim.update_tables( )` to `pyslim.update( )`.
+
+Some methods of SlimTreeSequence are now methods of pyslim that take a tree sequence
+as their first argument:
+
+6. Change `ts.recapitate(...)` to `pyslim.recapitate(ts, ...)`.
+7. Change `ts.individuals_alive_at(t)` to `pyslim.individuals_alive_at(ts, t)`.
+8. Change `ts.has_individual_parents()` to `pyslim.has_individual_parents(ts)`,
+    and `ts.individual_parents()` to `pyslim.individual_parents(ts)`.
+9. Replace `ts.first_generation_individuals()` with
+    an appropriate call to `pyslim.individuals_alive_at( )`.
+10. Change `ts.mutation_at(...)` to `pyslim.mutation_at(ts, ...)`.
+    and `ts.nucleotide_at(...)` to `pyslim.nucleotide_at(ts, ...)`.
+
+Several properties previously provided by SlimTreeSequence are now provided
+by TreeSequence (e.g., `ts.individual_times`); so these need no change.
+However, these were briefly available as pyslim methods, so would need changing:
+
+11. Change `pyslim.individual_times(ts)` to `ts.individuals_time`,
+    `pyslim.individual_populations(ts)` to `ts.individuals_population`, and
+    `pyslim.individual_locations(ts)` to `ts.individuals_location`
+
+The change from `pyslim.annotate_defaults( )` to `pyslim.annotate( )`
+also entailed some small changes in behavior. Most notably,
+since msprime.sim_ancestry() now simulates individuals
+by default, annotation does not set up individuals: if you have a tree
+sequence without individuals (e.g., produced by msprime.simulate()) then you
+need to set up those individuals yourself.
+
+To update a tree sequence produced by an old version of SLiM to the current one,
+use `pyslim.update( )`. (However, note that reading it in to SLiM and
+writing it out again might be even easier.)
+
+Also see notes below for 0.700.
 
 
 ## 0.700
