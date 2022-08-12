@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 
 def unique_labels_by_group(group, label, minlength=0):
@@ -11,6 +12,12 @@ def unique_labels_by_group(group, label, minlength=0):
     In other words, if the result is ``x``, then
     ``x[j]`` is ``len(set(label[group == j])) <= 1``.
     '''
+    warnings.warn(
+            "The unique_labels_by_group( ) method is no longer used in pyslim, "
+            "so is now deprecated. Please copy the source code for your own use "
+            "if you wish to keep using it.",
+            FutureWarning,
+    )
     w = label.astype("float64")
     n = np.bincount(1 + group, minlength=minlength + 1)
     x = np.bincount(1 + group, weights=w, minlength=minlength + 1)

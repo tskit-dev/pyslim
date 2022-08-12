@@ -65,12 +65,12 @@ def mutation_at(ts, node, position, time=None):
     if time is None:
         time = ts.node(node).time
     tree = ts.at(position)
-    # TODO: use `position` argument to ts.site( )
-    site_pos = ts.tables.sites.position
     out = tskit.NULL
-    if position in site_pos:
-        site_index = np.where(site_pos == position)[0][0]
-        site = ts.site(site_index)
+    try:
+        site = ts.site(position=position)
+    except ValueError:
+        pass
+    else:
         mut_nodes = []
         # look for only mutations that occurred before `time`
         # not strictly necessary if time was None
