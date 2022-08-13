@@ -93,7 +93,7 @@ jobs:
       #    cd SLiM/Release
       #    cmake -D CMAKE_BUILD_TYPE=Release ..
       #    make -j 2
-
+      #
       - name: Run tests
         run: |
           source ~/.profile
