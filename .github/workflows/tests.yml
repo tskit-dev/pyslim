@@ -83,7 +83,6 @@ jobs:
         run: |
           mkdir -p /usr/local/miniconda/envs
           sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
-
       #- name: Build SLiM
       #  if: steps.cache.outputs.cache-hit != 'true' &&
       #    (matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest')
@@ -93,12 +92,11 @@ jobs:
       #    cd SLiM/Release
       #    cmake -D CMAKE_BUILD_TYPE=Release ..
       #    make -j 2
-      #
       - name: Run tests
         run: |
           source ~/.profile
           conda activate anaconda-client-env
-       #   export PATH=$PWD/SLiM/Release:$PATH # don't need to add SLiM to path, we ain't building it
+          # export PATH=$PWD/SLiM/Release:$PATH # don't need to add SLiM to path, we ain't building it
           which slim
           slim -v
           pytest -xv -n2 tests
