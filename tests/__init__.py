@@ -4,14 +4,12 @@ Common code for the pyslim test cases.
 import os
 import json
 import random
-import base64
 import warnings
 
 import pyslim
 import tskit
 import msprime
 import pytest
-import attr
 import numpy as np
 
 

@@ -40,10 +40,17 @@ ts.time_units
 ... and it can be quite conceptually tricky to make sure that time units
 are consistent across different stages of simulation.
 
+(Note: it *is* possible to set the time units to whatever you want,
+using the ``timeUnit`` parameter to ``initializeTreeSeq( )``,
+but this only affects this label in metadata (i.e., the output of
+``ts.time_units``, and does not actually change how times are recorded
+in the tree sequence.)
+
+
 ## Mutation rates with msprime
 
 Only you really know how much time in the real world
-one spin around SLiM's life cycle corresponds to.
+corresponds do one spin around SLiM's life cycle.
 So, SLiM does not take a stand on what its time units actually are,
 and refers to them as "ticks".
 Previous versions of SLiM called these "generations",
@@ -55,7 +62,7 @@ or maybe you need to multiply by a (mean) generation time known from empirical d
 However, it becomes important to know what the time units are
 when interfacing with msprime.
 For instance, suppose you've done a WF simulation for an organism whose mean generation time
-in the real world is 30 years, and you want to put neutral mutations with msprime.
+in the real world is 30 years, and you want to overlay neutral mutations using msprime.
 The mutation rate passed to msprime is in units of mutations per unit-of-time-in-the-tree-sequence,
 so since you did a WF simulation, the units of time in the tree sequence are in generations,
 and you should give it mutation rate in mutations per generation.
@@ -81,10 +88,10 @@ and we want to recapitate with an effective size of 10,000 diploids.
 An effective size of 10,000 diploids means one coalescence per pair of lineages
 every 20,000 generations;
 since one unit of time in the tree sequence equals 1/30th of a generation,
-this is one coalescence per pair of lineages every 600,000 generations,
+this is one coalescence per pair of lineages every 600,000 time units,
 which we can get msprime to do by asking for an effective population size of 300,000.
 In other words, if a generation in our tree sequence is {math}`T` units of time,
-then we need to divide the coalescence rate by {math}`T`,
+then we need to divide the coalescence rate by {math}`T,`
 which we do by multiplying effective population sizes by {math}`T`.
 
 (A better way of thinking about this could be to say that since the mean time to coalescence
@@ -96,7 +103,7 @@ Since these are rates, they are also in units of something "per time",
 and so just as for mutation rates, we need to ensure they are in the correct units.
 Recombination rates in particular come in units of "per generation"
 (since a Morgan is in units of recombinations per generation),
-and so rate of {math}`r` Morgans would need to be divided by {math}`T`
+and so a rate of {math}`r` Morgans would need to be divided by {math}`T`
 before it's passed to msprime for recapitation.
 Since msprime (by default) runs a continuous-time simulation,
 there is no harm in adjusting time units in msprime this way,
@@ -133,7 +140,7 @@ with warnings.catch_warnings(record=True) as w:
 ```
 
 Think of this warning as a friendly reminder to pay attention to your time units.
-To make this warning dissappear, the easiest option is to do as the warning suggests
+To make this warning disappear, the easiest option is to do as the warning suggests
 and just ask python to ignore it:
 
 ```{code-cell}
@@ -160,7 +167,7 @@ print(f"Time units after: {ts.time_units}")
 ## Example: calculating generation times in a SLiM simulation
 
 In a nonWF simulation, the generation time is not something that you get to explicitly set:
-rather, like poulation size it is an emergent property of the rules of the simulation.
+rather, like population size it is an emergent property of the rules of the simulation.
 So, it's important to be able to calculate what the (average) generation time actually is
 in a given simulation (keeping in mind that the answer may vary across time and space).
 This is not really a pyslim operation at all,
@@ -170,10 +177,14 @@ The definition of generation time appropriate for comparison to a coalescent sim
 is "average amount of time between birth of parent and birth of child".
 (Note that this is the birth of the *average* child in some sense,
 not the average time to each parent's first child!)
-The definition depends on what we mean by the various "average"s,
-but this is not the place to explain the distinctions.
-An easy and convenient definition is then to take the average across all individuals
-alive at a given time of the age of their parents at the times of their births.
+Therefore,
+an easy and convenient way to measure this is to
+record for each individual their parents' ages at the times of their births,
+and then take the average across all individuals alive at a given time.
+(This is only one possible choice,
+and other choices are usually but not always equivalent,
+but a discussion of the options and distinctions
+would make this tutorial lengthy and confusing.
 
 Here is a script that computes this.
 In the simulation, females' fecundity increases with their age,
@@ -254,7 +265,7 @@ Mostly, you don't have to convert between the two,
 unless you want to match up information in a tree sequence
 with information written out by SLiM itself.
 In other words, SLiM's time counter measures the number of time steps
-("tick") since the start of the simulation,
+("ticks") since the start of the simulation,
 and times in the tree sequence record how long before the end of the simulation.
 However, there are quite a few details, and off-by-one errors are easy to make,
 so we'll spell it out here.
@@ -266,9 +277,9 @@ without needing to actually do any conversions yourself.
 SLiM's time counter is called the "tick".
 The SLiM tick starts at 1, and records which round of the life cycle the simulation is in.
 However, the order of the life cycle differs between WF and nonWF models:
-in a WF model, it is "*first* {math}`\to` "*early* {math}`\to` *birth* {math}`\to` *late*",
-while in a nonWF model, it is "*first* {math}`\to` "*birth* {math}`\to` *early* {math}`\to` *late*".
-Usually, the first set of individuals are created in the *early()* phase of tick 1,
+in a WF model, it is *first* {math}`\to` *early* {math}`\to` *birth* {math}`\to` *late*",
+while in a nonWF model, it is *first* {math}`\to` *birth* {math}`\to` *early* {math}`\to` *late*.
+Often, the first set of individuals are created in the *early()* phase of tick 1,
 and so in a WF model reproduce immediately, in the same tick they were "born".
 Parents and offspring cannot have the same birth time in the tree sequence,
 and so some clever bookkeeping was required.
@@ -281,16 +292,38 @@ SLiM also keeps track of "how many birth phases of the life cycle have happened 
 (the column "# births" in the tables).
 As the simulation goes along,
 tskit time ago is recorded as minus one times the number of birth phases so far.
+(We multiply by -1 because as we move forward in time,
+we accumulate a negative number of "time-ago" units.)
 When the tree sequence is output, the current cumulative number of birth phases
 is added to this,
 so "tskit time ago" is, equivalently, "how many birth phases happened since this time".
 In a nonWF model, the two counters ("tick" and "number of birth phases")
-are always in sync; but in a WF they are not (during *first* and *early*).
+are always in sync; but in a WF model they are not (during *first* and *early*).
 The extra wrinkle this introduces is that the correspondence between "tskit time ago"
 and "SLiM time" depends on *which phase the tree sequence was recorded in*.
 
+When the tree sequence is written out, SLiM records the value of its current tick
+and the current stage,
+which can be found in the metadata: ``ts.metadata['SLiM']['tick']``,
+and ``ts.metadata['SLiM']['stage']``.
+The "SLiM time" referred to by a ``time`` in the tree sequence
+(i.e., the value that would be reported by ``community.tick``
+within SLiM at the point in time thus referenced)
+can be obtained by subtracting ``time`` from ``ts.metadata['SLiM']['tick']``
+and possibly adding or subtracting one depending on the current stage.
+The fiddly details are worked out by the {func}`.slim_time` method,
+which takes a ``stage`` argument.
+
+Some of the other methods in pyslim -- those that depend on {func}`.individuals_alive_at`
+-- need you to tell them during which stage the tree sequence was saved with ``sim.treeSeqOutput``,
+and need this to be the same as the stage that any individuals were saved with ``sim.treeSeqRememberIndividuals``.
+(This can add another factor of plus or minus one to the calculations.)
+This argument, ``remembered_stage``, defaults to *late()*;
+we recommend that you also default to always Remembering individuals, and saving out the tree sequence,
+during *late()* as well, unless you have good reason not to.
+
 To help keep all this straight, here are schematics for WF and nonWF models.
-(To see the nonWF model, click on the tab.)
+(To see the nonWF model schematic, click on the "nonWF" tab.)
 
 ```{tabbed} WF model
 
@@ -301,8 +334,8 @@ The answer to this depends on what stage, unfortunately.
 Let {math}`k` be the value of the tick counter, {math}`n` be the total number of ticks,
 i.e., the value of ``ts.metadata["SLiM"]["tick"]``,
 {math}`t` be the tskit time,
-{math}`x=1` if the stage is "first" or "early' and 0 otherwise,
-and {math}`y=1` if the tree sequence was output in "late".
+{math}`x=1` if the stage is *first()* or *early()* and 0 otherwise,
+and {math}`y=1` if the tree sequence was output in *late()*.
 Then, as can be verified from the table below, {math}`k + t = n + x + y - 1`.
 The right-hand columns show {math}`t`, i.e.,
 what the **tskit time ago** is at the corresponding point in the SLiM simulation.
@@ -347,7 +380,7 @@ Let {math}`k` be the value of the tick counter, {math}`n` be the total number of
 i.e., the value of ``ts.metadata["SLiM"]["tick"]``,
 let {math}`t` be the tskit time,
 {math}`x=1` if the stage is "first" and 0 otherwise,
-and {math}`y=1` if the tree sequence was output in "early" or "late".
+and {math}`y=1` if the tree sequence was output in *early()* or *late()*.
 Then, as can be verified from the table below, {math}`k + t = n + x + y - 1`.
 The right-hand columns show {math}`t`, i.e.,
 what the **tskit time ago** is at the corresponding point in the SLiM simulation.
@@ -381,43 +414,4 @@ what the **tskit time ago** is at the corresponding point in the SLiM simulation
 |       n            |       late          |       n            |                                |                            | treeSeqOutput {math}`\to`  |         0        |
 
 ```
-When the tree sequence is written out, SLiM records the value of its current tick,
-which can be found in the metadata: ``ts.metadata['SLiM']['tick']``.
-In most cases, the "SLiM time" referred to by a ``time`` in the tree sequence
-(i.e., the value that would be reported by ``community.tick``
-within SLiM at the point in time thus referenced)
-can be obtained by subtracting ``time`` from ``ts.metadata['SLiM']['tick']``.
-**However,** in WF models, birth happens between the "early()" and "late()" stages,
-so if the tree sequence was written out using ``sim.treeSeqOutput()`` during "early()" in a WF model,
-the tree sequence's times measure time before the last set of individuals are born,
-i.e., before SLiM time step ``ts.metadata['SLiM']['tick'] - 1``.
-The stage that the tree sequence was saved is recorded in the metadata of the tree sequence,
-as ``ts.metadata['SLiM']['stage']``.
-Using this, we can convert from the times of a tree sequence ``ts``
-to SLiM time as follows:
-
-```{code-cell}
-def slim_time(ts, time, stage):
-  slim_time = ts.metadata["SLiM"]["tick"] - time
-  if ts.metadata['SLiM']['model_type'] == "WF":
-    if (ts.metadata['SLiM']['stage'] == "early"
-        and stage == "late"):
-        slim_time -= 1
-    if (ts.metadata['SLiM']['stage'] == "late"
-        and stage == "early"):
-        slim_time += 1
-  return slim_time
-```
-
-This is what is computed by the {func}`.slim_time` method
-(which also has a ``stage`` argument).
-
-Some of the other methods in pyslim -- those that depend on {func}`.individuals_alive_at`
--- need you to tell them during which stage the tree sequence was saved with ``sim.treeSeqOutput``,
-and need this to be the same as the stage that any individuals were saved with ``sim.treeSeqRememberIndividuals``.
-This argument, ``remembered_stage``, defaults to "late()";
-we recommend that you also default to always Remembering individuals, and saving out the tree sequence,
-during "late()" as well, unless you have good reason not to.
-(This means you *must specify* the stage of the block in your SLiM script,
-since the stage defaults to "early()"!)
 
