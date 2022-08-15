@@ -31,8 +31,8 @@ setup(name='pyslim',
       install_requires=[
           'msprime>=1.0.1',
           'tskit',
-          'kastore',
-          'numpy'],
+          'numpy'
+      ],
       extras_require={
           'dev': [],
       },
@@ -42,4 +42,4 @@ setup(name='pyslim',
           'Bug Reports': 'https://github.com/tskit-dev/pyslim/issues',
           'Source': 'https://github.com/tskit-dev/pyslim',
       },
-      )
+)

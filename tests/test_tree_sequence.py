@@ -1,7 +1,6 @@
 """
 Test cases for tree sequences.
 """
-import pickle
 import random
 import numpy as np
 import os
