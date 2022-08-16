@@ -615,8 +615,11 @@ def next_slim_mutation_id(ts):
     :func:`msprime.sim_mutations`, you may need to specify the parameter 
     `next_id` in your :class:`msprime.SLiMMutationModel` to be larger than any 
     existing mutation IDs. Setting `next_id` equal to the output of this 
-    function will allow the mutated tree sequence to be read in by SLiM. Note
-    that this function does not work with non-SLiM tree sequences.
+    function will allow the mutated tree sequence to be read in by SLiM.
+    To do this, recall that the "derived state" of SLiM's mutations are
+    comma-separated strings of mutation IDs; this function just parses all derived
+    states and returns one larger than the largest integer found. It will return an error
+    if it encounters derived states that are not comma-separated strings of integers.
     '''
     max_id = -1
     for mut in ts.mutations():
