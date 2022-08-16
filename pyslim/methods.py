@@ -624,7 +624,8 @@ def next_slim_mutation_id(ts):
             try:
                 max_id = max(max_id, int(d))
             except ValueError:
-                raise ValueError("The derived states of mutations in the tree sequence need to be coercible to int. This is not a valied SLiM tree sequence.")
+                raise ValueError("The derived states of mutations in the tree sequence "
+                                           "need to be coercible to int. This is not a valid SLiM tree sequence.")
     return max_id + 1
 
 
