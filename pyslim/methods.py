@@ -625,7 +625,7 @@ def next_slim_mutation_id(ts):
                 max_id = max(max_id, int(d))
             except ValueError:
                 raise ValueError("The derived states of mutations in the tree sequence need to be coercible to int. This is not a valied SLiM tree sequence.")
-    return(max_id+1)
+    return max_id + 1
 
 
 def _annotate_nodes_individuals(tables, age):
