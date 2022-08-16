@@ -608,20 +608,24 @@ def annotate_tables(tables, model_type, tick, cycle=None, stage="early", referen
     if reference_sequence is not None:
         tables.reference_sequence.data = reference_sequence
 
-def max_slim_mutation_id(ts):
+def next_slim_mutation_id(ts):
     '''
-    Returns the largest SLiM mutation ID in this tree sequence. This is useful because
-    if you want to add more mutations to your tree sequence using :func:`msprime.sim_mutations`,
-    you may need to specify the parameter `next_id` in your 
-    :class:`msprime.SLiMMutationModel` to be larger than any existing mutation IDs.
-    Setting `next_id` equal to the output of this function + 1
-    will allow the mutated tree sequence to be read in by SLiM. 
+    Returns the next SLiM mutation ID for this tree sequence. This is useful 
+    because if you want to add more mutations to your SLiM tree sequence using 
+    :func:`msprime.sim_mutations`, you may need to specify the parameter 
+    `next_id` in your :class:`msprime.SLiMMutationModel` to be larger than any 
+    existing mutation IDs. Setting `next_id` equal to the output of this 
+    function will allow the mutated tree sequence to be read in by SLiM. Note
+    that this function does not work with non-SLiM tree sequences.
     '''
     max_id = -1
     for mut in ts.mutations():
         for d in mut.derived_state.split(","):
-            max_id = max(max_id, int(d))
-    return(max_id)
+            try:
+                max_id = max(max_id, int(d))
+            except ValueError:
+                raise ValueError("The derived states of mutations in the tree sequence need to be coercible to int. This is not a valied SLiM tree sequence.")
+    return(max_id+1)
 
 
 def _annotate_nodes_individuals(tables, age):

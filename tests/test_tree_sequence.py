@@ -32,17 +32,17 @@ class TestSlimTime(tests.PyslimTestCase):
                 mut_time = max([x['slim_time'] for x in mut.metadata['mutation_list']])
                 assert mut_time == pyslim.slim_time(ts, mut.time, stage="early")
 
-class TestMaxMutationID(tests.PyslimTestCase):
+class TestNextMutationID(tests.PyslimTestCase):
     '''
     Tests for the function that returns the largest SLiM mutation ID.
     '''
     @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
-    def test_max_id(self, recipe):
+    def test_next_id(self, recipe):
         ts = recipe["ts"]
         mt_ids_str = ','.join(tskit.unpack_strings(ts.tables.mutations.derived_state, ts.tables.mutations.derived_state_offset))
         mt_ids = [int(i) for i in mt_ids_str.split(',')]
         max_mt_id = max(mt_ids)
-        assert max_mt_id == pyslim.max_slim_mutation_id(ts)
+        assert max_mt_id+1 == pyslim.next_slim_mutation_id(ts)
 
     @pytest.mark.parametrize('recipe', recipe_eq("adds_mutations"), indirect=True)
     def test_reload_slim(self, recipe, helper_functions, tmp_path):
@@ -53,12 +53,12 @@ class TestMaxMutationID(tests.PyslimTestCase):
                     ancestral_Ne=100,
                     random_seed=875,
         )
-        max_id = pyslim.max_slim_mutation_id(rts)
+        next_id = pyslim.next_slim_mutation_id(rts)
         mts = msprime.sim_mutations(
                 rts,
                 rate=1e-4,
                 keep=True,
-                model=msprime.SLiMMutationModel(type=1, next_id=max_id + 1),
+                model=msprime.SLiMMutationModel(type=1, next_id=next_id),
         )
         assert mts.num_mutations > rts.num_mutations
         rrts = helper_functions.run_slim_restart(
@@ -68,8 +68,22 @@ class TestMaxMutationID(tests.PyslimTestCase):
                 WF=False,
         )
         # nothing should change
-        assert pyslim.max_slim_mutation_id(mts) == pyslim.max_slim_mutation_id(rrts)
+        assert pyslim.next_slim_mutation_id(mts) == pyslim.next_slim_mutation_id(rrts)
         assert rrts.num_mutations == mts.num_mutations
+
+        def test_invalid_derived_state(self):
+            ts = msprime.sim_ancestry(
+                    4,
+                    sequence_length=10,
+                    population_size=10,
+                    random_seed=10,
+            )
+            mts = msprime.sim_mutations(ts,
+                    model="jc69",
+                    rate=0.5,
+                    random_seed=23)
+            with pytest.raises(ValueError):
+                pyslim.next_slim_mutation_id(mts)
 
 class TestRecapitate(tests.PyslimTestCase):
     '''
