@@ -82,7 +82,7 @@ class TestNextMutationID(tests.PyslimTestCase):
                     model="jc69",
                     rate=0.5,
                     random_seed=23)
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="need to be coercible to int"):
                 pyslim.next_slim_mutation_id(mts)
 
 class TestRecapitate(tests.PyslimTestCase):
