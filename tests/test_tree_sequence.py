@@ -39,7 +39,7 @@ class TestNextMutationID(tests.PyslimTestCase):
     def test_next_id(self, recipe):
         ts = recipe["ts"]
         mt_ids_str = ','.join(tskit.unpack_strings(ts.tables.mutations.derived_state, ts.tables.mutations.derived_state_offset))
-        mt_ids = [int(i) for i in mt_ids_str.split(',')]
+        mt_ids = [int(i or 0) for i in mt_ids_str.split(',')]
         max_mt_id = max(mt_ids)
         assert max_mt_id + 1 == pyslim.next_slim_mutation_id(ts)
 

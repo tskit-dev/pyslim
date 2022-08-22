@@ -621,11 +621,11 @@ def next_slim_mutation_id(ts):
     states and returns one larger than the largest integer found. It will return an error
     if it encounters derived states that are not comma-separated strings of integers.
     '''
-    max_id = -1
+    max_id = 0
     for mut in ts.mutations():
         for d in mut.derived_state.split(","):
             try:
-                max_id = max(max_id, int(d))
+                max_id = max(max_id, int(d or 0)) # the or zero will allow empty strings to be converted
             except ValueError:
                 raise ValueError("The derived states of mutations in the tree "
                                  "sequence need to be coercible to int. This "
