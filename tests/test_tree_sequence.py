@@ -36,13 +36,12 @@ class TestNextMutationID(tests.PyslimTestCase):
     '''
     Tests for the function that returns the largest SLiM mutation ID.
     '''
-    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
     def test_next_id(self, recipe):
         ts = recipe["ts"]
         mt_ids_str = ','.join(tskit.unpack_strings(ts.tables.mutations.derived_state, ts.tables.mutations.derived_state_offset))
         mt_ids = [int(i) for i in mt_ids_str.split(',')]
         max_mt_id = max(mt_ids)
-        assert max_mt_id+1 == pyslim.next_slim_mutation_id(ts)
+        assert max_mt_id + 1 == pyslim.next_slim_mutation_id(ts)
 
     @pytest.mark.parametrize('recipe', recipe_eq("adds_mutations"), indirect=True)
     def test_reload_slim(self, recipe, helper_functions, tmp_path):
