@@ -623,13 +623,15 @@ def next_slim_mutation_id(ts):
     '''
     max_id = 0
     for mut in ts.mutations():
-        for d in mut.derived_state.split(","):
-            try:
-                max_id = max(max_id, int(d or 0)) # the or zero will allow empty strings to be converted
-            except ValueError:
-                raise ValueError("The derived states of mutations in the tree "
-                                 "sequence need to be coercible to int. This "
-                                 "is not a valid SLiM tree sequence.")
+        ds = mut.derived_state
+        if len(ds) > 0:
+            for d in ds.split(","):
+                try:
+                    max_id = max(max_id, int(d))
+                except ValueError:
+                    raise ValueError(f"The derived state of a mutation ({ds}) in the tree "
+                                     "sequence is not a comma-separated list of values "
+                                     "coercible to int. This is not a valid SLiM tree sequence.")
     return max_id + 1
 
 
