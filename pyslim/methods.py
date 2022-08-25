@@ -608,6 +608,32 @@ def annotate_tables(tables, model_type, tick, cycle=None, stage="early", referen
     if reference_sequence is not None:
         tables.reference_sequence.data = reference_sequence
 
+def next_slim_mutation_id(ts):
+    '''
+    Returns the next SLiM mutation ID for this tree sequence. This is useful 
+    because if you want to add more mutations to your SLiM tree sequence using 
+    :func:`msprime.sim_mutations`, you may need to specify the parameter 
+    `next_id` in your :class:`msprime.SLiMMutationModel` to be larger than any 
+    existing mutation IDs. Setting `next_id` equal to the output of this 
+    function will allow the mutated tree sequence to be read in by SLiM.
+    To do this, recall that the "derived state" of SLiM's mutations are
+    comma-separated strings of mutation IDs; this function just parses all derived
+    states and returns one larger than the largest integer found. It will return an error
+    if it encounters derived states that are not comma-separated strings of integers.
+    '''
+    max_id = 0
+    for mut in ts.mutations():
+        ds = mut.derived_state
+        if len(ds) > 0:
+            for d in ds.split(","):
+                try:
+                    max_id = max(max_id, int(d))
+                except ValueError:
+                    raise ValueError(f"The derived state of a mutation ({ds}) in the tree "
+                                     "sequence is not a comma-separated list of values "
+                                     "coercible to int. This is not a valid SLiM tree sequence.")
+    return max_id + 1
+
 
 def _annotate_nodes_individuals(tables, age):
     '''
