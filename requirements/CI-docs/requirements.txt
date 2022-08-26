@@ -9,3 +9,6 @@ msprime==1.2.0
 PyGithub==1.53
 matplotlib==3.5.0
 pandas
+# These are added for the new pip stricter resolver until packages fix their dep specifications
+Jinja2==3.0.3
+ipywidgets==7.7.2
