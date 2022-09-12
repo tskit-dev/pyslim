@@ -754,6 +754,25 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         ntc.provenances.clear()
         assert tc == ntc
 
+    def scramble_mutations(self, ts):
+        # scramble order of mutations so that the most recent is not always first,
+        # since we don't have a reliable way to get that out of SLiM
+        rng = np.random.default_rng(123)
+        t = ts.dump_tables()
+        t.mutations.clear()
+        for m in ts.mutations():
+            a = np.array(m.derived_state.split(","))
+            ii = rng.permutation(len(a))
+            ml = [m.metadata['mutation_list'][i] for i in ii]
+            t.mutations.append(
+                    m.replace(
+                        derived_state=",".join(a[ii]),
+                        metadata={'mutation_list': ml}
+                    )
+            )
+        t.compute_mutation_parents()
+        return t.tree_sequence()
+
     def test_convert_alleles_errors(self):
         ts = msprime.sim_ancestry(4, sequence_length=10, population_size=10)
         with pytest.raises(ValueError, match="must have a valid reference sequence"):
@@ -788,6 +807,14 @@ class TestConvertNucleotides(tests.PyslimTestCase):
                 t.mutations.append(mut)
         t.compute_mutation_parents()
         ts = t.tree_sequence()
+        cts = pyslim.convert_alleles(ts)
+        self.verify_converted_nucleotides(ts, cts)
+
+    @pytest.mark.parametrize(
+            'recipe', recipe_eq("nucleotides", exclude="non-nucleotides"), indirect=True
+    )
+    def test_convert_alleles_scrambled(self, recipe):
+        ts = self.scramble_mutations(recipe["ts"])
         cts = pyslim.convert_alleles(ts)
         self.verify_converted_nucleotides(ts, cts)
 

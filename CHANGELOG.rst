@@ -2,6 +2,11 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+- Minor modifications to `convert_alleles` and `generate_nucleotides`
+    so that they run in a reasonable amount of time
+    (:user:`petrelharp`, :pr:`299`).
+
+
 ***************************
 [1.0] - 2022-08-12
 ***************************

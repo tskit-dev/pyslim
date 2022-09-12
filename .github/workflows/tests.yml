@@ -104,4 +104,18 @@ jobs:
           export PATH=$PWD/SLiM/Release:$PATH 
           which slim
           slim -v
-          pytest -xv -n2 tests
+          python -m pytest \
+            -n 0 \
+            -v \
+            --cov=pyslim \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            tests
+
+
+      - name: upload coverage report to codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+          env_vars: OS,PYTHON
