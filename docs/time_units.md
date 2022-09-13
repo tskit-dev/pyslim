@@ -192,11 +192,9 @@ Here is a script that computes this.
 In the simulation, females' fecundity increases with their age,
 and so we expect "generation time" to be larger than the mean age of individuals
 alive at a given time.
-In the script, we (a) assign to each individual a tag
-that records the average age of their parents,
-then (b) every tick, take the average of these tags across all extant individuals
-and store it in a vector, and (c) when we write out the tree sequence,
-store this vector in top-level metadata.
+In the script, we store the average of the mean parent ages across all 
+extant individuals every tick using SLiM Individuals' `meanParentAge` property, 
+and store the vector in top-level metadata when we write out the tree sequence.
 
 ```{literalinclude} generation_time.slim
 ```
@@ -206,7 +204,7 @@ slim -s 23 generation_time.slim | tail -n 1
 ```
 
 Now we can look at our empirical calculation of generation time.
-Note that we have initialized the first generation individuals to have tag 0.0,
+Note that the first generation individuals have a mean parent age of 0.0,
 so we expect generation time to go up at first.
 
 ```{code-cell}
