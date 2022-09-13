@@ -113,12 +113,14 @@ def convert_alleles(ts):
             ts.has_reference_sequence()
             and len(ts.reference_sequence.data) > 0
     )
+    if not has_refseq:
+        raise ValueError("Tree sequence must have a valid reference sequence.")
     # unfortunately, nucleotide mutations may be stacked (e.g., substitutions
     # will appear this way) and they don't appear in any particular order;
     # so we must guess which is the most recent, by choosing the one that
     # has the largest SLiM time, doesn't appear in the parent list, or has
     # the lagest SLiM ID.
-    slim_muts = np.repeat(0, ts.num_mutations)
+    nuc_inds = tables.mutations.metadata_vector(['mutation_list', 0, 'nucleotide'], dtype='int')
     num_stacked = np.array([len(m.metadata['mutation_list']) for m in ts.mutations()])
     for k in np.where(num_stacked > 1)[0]:
         mut = ts.mutation(k)
@@ -138,21 +140,15 @@ def convert_alleles(ts):
             )
         ]
         x.sort()
-        slim_muts[k] = x[-1][3]
-    # gah that was terrible, ok back to it
-    nuc_inds = np.array(
-            [m.metadata['mutation_list'][0]['nucleotide']
-                for k, m in zip(slim_muts, ts.mutations())],
-            dtype='int',
-    )
+        j = x[-1][3]
+        nuc_inds[k] = mut.metadata['mutation_list'][j]['nucleotide']
     if np.any(nuc_inds == -1):
         raise ValueError("All mutations must be nucleotide mutations.")
-    if not has_refseq:
-        raise ValueError("Tree sequence must have a valid reference sequence.")
-    aa = [ts.reference_sequence.data[k] for k in tables.sites.position.astype('int')]
     da = np.array(NUCLEOTIDES)[nuc_inds]
-    tables.sites.packset_ancestral_state(aa)
     tables.mutations.packset_derived_state(da)
+    k = tables.sites.position.astype('int')
+    aa = np.frombuffer(ts.reference_sequence.data.encode('utf-8'), dtype='S1')[k]
+    tables.sites.packset_ancestral_state(aa.tobytes().decode('utf-8'))
 
     return tables.tree_sequence()
 
@@ -208,8 +204,13 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     tables.mutations.clear()
     sets = [[k for k in range(4) if k != i] for i in range(4)]
     states = np.full((ts.num_mutations,), -1)
+    k = tables.sites.position.astype('int')
+    aa_list = np.searchsorted(
+            NUCLEOTIDES,
+            np.frombuffer(tables.reference_sequence.data.encode('utf-8'), dtype='S1')[k],
+    )
     for site in ts.sites():
-        aa = NUCLEOTIDES.index(tables.reference_sequence.data[int(site.position)])
+        aa = aa_list[site.id]
         muts = {}
         for mut in site.mutations:
             if mut.parent == tskit.NULL:
