@@ -88,9 +88,10 @@ print(f"Keeping {rts.num_mutations} existing mutations of type(s) {mut_types}.")
 assert 0 not in mut_types
 
 # add type m0 mutations
+next_id = pyslim.next_slim_mutation_id(rts)
 rts = msprime.sim_mutations(
             rts, rate=1e-8, random_seed=7, keep=True,
-            model=msprime.SLiMMutationModel(type=0)
+            model=msprime.SLiMMutationModel(type=0, next_id=next_id)
 )
 
 p = rts.sample_count_stat(
