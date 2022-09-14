@@ -403,7 +403,7 @@ are not discarded.
 neutral_mut_map = msprime.RateMap(
            position=breaks,
            rate=[2.97e-8, 2.997e-8, 2.97e-8])
-next_id = max([max(map(int, m.derived_state.split(","))) for m in ts.mutations()])
+next_id = pyslim.next_slim_mutation_id(ts)
 neutral_mut_model = msprime.SLiMMutationModel(
                                 type=1,
                                 next_id=next_id)

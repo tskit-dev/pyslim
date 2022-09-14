@@ -363,10 +363,11 @@ but any of the other mutation models in msprime could be used.
 This works as follows:
 
 ```{code-cell}
+next_id = pyslim.next_slim_mutation_id(sts)
 ts = msprime.sim_mutations(
            sts,
            rate=1e-8,
-           model=msprime.SLiMMutationModel(type=0),
+           model=msprime.SLiMMutationModel(type=0, next_id=next_id),
            keep=True,
 )
 
@@ -390,6 +391,10 @@ What's going on here? Let's step through the code.
     In this example there aren't any, so this isn't strictly necessary,
     but this is a good default.
 
+4. If there are existing SLiM mutations on the tree sequence we need to
+    make sure any newly added mutations have distinct SLiM IDs,
+    so we use :meth:`.next_slim_mutation_id` to figure out
+    what the next available ID is, and pass it in.
 
 
 (sec_extracting_individuals)=
