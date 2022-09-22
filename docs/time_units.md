@@ -200,7 +200,7 @@ and store the vector in top-level metadata when we write out the tree sequence.
 ```
 ```{code-cell}
 %%bash
-slim -s 23 generation_time.slim | tail -n 1
+slim -s 23 -d mu=1e-8 generation_time.slim 2>/dev/null | tail -n1
 ```
 
 Now we can look at our empirical calculation of generation time.
@@ -217,12 +217,39 @@ ax.set_ylabel("generation time")
 ax.plot(np.arange(1, len(gentimes)+1), gentimes);
 ```
 
+We added mutations during the SLiM simulation to do a simple check 
+to verify the `meanParentAge` property correctly tracks generation time. 
+The sequence divergence generated in SLiM should (approximately) match 
+the mean coalescence time from the treesequences multiplied by the number of mutations per unit time.
+
+```{code-cell}
+slim_diversity = gts.diversity(mode = 'site')
+ts_diversity = gts.diversity(mode='branch') * 1e-8 / np.mean(gentimes)
+
+print(f"slim diversity: {slim_diversity}\n"
+      f"scaled tree sequence diversity: {ts_diversity}\n"
+      f"error: {100 * np.abs(slim_diversity - ts_diversity)/slim_diversity:0.3f}%"
+)
+```
+
+Typically we will not add neutral mutations in SLiM as we did above,
+and instead use recapitation. 
+To do this properly we will redo the simulation above with no neutral mutations added.
+
+```{code-cell}
+%%bash
+slim -s 23 -d mu=0.0 generation_time.slim | tail -n1
+```
+
+
 Now, to recapitate this simulation
 in a population with effective size 1000,
 and using the recombination rate from the SLiM script of 1e-8,
 we would do:
 
 ```{code-cell}
+gts = tskit.load("generation_time.trees")
+gentimes = gts.metadata["SLiM"]["user_metadata"]["generation_times"]
 gt = np.mean(gentimes[-50:])
 recomb_rate = 1e-8 # per generation
 Ne = 1000 # generations
