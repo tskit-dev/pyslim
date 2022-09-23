@@ -192,21 +192,20 @@ Here is a script that computes this.
 In the simulation, females' fecundity increases with their age,
 and so we expect "generation time" to be larger than the mean age of individuals
 alive at a given time.
-In the script, we (a) assign to each individual a tag
-that records the average age of their parents,
-then (b) every tick, take the average of these tags across all extant individuals
-and store it in a vector, and (c) when we write out the tree sequence,
-store this vector in top-level metadata.
+In the script, we store the average of the mean parent ages across all 
+extant individuals every tick using SLiM Individuals' `meanParentAge` property, 
+and store the vector in top-level metadata when we write out the tree sequence.
 
 ```{literalinclude} generation_time.slim
 ```
 ```{code-cell}
 %%bash
-slim -s 23 generation_time.slim | tail -n 1
+slim -s 23 generation_time.slim | tail -n1
 ```
 
+(About the warning: we turned on mutations for a good reason; see below.)
 Now we can look at our empirical calculation of generation time.
-Note that we have initialized the first generation individuals to have tag 0.0,
+Note that the first generation individuals have a mean parent age of 0.0,
 so we expect generation time to go up at first.
 
 ```{code-cell}
@@ -219,12 +218,39 @@ ax.set_ylabel("generation time")
 ax.plot(np.arange(1, len(gentimes)+1), gentimes);
 ```
 
-Now, to recapitate this simulation
-in a population with effective size 1000,
-and using the recombination rate from the SLiM script of 1e-8,
-we would do:
+In the script above we added mutations during the SLiM simulation to do a simple check 
+to verify the `meanParentAge` property correctly estimates mean generation time. 
+If it does, then the mean sequence divergence calculated from the mutations introduced by SLiM
+should (approximately) match the mean length of branches in the tree sequence separating two samples
+multiplied by the expected number of mutations per unit time.
+(We get the mean branch length using the {meth}`ts.diversity <tskit.TreeSequence.diversity>` method with ``mode="branch"``;
+see the [tskit documentation](tskit:sec_stats) for details.)
+This involves the generation time because "mutations per unit time" is equal to
+"mutations per generation" (here, the mutation rate per bp, {math}`10^{-8}`)
+divided by "time per generation" (i.e., mean generation time).
+
 
 ```{code-cell}
+slim_diversity = gts.diversity(mode = 'site')
+ts_diversity = gts.diversity(mode='branch') * 1e-8 / np.mean(gentimes)
+
+print(f"slim diversity: {slim_diversity}\n"
+      f"scaled tree sequence diversity: {ts_diversity}\n"
+      f"error: {100 * np.abs(slim_diversity - ts_diversity)/slim_diversity:0.3f}%"
+)
+```
+
+Now, to recapitate this simulation
+in a population with effective size 1000,
+and using the recombination rate from the SLiM script of {math}`10^{-8}`
+crossovers per generation
+and {math}`2 \times 10^{-8}` mutations per generation,
+we need to scale {math}`N_e` and both rates by the generation time.
+Furthermore, since we already have mutations up until 100 time units ago,
+we need to put mutations on only previous to that time.
+
+```{code-cell}
+gentimes = gts.metadata["SLiM"]["user_metadata"]["generation_times"]
 gt = np.mean(gentimes[-50:])
 recomb_rate = 1e-8 # per generation
 Ne = 1000 # generations
@@ -239,6 +265,7 @@ with warnings.catch_warnings(record=True) as w:
                rate=mut_rate / gt,
                model=msprime.SLiMMutationModel(type=0),
                keep=True,
+               start_time=100,
     )
 
 print(f"Mean genetic diversity is now {mts.diversity():.2e},\n"
