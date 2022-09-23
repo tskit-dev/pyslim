@@ -1,10 +1,17 @@
 ***************************
-[UPCOMING.X.X] - XXXX-XX-XX
+[1.0.1] - 2022-09-23
 ***************************
+
+- Documentation of how to empirically measure generation time
+    and check that it is correct
+    (:user:`silastittes`, :user:`petrelharp`, :pr:`301`, :pr:`293`).
 
 - Minor modifications to `convert_alleles` and `generate_nucleotides`
     so that they run in a reasonable amount of time
     (:user:`petrelharp`, :pr:`299`).
+
+- Addition of method to find the next SLiM mutation ID,
+    `pyslim.next_slim_id` (:user:`mufernando`, :pr:`290`).
 
 
 ***************************
