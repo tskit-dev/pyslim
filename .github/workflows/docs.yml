@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache@v2
         env:
           # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 2
+          CACHE_NUM: 4
         with:
           path: |
             c:\Miniconda\envs\anaconda-client-env
@@ -73,6 +73,9 @@ jobs:
         run: |
           pip install -r requirements/CI-pip/requirements.txt
           pip install -r requirements/CI-docs/requirements.txt
+          # We install this separately to avoid pip refusing to install due to
+          # dependancy conflicts
+          pip install jsonschema[format-nongpl]==4.17.3
 
       - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
