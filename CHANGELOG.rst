@@ -2,6 +2,21 @@
 [UPCOMING.X.X] - XXXX-XX-XX
 ***************************
 
+**Bugfixes**:
+
+- From 1.0.1 back to 0.700, there was a bug in `recapitate` when using the
+    `ancestral_Ne` parameter that introduced a bottleneck to size Ne=1 for each
+    SLiM subpopulation 1 or 2 generations when recapitating tree sequences
+    produced by SLiM *unless* either (a) it was a WF simulation, with calls to
+    addSubPop() in first() or early() and treeSeqOutput() in late(), or (b) it
+    was a nonWF simulation, will calls to addSubPop() in first() and
+    treeSeqOutput() in early() or late(). The fix correctly starts the msprime
+    population with effective size `ancestral_Ne`  at the time of the roots,
+    which might be at the value of `ts.metadata['SLiM']['tick']`, this value
+    minus 1, or this value minus 2. (:user:`petrelharp`, :pr:`308`)
+
+
+
 ***************************
 [1.0.1] - 2022-09-23
 ***************************
