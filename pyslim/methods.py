@@ -62,8 +62,9 @@ def recapitate(ts,
         # might be one or even two less than the "tick" value. We have access
         # to the stage the tree sequence was written out, but not the time it
         # was *started*. So, we'll just check if we need to subtract one or two.
-        # It'd be nice to consistency check *all* the roots but that might take awhile.
-        root_times = list(set([ts.node(n).time for n in ts.first().roots]))
+        # Consistency checking this requires looping over all the trees, unfortunately,
+        # but it avoids some common errors.
+        root_times = list(set([ts.node(n).time for t in ts.trees() for n in t.roots]))
         for adj in (1, 2):
             if np.allclose(root_times, recap_time - adj):
                 recap_time -= adj
