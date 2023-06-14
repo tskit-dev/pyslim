@@ -190,9 +190,12 @@ class PyslimTestCase:
         # assert t1.time_units == t2.time_units
         # assert t1 == t2
 
-    def do_recapitate(self, ts, *args, **kwargs):
+    def do_recapitate(self, ts, ignore_root_warning=False, *args, **kwargs):
+        ignore_warnings = [msprime.TimeUnitsMismatchWarning]
+        if ignore_root_warning:
+            ignore_warnings.append(pyslim.RootTimesMismatchWarning)
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', msprime.TimeUnitsMismatchWarning)
+            warnings.simplefilter('ignore', tuple(ignore_warnings))
             recap = pyslim.recapitate(ts, *args, **kwargs)
         return recap
 

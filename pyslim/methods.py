@@ -8,6 +8,14 @@ from .slim_metadata import *
 from .provenance import *
 from .util import *
 
+
+class RootTimesMismatchWarning(UserWarning):
+    """
+    Warning to raise when the roots on a tree sequence input to recapitation
+    do not all have the same time.
+    """
+
+
 def recapitate(ts,
                ancestral_Ne=None,
                **kwargs
@@ -48,6 +56,29 @@ def recapitate(ts,
     if ancestral_Ne is not None:
         if "demography" in kwargs:
             raise ValueError("You cannot specify both `demography` and `ancestral_Ne`.")
+        recap_time = ts.metadata['SLiM']['tick']
+        # In various circumstances depending on the stage in which the simulation was
+        # started and when the tree sequence was written out, the time of the roots
+        # might be one or even two less than the "tick" value. We have access
+        # to the stage the tree sequence was written out, but not the time it
+        # was *started*. So, we'll just check if we need to subtract one or two.
+        # It'd be nice to consistency check *all* the roots but that might take awhile.
+        root_times = list(set([ts.node(n).time for n in ts.first().roots]))
+        for adj in (1, 2):
+            if np.allclose(root_times, recap_time - adj):
+                recap_time -= adj
+        if len(root_times) > 1 or not np.allclose(root_times, recap_time):
+            message = (
+                "Not all roots of the provided tree sequence are at the time expected "
+                "by recapitate(). This could happen if you've simplified before "
+                "recapitating, or if you added new individuals without parents in SLiM "
+                "during the course of the simulation (e.g., with sim.addSubPop()). "
+                "If you wish to suppress this warning, you can use, e.g., "
+                "warnings.simplefilter('ignore', pyslim.RootTimesMismatchWarning) "
+                f"Expected root time: {recap_time} "
+                f"Observed root times: {root_times} "
+            )
+            warnings.warn(message, RootTimesMismatchWarning)
         demography = msprime.Demography.from_tree_sequence(ts)
         # must set pop sizes to >0 even though we merge immediately
         for pop in demography.populations:

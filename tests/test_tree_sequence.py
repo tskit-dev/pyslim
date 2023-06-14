@@ -142,6 +142,12 @@ class TestRecapitate(tests.PyslimTestCase):
                         random_seed=123,
             )
 
+    def test_root_mismatch_warning(self):
+        ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12)
+        ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
+        with pytest.warns(pyslim.RootTimesMismatchWarning):
+            rts = self.do_recapitate(ts, ancestral_Ne=10)
+
     def test_unique_names(self):
         ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12)
         ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
@@ -152,7 +158,7 @@ class TestRecapitate(tests.PyslimTestCase):
         md.update({"name": "ancestral_ancestral", "slim_id": 1})
         t.populations.add_row(metadata=md)
         ts = t.tree_sequence()
-        rts = self.do_recapitate(ts, ancestral_Ne=10)
+        rts = self.do_recapitate(ts, ancestral_Ne=10, ignore_root_warning=True)
         names = [pop.metadata['name'] for pop in rts.populations()]
         assert len(set(names)) == len(names)
         assert names[0] == "ancestral"
