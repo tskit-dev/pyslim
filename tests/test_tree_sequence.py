@@ -142,14 +142,18 @@ class TestRecapitate(tests.PyslimTestCase):
                         random_seed=123,
             )
 
-    def test_root_mismatch_warning(self):
+    def test_root_mismatch_error(self):
         ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12)
-        ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
-        with pytest.warns(pyslim.RootTimesMismatchWarning):
+        recap_time = 100
+        ts = pyslim.annotate(ts, model_type="nonWF", tick=recap_time)
+        assert ts.node(ts.first().roots[0]).time < recap_time
+        with pytest.raises(ValueError, match="at the time expected by recapitate"):
             rts = self.do_recapitate(ts, ancestral_Ne=10)
 
     def test_unique_names(self):
-        ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12)
+        ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12, end_time=1.0)
+        # adjust seed if not
+        assert min([t.num_roots for t in ts.trees()]) > 1
         ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
         t = ts.dump_tables()
         md = t.populations[0].metadata
@@ -158,7 +162,7 @@ class TestRecapitate(tests.PyslimTestCase):
         md.update({"name": "ancestral_ancestral", "slim_id": 1})
         t.populations.add_row(metadata=md)
         ts = t.tree_sequence()
-        rts = self.do_recapitate(ts, ancestral_Ne=10, ignore_root_warning=True)
+        rts = self.do_recapitate(ts, ancestral_Ne=10)
         names = [pop.metadata['name'] for pop in rts.populations()]
         assert len(set(names)) == len(names)
         assert names[0] == "ancestral"

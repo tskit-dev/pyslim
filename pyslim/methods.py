@@ -9,13 +9,6 @@ from .provenance import *
 from .util import *
 
 
-class RootTimesMismatchWarning(UserWarning):
-    """
-    Warning to raise when the roots on a tree sequence input to recapitation
-    do not all have the same time.
-    """
-
-
 def recapitate(ts,
                ancestral_Ne=None,
                **kwargs
@@ -71,15 +64,17 @@ def recapitate(ts,
         if len(root_times) > 1 or not np.allclose(root_times, recap_time):
             message = (
                 "Not all roots of the provided tree sequence are at the time expected "
-                "by recapitate(). This could happen if you've simplified before "
-                "recapitating, or if you added new individuals without parents in SLiM "
-                "during the course of the simulation (e.g., with sim.addSubPop()). "
-                "If you wish to suppress this warning, you can use, e.g., "
-                "warnings.simplefilter('ignore', pyslim.RootTimesMismatchWarning) "
-                f"Expected root time: {recap_time} "
-                f"Observed root times: {root_times} "
+                "by recapitate(). This could happen if you've simplified in "
+                "python before recapitating (fix: don't simplify first). "
+                "If could also happen in other situations, e.g., "
+                "you added new individuals without parents in SLiM "
+                "during the course of the simulation with sim.addSubPop(), "
+                "in which case you will probably need to recapitate with "
+                "msprime.sim_ancestry(initial_state=ts, ...). "
+                f"(Expected root time: {recap_time}; "
+                f"Observed root times: {root_times})"
             )
-            warnings.warn(message, RootTimesMismatchWarning)
+            raise ValueError(message)
         demography = msprime.Demography.from_tree_sequence(ts)
         # must set pop sizes to >0 even though we merge immediately
         for pop in demography.populations:
