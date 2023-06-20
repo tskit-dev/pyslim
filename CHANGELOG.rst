@@ -1,5 +1,5 @@
 ***************************
-[UPCOMING.X.X] - XXXX-XX-XX
+[1.0.2] - 2023-06-20
 ***************************
 
 **Bugfixes**:
@@ -13,7 +13,7 @@
     correctly starts the msprime population with effective size `ancestral_Ne`
     at the time of the roots, which might be at the value of
     `ts.metadata['SLiM']['tick']`, this value minus 1, or this value minus 2.
-    Furthermore, `recapitate` now throws a warning if any roots of any trees
+    Furthermore, `recapitate` now throws an error if any roots of any trees
     are not at the same time as the others. (:user:`petrelharp`, :pr:`308`)
 
 
