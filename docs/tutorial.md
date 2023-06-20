@@ -62,7 +62,6 @@ extract whole-genome genotype data for only 1,000 individuals. Here's one way to
 
 3. {func}`msprime.sim_mutations` : Add neutral mutations to the tree sequence.
 
-
 These steps are described below. First, to get something to work with,
 you can run this simple SLiM script of a single population of sexual organisms,
 fluctuating around 1000 individuals, for 1000 generations:
@@ -74,6 +73,7 @@ You can run this in the shell,
 setting the random seed so you get exactly the same results
 as in the code below:
 ```{code-cell}
+:tags: ["hide-output"]
 %%bash
 slim -s 23 example_sim.slim
 ```
@@ -397,6 +397,41 @@ What's going on here? Let's step through the code.
     what the next available ID is, and pass it in.
 
 
+(sec_output)=
+
+### Writing out genotypes to VCF
+
+Downstream applications often need input in VCF format,
+which we can get with a call to {meth}`tskit.TreeSequence.write_vcf`.
+However, if we do that with this tree sequence, we'll get a malformed VCF,
+with empty strings in the REF column and a strange comma-separated list of integers
+in the ALT column. The reason for this is because we added mutations
+using the `SLiMMutationModel`, and has to do with how SLiM stores enough information
+in the tree sequence to be able to load it back in.
+So, to write out valid VCF with nucleotides for alleles,
+we need to (1) if the SLiM simulation was not a nucleotide model, add nucleotides
+to the SLiM mutations with {func}`generate_nucleotides`,
+and (2) move those nucleotides over into the "ancestral state"
+and "derived state" slots of the tree sequence with {func}`convert_alleles`.
+If all your mutations in SLiM were nucleotide mutations, you only need to do (2).
+And, beware that (2) is an irreversible step: if you write the tree sequence
+produced by {func}`convert_alleles` to a file, you can't load that file into SLiM any more.
+So, to do this we'll do:
+
+```{code-cell}
+nts = pyslim.generate_nucleotides(ts)
+nts = pyslim.convert_alleles(nts)
+sample_indivs = np.unique([ts.node(n).individual for n in nts.samples()])
+with open("example_sim.vcf", "w") as vcffile:
+    nts.write_vcf(vcffile, individuals=sample_indivs[:5])
+```
+
+Here we've just extracted genotypes for the first five individuals;
+see below for what's going on in that code and what you probably
+actually want to do;
+see also {meth}`tskit.TreeSequence.write_vcf` for more options.
+
+
 (sec_extracting_individuals)=
 
 ## Extracting SLiM individuals
@@ -511,6 +546,7 @@ but with two populations exchanging migrants:
 
 Let's run it:
 ```{code-cell}
+:tags: ["hide-output"]
 %%bash
 slim -s 32 migrants.slim
 ```
@@ -922,6 +958,7 @@ and runs it for a bit longer.
 ```
 
 ```{code-cell}
+:tags: ["hide-output"]
 %%bash
 slim -s 123 neutral_restart.slim
 ```
@@ -939,6 +976,7 @@ Let's see how to extract information about these mutations.
 ```{literalinclude} selection.slim
 ```
 ```{code-cell}
+:tags: ["hide-output"]
 %%bash
 slim -s 23 selection.slim
 ```
