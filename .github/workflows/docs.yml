@@ -73,9 +73,6 @@ jobs:
         run: |
           pip install -r requirements/CI-pip/requirements.txt
           pip install -r requirements/CI-docs/requirements.txt
-          # We install this separately to avoid pip refusing to install due to
-          # dependancy conflicts
-          pip install jsonschema[format-nongpl]==4.17.3
 
       - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
