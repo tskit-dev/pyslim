@@ -357,7 +357,8 @@ during *late()* as well, unless you have good reason not to.
 To help keep all this straight, here are schematics for WF and nonWF models.
 (To see the nonWF model schematic, click on the "nonWF" tab.)
 
-```{tabbed} WF model
+````{tab-set}
+```{tab-item} WF model
 
 For a WF model, the SLiM tick (first column) can be obtained by subtracting the
 tskit time ago from the SLiM tick at time of output only during the same stage that output occured in.
@@ -402,7 +403,7 @@ what the **tskit time ago** is at the corresponding point in the SLiM simulation
 
 ```
 
-```{tabbed} nonWF model
+```{tab-item} nonWF model
 
 Note that for nonWF models the SLiM time (first column) can always be obtained by subtracting the
 tskit time ago from the SLiM time at time of output.
@@ -446,4 +447,4 @@ what the **tskit time ago** is at the corresponding point in the SLiM simulation
 |       n            |       late          |       n            |                                |                            | treeSeqOutput {math}`\to`  |         0        |
 
 ```
-
+````

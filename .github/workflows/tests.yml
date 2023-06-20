@@ -119,3 +119,4 @@ jobs:
         with:
           fail_ci_if_error: true
           env_vars: OS,PYTHON
+          token: ${{ secrets.CODECOV_TOKEN }}
