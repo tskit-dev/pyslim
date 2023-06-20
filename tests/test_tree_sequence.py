@@ -142,8 +142,18 @@ class TestRecapitate(tests.PyslimTestCase):
                         random_seed=123,
             )
 
-    def test_unique_names(self):
+    def test_root_mismatch_error(self):
         ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12)
+        recap_time = 100
+        ts = pyslim.annotate(ts, model_type="nonWF", tick=recap_time)
+        assert ts.node(ts.first().roots[0]).time < recap_time
+        with pytest.raises(ValueError, match="at the time expected by recapitate"):
+            rts = self.do_recapitate(ts, ancestral_Ne=10)
+
+    def test_unique_names(self):
+        ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12, end_time=1.0)
+        # adjust seed if not
+        assert min([t.num_roots for t in ts.trees()]) > 1
         ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
         t = ts.dump_tables()
         md = t.populations[0].metadata

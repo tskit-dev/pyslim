@@ -8,6 +8,7 @@ from .slim_metadata import *
 from .provenance import *
 from .util import *
 
+
 def recapitate(ts,
                ancestral_Ne=None,
                **kwargs
@@ -48,6 +49,32 @@ def recapitate(ts,
     if ancestral_Ne is not None:
         if "demography" in kwargs:
             raise ValueError("You cannot specify both `demography` and `ancestral_Ne`.")
+        recap_time = ts.metadata['SLiM']['tick']
+        # In various circumstances depending on the stage in which the simulation was
+        # started and when the tree sequence was written out, the time of the roots
+        # might be one or even two less than the "tick" value. We have access
+        # to the stage the tree sequence was written out, but not the time it
+        # was *started*. So, we'll just check if we need to subtract one or two.
+        # Consistency checking this requires looping over all the trees, unfortunately,
+        # but it avoids some common errors.
+        root_times = list(set([ts.node(n).time for t in ts.trees() for n in t.roots]))
+        for adj in (1, 2):
+            if np.allclose(root_times, recap_time - adj):
+                recap_time -= adj
+        if len(root_times) > 1 or not np.allclose(root_times, recap_time):
+            message = (
+                "Not all roots of the provided tree sequence are at the time expected "
+                "by recapitate(). This could happen if you've simplified in "
+                "python before recapitating (fix: don't simplify first). "
+                "If could also happen in other situations, e.g., "
+                "you added new individuals without parents in SLiM "
+                "during the course of the simulation with sim.addSubPop(), "
+                "in which case you will probably need to recapitate with "
+                "msprime.sim_ancestry(initial_state=ts, ...). "
+                f"(Expected root time: {recap_time}; "
+                f"Observed root times: {root_times})"
+            )
+            raise ValueError(message)
         demography = msprime.Demography.from_tree_sequence(ts)
         # must set pop sizes to >0 even though we merge immediately
         for pop in demography.populations:
