@@ -100,6 +100,10 @@ jobs:
           source ~/.profile
           conda activate anaconda-client-env
           export PATH=$PWD/SLiM/Release:$PATH
+          ### Temp changes for theme
+          pip install tskit-book-theme
+          sed -i 's/    config:/    config:\n      html_theme: tskit_book_theme\n      pygments_style: monokai/g' _config.yml 
+          ### Temp changes for theme
           slim -v
           pip list
           cd docs && make
