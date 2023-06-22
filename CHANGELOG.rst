@@ -1,5 +1,5 @@
 ***************************
-[1.0.2] - 2023-06-20
+[1.0.3] - 2023-06-21
 ***************************
 
 **Bugfixes**:
@@ -17,6 +17,12 @@
     are not at the same time as the others. (:user:`petrelharp`, :pr:`308`)
 
 
+***************************
+[1.0.2] - 2023-06-20
+***************************
+
+This was a bugfix release that was pushed out without the actual bug fix.
+Please don't use this one.
 
 ***************************
 [1.0.1] - 2022-09-23
