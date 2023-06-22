@@ -102,12 +102,22 @@ class TestRecapitate(tests.PyslimTestCase):
         root_times = list(set([ts.node(n).time for t in ts.trees() for n in t.roots]))
         assert len(root_times) == 1
         if with_ancestral_Ne:
+            # check that time recorded in provenance is correct
             assert recap.num_provenances == 2
             recap_prov = json.loads(recap.provenance(1).record)
             recap_events = recap_prov['parameters']['demography']['events']
             assert len(recap_events) == 1
             recap_time = recap_events[0]['time']
             assert np.allclose(recap_time, root_times[0])
+            # the oldest nodes in all trees with SLiM provenance should be at that time
+            if recap.num_nodes <= 500: # takes a long time otherwise
+                for t in recap.trees():
+                    for n in t.nodes():
+                        rn = recap.node(n)
+                        if rn.metadata is not None:
+                            p = t.parent(n)
+                            if p == tskit.NULL or recap.node(p).metadata is None:
+                                assert rn.time == root_times[0]
 
         ts_samples = list(ts.samples())
         for u in recap.samples():
