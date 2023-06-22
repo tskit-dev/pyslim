@@ -4,6 +4,7 @@ Test cases for tree sequences.
 import random
 import numpy as np
 import os
+import json
 
 import pytest
 import tskit
@@ -88,7 +89,7 @@ class TestRecapitate(tests.PyslimTestCase):
     Tests for recapitation.
     '''
 
-    def check_recap_consistency(self, ts, recap):
+    def check_recap_consistency(self, ts, recap, with_ancestral_Ne=True):
         assert ts.metadata['SLiM']['tick'] == recap.metadata['SLiM']['tick']
         assert ts.metadata['SLiM']['cycle'] == recap.metadata['SLiM']['cycle']
         assert ts.metadata['SLiM']['stage'] == recap.metadata['SLiM']['stage']
@@ -97,6 +98,16 @@ class TestRecapitate(tests.PyslimTestCase):
         assert ts.has_reference_sequence() == recap.has_reference_sequence()
         if ts.has_reference_sequence():
             assert ts.reference_sequence.data == recap.reference_sequence.data
+
+        root_times = list(set([ts.node(n).time for t in ts.trees() for n in t.roots]))
+        assert len(root_times) == 1
+        if with_ancestral_Ne:
+            assert recap.num_provenances == 2
+            recap_prov = json.loads(recap.provenance(1).record)
+            recap_events = recap_prov['parameters']['demography']['events']
+            assert len(recap_events) == 1
+            recap_time = recap_events[0]['time']
+            assert np.allclose(recap_time, root_times[0])
 
         ts_samples = list(ts.samples())
         for u in recap.samples():
@@ -218,7 +229,7 @@ class TestRecapitate(tests.PyslimTestCase):
                 extra_metadata={"slim_id": ts.num_populations},
         )
         demography.add_population_split(
-                time=ts.metadata["SLiM"]["tick"] + 1.0,
+                time=ts.metadata["SLiM"]["tick"] + 20.0,
                 derived=[p.name for p in demography.populations if p.name != "ancestral"],
                 ancestral="ancestral",
         )
@@ -228,7 +239,7 @@ class TestRecapitate(tests.PyslimTestCase):
                 recombination_rate=recomb_rate,
                 random_seed=333,
         )
-        self.check_recap_consistency(ts, recap)
+        self.check_recap_consistency(ts, recap, with_ancestral_Ne=False)
 
     @pytest.mark.parametrize('recipe', recipe_eq(exclude="long"), indirect=True)
     def test_first_gen_nodes(self, recipe):
