@@ -92,10 +92,7 @@ def recapitate(ts,
         # since that's when all the linages are at, and otherwise the event
         # won't apply to them
         demography.add_population_split(
-                np.nextafter(
-                    ts.metadata['SLiM']['tick'],
-                    2 * ts.metadata['SLiM']['tick'],
-                ),
+                np.nextafter( recap_time, 2 * recap_time),
                 derived=derived_names,
                 ancestral=ancestral_name,
         )
