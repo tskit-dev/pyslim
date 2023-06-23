@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache@v2
         env:
           # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 5
+          CACHE_NUM: 6
         with:
           path: |
             c:\Miniconda\envs\anaconda-client-env
