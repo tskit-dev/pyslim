@@ -75,6 +75,10 @@ then you'd want the mutation rate in units of mutations per year.
 
 ## Coalescence, recombination, and migration rates in recapitation
 
+*Note: this section is only relevant for nonWF SLiM simulations:
+in a single-species WF simulation, one tick = one generation,
+so no adjustment is needed.*
+
 If you recapitate with msprime, then the same issue occurs for coalescence rates.
 This is less obvious, because "coalescence rate" is not an argument to msprime;
 rather, the coalescence rate in a given population
