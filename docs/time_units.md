@@ -61,7 +61,6 @@ Converting these times into real-world times is usually not too hard:
 maybe in your simulation one tick = one year,
 or maybe you need to multiply by a (mean) generation time known from empirical data.
 
-
 However, it becomes important to know what the time units are
 when interfacing with msprime.
 For instance, suppose you've done a WF simulation for an organism whose mean generation time
