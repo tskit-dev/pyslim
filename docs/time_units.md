@@ -52,11 +52,11 @@ in the tree sequence.)
 
 Only you really know how much time in the real world
 corresponds to one spin around SLiM's life cycle.
-one spin around SLiM's life cycle corresponds to.
 So, SLiM does not specify what its time units actually are,
 and refers to them as "ticks".
 Previous versions of SLiM called these "generations",
-but this is only correct for simulations in which all organisms die every tick.
+but this is only correct for simulations in which all organisms die every tick,
+e.g., a single-species WF model.
 Converting these times into real-world times is usually not too hard:
 maybe in your simulation one tick = one year,
 or maybe you need to multiply by a (mean) generation time known from empirical data.
@@ -68,10 +68,11 @@ in the real world is 30 years, and you want to overlay neutral mutations using m
 The mutation rate passed to msprime is in units of mutations per unit-of-time-in-the-tree-sequence,
 so since you did a WF simulation, the units of time in the tree sequence are in generations,
 and you should give it mutation rate in mutations per generation.
-The rate in units of mutations per year would be 30 times smaller,
-and so would give you 30 times fewer neutral mutations than you want.
-Conversely, if you did a nonWF simulation where one tick = one year,
-then you'd want the mutation rate in units of mutations per year.
+As long as your mutation rate is in units of mutations per bp per generation, as is typical,
+no adjustment is needed, but if it were in different units, such as per year,
+it would need to be changed.
+(The rate in units of mutations per year would be 30 times smaller,
+and so would give you 30 times fewer neutral mutations than you want.)
 
 ## Coalescence, recombination, and migration rates in recapitation
 
