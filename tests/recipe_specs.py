@@ -14,6 +14,7 @@ import os
 recipe_specs = {
     "recipe_nonWF.slim":                       {"nonWF": True, "pedigree": True},
     "recipe_long_nonWF.slim":                  {"nonWF": True, "long": True},
+    "recipe_old_nonWF.slim":                   {"nonWF": True, "remembered_first": True},
     "recipe_WF.slim":                          {"WF": True, "pedigree": True},
     "recipe_long_WF.slim":                     {"WF": True, "long": True},
     "recipe_WF_migration.slim":                {"WF": True, "pedigree": True, "multipop": True},
