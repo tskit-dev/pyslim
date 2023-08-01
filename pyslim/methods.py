@@ -59,9 +59,9 @@ def recapitate(ts,
         # but it avoids some common errors.
         root_times = list(set([ts.node(n).time for t in ts.trees() for n in t.roots]))
         for adj in (1, 2):
-            if np.allclose(root_times, recap_time - adj):
+            if np.abs(recap_time - root_times[0] - adj) < 1e-8:
                 recap_time -= adj
-        if len(root_times) > 1 or not np.allclose(root_times, recap_time):
+        if len(root_times) > 1 or not np.abs(root_times[0] - recap_time) < 1e-8:
             message = (
                 "Not all roots of the provided tree sequence are at the time expected "
                 "by recapitate(). This could happen if you've simplified in "
