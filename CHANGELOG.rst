@@ -1,4 +1,15 @@
 ***************************
+[1.0.4] - 2023-08-01
+***************************
+
+**Bugfixes**:
+
+- The last bugfix introduced a small bug: recapitation on a tree sequence
+    whose roots are at least 100,000 ticks ago would produce an msprime error:
+    "Attempt to sample a lineage from an inactive population". Reported by
+    Meaghan Clark. (:user:`petrelharp`, :pr:`322`)
+
+***************************
 [1.0.3] - 2023-06-21
 ***************************
 
