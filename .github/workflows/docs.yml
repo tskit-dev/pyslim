@@ -8,82 +8,56 @@ on:
 jobs:
 
   test:
-    name: Python
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        python: [ 3.9 ]
-        os:  [ macos-latest, ubuntu-latest ]
+    name: Build docs
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
+        uses: styfle/cancel-workflow-action@0.11.0
         with:
           access_token: ${{ github.token }}
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Cache conda and dependancies
+      - name: Cache conda and dependencies
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         env:
           # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 6
+          CACHE_NUM: 1
         with:
           path: |
-            c:\Miniconda\envs\anaconda-client-env
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI-pip/requirements.txt') }}-${{ hashFiles('requirements/CI-conda/requirements.txt') }}-${{ hashFiles('requirements/CI-docs/requirements.txt') }}
+          key: conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI-docs/requirements.txt') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
         if: steps.cache.outputs.cache-hit != 'true'
         with:
           activate-environment: anaconda-client-env
-          python-version: ${{ matrix.python }}
+          python-version: "3.10"
           channels: conda-forge
           channel-priority: strict
           auto-update-conda: true
-          use-only-tar-bz2: true
 
-      - name: Fix windows .profile
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
-        run: |
-          cp ~/.bash_profile ~/.profile
-
-      - name: Install conda deps
+      - name: Install slim
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
         run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            conda install --yes slim
-          fi
-          conda install --yes --file=requirements/CI-conda/requirements.txt
+          conda install --yes slim
 
       - name: Install pip deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
         run: |
-          pip install -r requirements/CI-pip/requirements.txt
           pip install -r requirements/CI-docs/requirements.txt
-
-      - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
-        run: |
-          cp -r /usr/local/miniconda/envs/anaconda-client-env ~/osx-conda
-
-      - name: Fix OSX Cache Restore
-        if: steps.cache.outputs.cache-hit == 'true' && matrix.os == 'macos-latest'
-        run: |
-          mkdir -p /usr/local/miniconda/envs
-          sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
 
       # # Retaining commented block for next devel cycle
       # - name: Build SLiM
