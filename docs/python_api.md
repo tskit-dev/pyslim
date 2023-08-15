@@ -40,7 +40,10 @@ Here is a quick reference to some of the methods:
   recapitate
   annotate
   individuals_alive_at
+  individual_ages
   individual_ages_at
+  individual_parents
+  has_individual_parents
   slim_time
   convert_alleles
   generate_nucleotides
@@ -80,15 +83,33 @@ Additionally, ``pyslim`` contains the following methods:
 ```
 
 ```{eval-rst}
+.. autofunction::  individual_ages
+```
+
+```{eval-rst}
 .. autofunction::  individual_ages_at
 ```
+
+```{eval-rst}
+.. autofunction::  individual_parents
+```
+
+```{eval-rst}
+.. autofunction::  has_individual_parents
+```
+
+```{eval-rst}
+.. autofunction::  population_size
+```
+
+## Utilities
 
 ```{eval-rst}
 .. autofunction::  slim_time
 ```
 
 ```{eval-rst}
-.. autofunction::  population_size
+.. autofunction::  next_slim_mutation_id
 ```
 
 
