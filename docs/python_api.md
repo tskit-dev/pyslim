@@ -74,14 +74,6 @@ Here is a quick reference to some of the methods:
 .. autofunction::  update
 ```
 
-```{eval-rst}
-.. autofunction::  annotate
-```
-
-```{eval-rst}
-.. autofunction::  annotate_tables
-```
-
 ## Summarizing tree sequences
 
 Additionally, ``pyslim`` contains the following methods:
