@@ -721,7 +721,7 @@ def _annotate_nodes_individuals(tables, age):
             # so no big deal
             ind_flags[j] |= INDIVIDUAL_ALIVE
         else:
-            md = ind.metdadata
+            md = ind.metadata
         ind_metadata.append(md)
     tables.individuals.set_columns(
         flags=ind_flags,
