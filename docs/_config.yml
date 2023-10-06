@@ -36,11 +36,9 @@ sphinx:
     - sphinxarg.ext
 
     config:
-      html_theme: tskit_book_theme
+      html_theme: sphinx_book_theme
       html_theme_options:
-        pygment_light_style: monokai
         pygment_dark_style: monokai
-      pygments_style: monokai
       issues_github_path: tskit-dev/pyslim
       todo_include_todos: true
       intersphinx_mapping:
