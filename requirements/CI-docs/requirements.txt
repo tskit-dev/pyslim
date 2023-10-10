@@ -7,4 +7,4 @@ PyGithub==2.1.1
 setuptools-scm==8.0.4
 sphinx-argparse==0.4.0
 sphinx-issues==3.0.1
-tskit==0.5.5
+tskit==0.5.6
