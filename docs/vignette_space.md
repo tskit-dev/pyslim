@@ -357,8 +357,8 @@ geog_dist = np.repeat(0.0, len(pairs))
 locs = ts.individuals_location
 for k, (i, j) in enumerate(pairs):
   geog_dist[k] = np.sqrt(np.sum(
-                    (locs[ind_ids[i], :]
-                     - locs[ind_ids[j], :])**2
+                    (locs[ind_ids[i], :2]
+                     - locs[ind_ids[j], :2])**2
                  ))
 ```
 
