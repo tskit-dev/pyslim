@@ -21,7 +21,7 @@ initialize() {
 }
 
 reproduction() {
-   neighbor_density = i1.totalOfNeighborStrengths(individual);
+   neighbor_density = i1.localPopulationDensity(individual);
    num_offspring = rpois(1, LAMBDA / (1 + neighbor_density / K));
    mate = i1.drawByStrength(individual, 1);  // single mating
    if (size(mate) > 0) {
