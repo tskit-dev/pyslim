@@ -62,6 +62,7 @@ slim -s 23 vignette_space.slim
 Ok, now let's have a quick look at the output:
 
 ```{code-cell}
+import tskit
 slim_ts = tskit.load("spatial_sim.trees")
 print(f"The tree sequence has {slim_ts.num_trees} trees\n"
       f"on a genome of length {slim_ts.sequence_length},\n"
@@ -78,6 +79,7 @@ Let's have a look at how old those individuals are,
 by tabulating when they were born:
 
 ```{code-cell}
+import numpy as np
 individual_times = slim_ts.individuals_time
 for t in np.unique(individual_times):
     print(f"There are {np.sum(individual_times == t)} individuals from time {t}.")
@@ -101,7 +103,7 @@ for t in [0, 1000]:
   print(f"There were {len(alive)} individuals alive {t} time steps in the past.")
 ```
 
-And, 1378 + 1334 is 2712, the total number of individuals.
+And, 1242 + 1255 is 2497, the total number of individuals.
 So, this all checks out.
 
 
@@ -149,7 +151,7 @@ ts = msprime.sim_mutations(
 ts.dump("spatial_sim.recap.trees")
 
 print(f"The tree sequence now has {ts.num_trees} trees,\n"
-       " and {ts.num_mutations} mutations.")
+       f" and {ts.num_mutations} mutations.")
 ```
 See [](sec_tutorial_adding_neutral_mutations) for discussion of the options to
 {func}`msprime.sim_mutations`.
