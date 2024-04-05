@@ -3,4 +3,5 @@ coverage:
     project:
       python-tests:
         target: 95%
-        flags: python_tests
+        flags:
+          - python_tests
