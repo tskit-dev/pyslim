@@ -231,13 +231,13 @@ multiplied by the expected number of mutations per unit time.
 (We get the mean branch length using the {meth}`ts.diversity <tskit.TreeSequence.diversity>` method with ``mode="branch"``;
 see the [tskit documentation](tskit:sec_stats) for details.)
 This involves the generation time because "mutations per unit time" is equal to
-"mutations per generation" (here, the mutation rate per bp, {math}`10^{-8}`)
+"mutations per generation" (here, the mutation rate per bp, {math}`2 \times 10^{-8}`)
 divided by "time per generation" (i.e., mean generation time).
 
 
 ```{code-cell}
 slim_diversity = gts.diversity(mode = 'site')
-ts_diversity = gts.diversity(mode='branch') * 1e-8 / np.mean(gentimes)
+ts_diversity = gts.diversity(mode='branch') * 2e-8 / np.mean(gentimes)
 
 print(f"slim diversity: {slim_diversity}\n"
       f"scaled tree sequence diversity: {ts_diversity}\n"
