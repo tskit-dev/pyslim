@@ -35,7 +35,7 @@ def recapitate(ts,
     argument: see :func:`msprime.sim_ancestry`.
     
     In general, all defaults are whatever the defaults of
-    {meth}`msprime.sim_ancestry` are; this includes recombination rate, so
+    :func:`msprime.sim_ancestry` are; this includes recombination rate, so
     that if neither ``recombination_rate`` or a ``recombination_map`` are
     provided, there will be *no* recombination.
 
