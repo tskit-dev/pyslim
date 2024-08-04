@@ -393,7 +393,7 @@ What's going on here? Let's step through the code.
 
 4. If there are existing SLiM mutations on the tree sequence we need to
     make sure any newly added mutations have distinct SLiM IDs,
-    so we use :meth:`.next_slim_mutation_id` to figure out
+    so we use {func}`.next_slim_mutation_id` to figure out
     what the next available ID is, and pass it in.
 
 
