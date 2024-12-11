@@ -38,15 +38,15 @@ jobs:
         shell: bash -l {0}
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
+        uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4.2.2
 
       - name: Install Conda
-        uses: mamba-org/provision-with-micromamba@main
+        uses: mamba-org/provision-with-micromamba@v16
         with:
           environment-name: anaconda-client-env
           environment-file: requirements/CI-conda/ci-environment.yml
@@ -55,7 +55,7 @@ jobs:
             python=${{ matrix.python }}
 
       - name: Setup MSYS2 ${{matrix.sys}}
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@v2.26.0
         if: matrix.os == 'windows-latest'
         with:
           msystem: ${{matrix.sys}}
@@ -115,7 +115,7 @@ jobs:
 
 
       - name: upload coverage report to codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5.1.1
         with:
           fail_ci_if_error: true
           env_vars: OS,PYTHON

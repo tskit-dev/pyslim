@@ -15,18 +15,18 @@ jobs:
         shell: bash
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.0
+        uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.2
         with:
           submodules: true
 
       - name: Cache conda and dependencies
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4.2.0
         env:
           # Increase this to reset the cache if the key hasn't changed.
           CACHE_NUM: 3
@@ -38,7 +38,7 @@ jobs:
           key: conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI-docs/requirements.txt') }}
 
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3.1.0
         if: steps.cache.outputs.cache-hit != 'true'
         with:
           activate-environment: anaconda-client-env
