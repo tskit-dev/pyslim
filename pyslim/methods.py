@@ -39,6 +39,14 @@ def recapitate(ts,
     that if neither ``recombination_rate`` or a ``recombination_map`` are
     provided, there will be *no* recombination.
 
+    .. warning:
+
+        If the tree sequence contains (SLiM-specified) "null" genomes, as for
+        instance in a haploid or haplodiploid simulation, then these genomes
+        will remain in the tree sequence but no longer be marked as samples,
+        so loading back into SLiM will not work. If this is a problem, please
+        open an issue on github.
+
     :param tskit.TreeSequence ts: The tree sequence to transform.
     :param float ancestral_Ne: If specified, then will simulate from a single
         ancestral population of this size. It is an error to specify this
@@ -46,6 +54,21 @@ def recapitate(ts,
     :param dict kwargs: Any other arguments to :func:`msprime.sim_ancestry`.
     '''
     is_current_version(ts, _warn=True)
+    has_null = False
+    for n in ts.samples():
+        if n.metadata['is_null']:
+            has_null = True
+            break
+    if has_null:
+        # we need to mark NULL genomes to be *not* samples
+        # so we don't simulate their ancestry
+        tables = ts.tables
+        tables.nodes.clear()
+        for n in ts.nodes():
+            if n.metadata['is_null']:
+                n = n.replace(flags=n.flags & ~tskit.NODE_IS_SAMPLE)
+            tables.nodes.append(n)
+        ts = tables.tree_sequence()
     if ancestral_Ne is not None:
         if "demography" in kwargs:
             raise ValueError("You cannot specify both `demography` and `ancestral_Ne`.")
@@ -66,7 +89,7 @@ def recapitate(ts,
                 "Not all roots of the provided tree sequence are at the time expected "
                 "by recapitate(). This could happen if you've simplified in "
                 "python before recapitating (fix: don't simplify first). "
-                "If could also happen in other situations, e.g., "
+                "It could also happen in other situations, e.g., "
                 "you added new individuals without parents in SLiM "
                 "during the course of the simulation with sim.addSubPop(), "
                 "in which case you will probably need to recapitate with "
