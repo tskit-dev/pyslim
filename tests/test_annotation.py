@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import random
 import warnings
+import contextlib
 
 import msprime
 import tskit
@@ -13,6 +14,13 @@ import tskit
 import pyslim
 import tests
 from .recipe_specs import restarted_recipe_eq
+
+def mutcontext(ts):
+    if ts.num_mutations > 0:
+        handler = pytest.warns(Warning, match="already has.*metadata")
+    else:
+        handler = contextlib.nullcontext()
+    return handler
 
 class TestAnnotate(tests.PyslimTestCase):
     '''
@@ -270,13 +278,18 @@ class TestAnnotate(tests.PyslimTestCase):
                 tick = 4
                 cycle = 1
                 stage = "late"
-                slim_ts = pyslim.annotate(
-                        ts, model_type="WF",
-                        tick=tick,
-                        cycle=cycle,
-                        stage=stage,
-                        annotate_mutations=do_mutations,
-                )
+                if do_mutations:
+                    handler = mutcontext(ts)
+                else:
+                    handler = contextlib.nullcontext()
+                with handler:
+                    slim_ts = pyslim.annotate(
+                            ts, model_type="WF",
+                            tick=tick,
+                            cycle=cycle,
+                            stage=stage,
+                            annotate_mutations=do_mutations,
+                    )
                 assert slim_ts.metadata['SLiM']['model_type'] == 'WF'
                 assert slim_ts.metadata['SLiM']['tick'] == tick
                 assert slim_ts.metadata['SLiM']['cycle'] == cycle
@@ -305,7 +318,8 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_individuals(self, helper_functions, tmp_path):
         # test the workflow of annotating defaults, then assigning sexes randomly
         for ts in helper_functions.get_msprime_examples():
-            slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1, stage="early")
+            with mutcontext(ts):
+                slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1, stage="early")
             tables = slim_ts.dump_tables()
             top_md = tables.metadata
             top_md['SLiM']['separate_sexes'] = True
@@ -345,7 +359,8 @@ class TestAnnotate(tests.PyslimTestCase):
         random.seed(8)
         for ts in helper_functions.get_msprime_examples():
             for genome_type in ["X", "Y"]:
-                slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+                with mutcontext(ts):
+                    slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
                 tables = slim_ts.dump_tables()
                 top_md = tables.metadata
                 top_md['SLiM']['separate_sexes'] = True
@@ -399,7 +414,8 @@ class TestAnnotate(tests.PyslimTestCase):
     def test_annotate_nodes(self, helper_functions):
         # test workflow of annotating defaults and then editing node metadata
         for ts in helper_functions.get_msprime_examples():
-            slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
+            with mutcontext(ts):
+                slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
             tables = slim_ts.dump_tables()
             metadata = [n.metadata for n in tables.nodes]
             gtypes = [
@@ -421,7 +437,8 @@ class TestAnnotate(tests.PyslimTestCase):
 
     def test_annotate_mutations(self, helper_functions):
         for ts in helper_functions.get_msprime_examples():
-            slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
+            with mutcontext(ts):
+                slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
             tables = slim_ts.dump_tables()
             metadata = [m.metadata for m in tables.mutations]
             selcoefs = [random.uniform(0, 1) for _ in metadata]

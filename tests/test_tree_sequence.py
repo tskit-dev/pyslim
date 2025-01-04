@@ -637,7 +637,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
         ts = recipe["ts"]
         for _ in range(100):
             node = random.randint(0, ts.num_nodes - 1)
-            pos = random.randint(0, ts.sequence_length - 1)
+            pos = random.randint(0, int(ts.sequence_length - 1))
             tree = ts.at(pos)
             parent = tree.parent(node)
             a = pyslim.mutation_at(ts, node, pos)
@@ -664,7 +664,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 assert len(ts.reference_sequence.data) == ts.sequence_length
                 for _ in range(100):
                     node = random.randint(0, ts.num_nodes - 1)
-                    pos = random.randint(0, ts.sequence_length - 1)
+                    pos = random.randint(0, int(ts.sequence_length - 1))
                     tree = ts.at(pos)
                     parent = tree.parent(node)
                     a = pyslim.nucleotide_at(ts, node, pos)

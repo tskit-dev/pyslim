@@ -55,7 +55,8 @@ def recapitate(ts,
     '''
     is_current_version(ts, _warn=True)
     has_null = False
-    for n in ts.samples():
+    for nid in ts.samples():
+        n = ts.node(nid)
         if n.metadata['is_null']:
             has_null = True
             break
