@@ -46,7 +46,7 @@ jobs:
         uses: actions/checkout@v4.2.2
 
       - name: Install Conda
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v2.0.4
         with:
           environment-name: anaconda-client-env
           environment-file: requirements/CI-conda/ci-environment.yml
@@ -55,7 +55,7 @@ jobs:
             python=${{ matrix.python }}
 
       - name: Setup MSYS2 ${{matrix.sys}}
-        uses: msys2/setup-msys2@v2.26.0
+        uses: msys2/setup-msys2@v2.27.0
         if: matrix.os == 'windows-latest'
         with:
           msystem: ${{matrix.sys}}
@@ -73,7 +73,7 @@ jobs:
       - name: Cache SLiM build
         if: matrix.os == 'windows-latest'
         id: cache-slim
-        uses: actions/cache@v3.0.5 # latest version is broken https://github.com/actions/cache/issues/891, so pinning to 3.0.5
+        uses: actions/cache@v4.2.2
         with:
           path: D:\a\pyslim\pyslim\SLiM
           key: ${{runner.os}}-${{matrix.sys}}-${{matrix.env}}-key
@@ -115,7 +115,7 @@ jobs:
 
 
       - name: upload coverage report to codecov
-        uses: codecov/codecov-action@v5.1.1
+        uses: codecov/codecov-action@v5.4.0
         with:
           fail_ci_if_error: true
           env_vars: OS,PYTHON
