@@ -118,9 +118,8 @@ Furthermore, this method may be useful in working with metadata:
 
 
 ## Modifying SLiM metadata
-
 For more on working with metadata,
-see [tskit's metadata documentation](tskit:sec_metadata).
+see {ref}`tskit's metadata documentation <tskit:sec_metadata>`.
 
 
 ### Top-level metadata
@@ -183,7 +182,7 @@ mod_ts.dump("modified_ts.trees")
 
 SLiM records additional information in the metadata columns of Individual, Node, and Mutation tables,
 in a binary format using the python ``struct`` module.
-See [tskit's metadata documentation](tskit:sec_metadata)
+See {ref}`tskit's metadata documentation <tskit:sec_metadata>`
 for details on how this works.
 Nothing besides this binary information can be stored in the metadata of these tables if the tree sequence is to be used by SLiM,
 and so when ``pyslim`` annotates an existing tree sequence, anything in those columns is overwritten.

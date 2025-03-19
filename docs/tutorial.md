@@ -514,7 +514,7 @@ except Exception as e:
 This is just telling us that some of the individuals we're trying
 to write to the VCF have nodes that are not samples.
 The reference to "missing" is a red herring:
-see [the tskit documentation](tskit:sec_data_model_missing_data)
+see {ref}`tskit documentation <tskit:sec_data_model_missing_data>`
 for what it's talking about.
 So, instead of writing out genotypes of everyone alive,
 we need to get the list of alive individuals *whose nodes are samples*,

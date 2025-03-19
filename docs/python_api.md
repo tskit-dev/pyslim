@@ -130,13 +130,13 @@ is *not* a null genome, and has ``genome_type`` zero, which corresponds to an au
 These two functions will add default SLiM metadata to a tree sequence (or the
 underlying tables), which can then be modified and loaded into SLiM.
 
-:::{eval-rst}
+```{eval-rst}
 .. autofunction:: pyslim.annotate
-:::
+```
 
-:::{eval-rst}
+```{eval-rst}
 .. autofunction:: pyslim.annotate_tables
-:::
+```
 
 
 
@@ -145,43 +145,43 @@ underlying tables), which can then be modified and loaded into SLiM.
 ## Constants and flags
 
 
-:::{eval-rst}
+```{eval-rst}
 .. autodata:: NUCLEOTIDES
-:::
+```
 
 These flags are the possible values for ``node.metadata["genome_type"]``:
 
-:::{eval-rst}
+```{eval-rst}
 .. autodata:: GENOME_TYPE_AUTOSOME
 
 .. autodata:: GENOME_TYPE_X
 
 .. autodata:: GENOME_TYPE_Y
-:::
+```
 
 
 These flags are the possible values for ``individual.metadata["sex"]``:
 
-:::{eval-rst}
+```{eval-rst}
 .. autodata:: INDIVIDUAL_TYPE_HERMAPHRODITE
 
 .. autodata:: INDIVIDUAL_TYPE_FEMALE
 
 .. autodata:: INDIVIDUAL_TYPE_MALE
-:::
+```
 
 This is a flag used in ``individual.metadata["flags"]``:
-:::{eval-rst}
+```{eval-rst}
 .. data:: INDIVIDUAL_FLAG_MIGRATED == 0x01
-:::
+```
 
 Finally, these are used in ``individual.flags``:
 
-:::{eval-rst}
+```{eval-rst}
 .. autodata:: INDIVIDUAL_ALIVE
 
 .. autodata:: INDIVIDUAL_REMEMBERED
 
 .. autodata:: INDIVIDUAL_RETAINED
-:::
+```
 

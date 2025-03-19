@@ -128,7 +128,7 @@ we'd have ``n.metadata`` as a ``NodeMetadata`` object,
 with attributes ``n.metadata.slim_id`` and ``n.metadata.is_null`` and ``n.metadata.genome_type``.
 However, with tskit 0.3,
 the capacity to deal with structured metadata
-was implemented in [tskit itself](tskit:sec_metadata),
+was implemented in {ref}`tskit itself <tskit:sec_metadata>`,
 and so pyslim shifted to using the tskit-native metadata tools.
 As a result, parsed metadata is provided as a dictionary instead of an object,
 so that now ``n.metadata`` would be a dict,

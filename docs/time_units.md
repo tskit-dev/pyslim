@@ -229,7 +229,7 @@ If it does, then the mean sequence divergence calculated from the mutations intr
 should (approximately) match the mean length of branches in the tree sequence separating two samples
 multiplied by the expected number of mutations per unit time.
 (We get the mean branch length using the {meth}`ts.diversity <tskit.TreeSequence.diversity>` method with ``mode="branch"``;
-see the [tskit documentation](tskit:sec_stats) for details.)
+see the {ref}`tskit documentation <tskit:sec_stats>` for details.)
 This involves the generation time because "mutations per unit time" is equal to
 "mutations per generation" (here, the mutation rate per bp, {math}`2 \times 10^{-8}`)
 divided by "time per generation" (i.e., mean generation time).
