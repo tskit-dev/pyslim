@@ -16,10 +16,10 @@ kernelspec:
 # Introduction
 
 This is the documentation for pyslim, a Python API
-for reading and modifying [tskit](tskit:sec_introduction) tree sequence files
+for reading and modifying {ref}`tskit<tskit:sec_introduction>` tree sequence files
 produced by [SLiM](https://messerlab.org/slim/), 
 or modifying files produced by other programs (e.g.,
-[msprime](msprime:sec_intro),
+{ref}`msprime<msprime:sec_intro>`,
 [fwdpy11](https://fwdpy11.readthedocs.io/en/stable/pages/tsoverview.html),
 and [tsinfer](https://tsinfer.readthedocs.io/)) for use in SLiM. 
 
@@ -36,13 +36,13 @@ tree sequence file.
 
 A tree sequence is a way of storing both the full genetic history and the genotypes
 of a bunch of genomes.
-See [the tskit documentation](tskit:sec_introduction)
+See {ref}`the tskit documentation<tskit:sec_introduction>`
 for more description of the tree sequence and underlying data structure,
 and definitions of the important terms.
 Each (haploid) genome is associated with a *node*,
 and the "focal" nodes are called *sample nodes* or simply *samples*.
 Many operations on tree sequences act on the sample nodes by default (see the
-[tskit data model](tskit:sec_nodes_or_individuals)
+{ref}`tskit data model<tskit:sec_nodes_or_individuals>`
 for more on this topic), and the tree sequence always describes the genealogy of the
 entire genome of all the samples, at at least over the simulated time period.
 (Other nodes in the tree sequence represent ancestral genomes

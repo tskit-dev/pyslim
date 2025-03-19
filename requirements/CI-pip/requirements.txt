@@ -1,6 +1,6 @@
-flake8==6.0.0
-pytest==7.3.2
-pytest-cov==4.1.0
-pytest-xdist==3.3.1
+flake8==7.1.2
+pytest==8.3.5
+pytest-cov==6.0.0
+pytest-xdist==3.6.1
 numpy
 filelock

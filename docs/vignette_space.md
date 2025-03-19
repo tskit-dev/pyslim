@@ -433,11 +433,11 @@ with open("spatial_sim_genotypes.vcf", "w") as vcffile:
 1. The distinction between "nodes" (i.e., genomes) and "individuals" can be confusing,
    as well as the idea of "samples".
    Please see the
-   [tskit documentation](tskit:sec_data_model)
+  {ref}`the tskit data model<tskit:sec_data_model>`
    for more explanation about these concepts.
 
 2. The general interface for computing statistics (explaining, for instance, the "indexes"
-   argument above) is described in [tskit documentation](tskit:sec_stats) also.
+  argument above) is described in {ref}`the tskit documentation<tskit:sec_stats>` also.
 
 
 ## What about simplification?
