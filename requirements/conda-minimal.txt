@@ -1,4 +1,4 @@
-tskit>=0.5.2
+tskit>=0.6.3
 msprime>=1.2.0
 kastore
 numpy

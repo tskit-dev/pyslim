@@ -1,27 +1,31 @@
-// Based on Example 18.1
-
-initialize() {
+initialize()
+{
     setSeed(23);
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
-	defineConstant("L", 1e2);
-	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
+    initializeSLiMModelType("nonWF");
+    initializeSLiMOptions(keepPedigrees=T);
     initializeTreeSeq();
-	initializeAncestralNucleotides(randomNucleotides(L));
-	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
-	initializeMutationType("m2", 0.5, "n", 0.0, 0.1);
-	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
-	initializeGenomicElement(g1, 0, L-1);
-	initializeRecombinationRate(1e-2);
+    initializeChromosome(1, 100, "H", "H");
+    initializeMutationRate(1e-2);
+    initializeMutationType("m1", 0.5, "f", -0.1);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 99);
+    initializeRecombinationRate(1e-2);
+    defineConstant("K", 10);
+}
+
+reproduction() {
+    mate = subpop.sampleIndividuals(1);
+    subpop.addCrossed(individual, mate);
 }
 
 1 early() {
-	sim.addSubpop("p1", 10);
+    sim.addSubpop("p1", 10);
 }
 
-1: late() {
-    // add *non-nucleotide* mutations also
-    sample(p1.haplosomes, 10).addNewDrawnMutation(m2, rdunif(10, 0, L-1));
+early() {
+    p1.fitnessScaling = K / p1.individualCount;
 }
 
 10 late() {

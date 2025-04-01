@@ -57,13 +57,25 @@ class Outfiles:
                 out[ind]['age'][(gen, stage)] = age
         return out
 
+    def load_ts(self, path):
+        out = {}
+        if os.path.isfile(path):
+            out['default'] = tskit.load(path)
+        elif os.path.isdir(path):
+            chroms = os.listdir(path)
+            for cfile in os.listdir(path):
+                c, e = os.path.splitext(cfile)
+                if e == ".trees":
+                    out[c] = tskit.load(os.path.join(path, cfile))
+        return out
+
     def __init__(self, out_dir):
         # Note: the 'key' below cannot match a 'key' in recipe_specs
         self._outfiles = [
             self.Outfile(
                 path=os.path.join(out_dir, "out.trees"),
                 slim_name="TREES_FILE",  # The var containing the path name for SLiM output
-                post_process=tskit.load,  # function applied on path to create returned obj
+                post_process=self.load_ts,  # function applied on path to create returned obj
                 key="ts",  # The key to use for the post-processed item in the returned dict
             ),
             self.Outfile(
@@ -90,7 +102,7 @@ class Outfiles:
         res = {"path": {}}
         for o in self._outfiles:
             res["path"][o.key] = o.path
-            if os.path.isfile(o.path):
+            if os.path.isfile(o.path) or os.path.isdir(o.path):
                 assert o.key not in res
                 res[o.key] = o.post_process(o.path) 
         return res
@@ -191,16 +203,24 @@ def _dict_to_eidos(d):
 
 class HelperFunctions:
     @classmethod
-    def run_slim_restart(cls, in_ts, recipe, out_dir, subpop_map=None, **kwargs):
+    def run_slim_restart(cls, in_ts, recipe, out_dir, multichrom, subpop_map=None, **kwargs):
         # Saves out the tree sequence to a trees file and run the SLiM recipe
         # on it, saving to files in out_dir.
+        assert isinstance(in_ts, dict)
         infile = os.path.join(out_dir, "in.trees")
-        in_ts.dump(infile)
+        if not multichrom:
+            assert len(in_ts) == 1
+            ts = list(in_ts.values())[0]
+            ts.dump(infile)
+        else:
+            os.mkdir(infile)
+            for chrom, ts in in_ts.items():
+                ts.dump(os.path.join(infile, f"{chrom}.trees"))
         # for happy windows filepaths       
         infile_str = infile.replace('\\', '\\\\')
         kwargs['TREES_IN'] = infile
         if 'STAGE' not in kwargs:
-            kwargs['STAGE'] = in_ts.metadata['SLiM']['stage']
+            kwargs['STAGE'] = ts.metadata['SLiM']['stage']
         if subpop_map is not None:
             # subpopMap argument has entries like { "p1" : 2 },
             # meaning that when loaded in, subpop p1 will be the second row
@@ -234,14 +254,17 @@ class HelperFunctions:
         return out
 
     @classmethod
-    def run_msprime_restart(cls, in_ts, out_dir, sex=None, WF=False):
+    def run_msprime_restart(cls, in_ts, out_dir, multichrom=False, sex=None, WF=False):
+        assert not multichrom
+        L = int(list(in_ts.values())[0].sequence_length)
         out_ts = cls.run_slim_restart(
             in_ts,
             "restart_msprime.slim",  # This is standard script defined in test_recipes
             out_dir,
+            multichrom=False,
             WF=WF,
             SEX=sex,
-            L=int(in_ts.sequence_length)
+            L=L,
         )
         return out_ts
 

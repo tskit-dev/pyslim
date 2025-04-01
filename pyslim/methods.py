@@ -9,8 +9,218 @@ from .provenance import *
 from .util import *
 
 
+def _mark_samples(tables, nodes):
+    # Modifies tables in place.
+    flags = tables.nodes.flags
+    flags[nodes] |= np.uint32(tskit.NODE_IS_SAMPLE)
+    tables.nodes.set_columns(
+        flags=flags,
+        time=tables.nodes.time,
+        population=tables.nodes.population,
+        individual=tables.nodes.individual,
+        metadata=tables.nodes.metadata,
+        metadata_offset=tables.nodes.metadata_offset,
+    )
+
+
+def _mark_not_samples(tables, nodes):
+    # Modifies tables in place.
+    flags = tables.nodes.flags
+    flags[nodes] &= ~np.uint32(tskit.NODE_IS_SAMPLE)
+    tables.nodes.set_columns(
+        flags=flags,
+        time=tables.nodes.time,
+        population=tables.nodes.population,
+        individual=tables.nodes.individual,
+        metadata=tables.nodes.metadata,
+        metadata_offset=tables.nodes.metadata_offset,
+    )
+
+
+def _chromosome_index(ts):
+    """
+    For a tree sequence produced by a multichromosome simulation, returns
+    the index of the chromosome whose information is stored in this tree sequence
+    in the list of all chromosomes. In a single-chromosome simulation,
+    returns 0. This is extracted from
+    ``ts.metadata['SLiM']['this_chromosome']``, and provides the index of this
+    chromosome into `ts.metadata['SLiM']['chromosomes']``, if present.
+
+    :param tskit.TreeSequence ts: The tree sequence or table collection.
+    """
+    if not (
+          isinstance(ts.metadata, dict)
+          and 'SLiM' in ts.metadata
+          and 'this_chromosome' in ts.metadata['SLiM']
+       ):
+        raise ValueError("The tree sequence does not have the necessary "
+                         "information in top-level metadata.")
+    k = ts.metadata['SLiM']['this_chromosome']['index']
+    return k
+
+
+def _is_chrom_vacant(k, b):
+    """
+    :param int k: The index of the chromosome.
+    :param int b: The list of ints containing the metadata.
+    """
+    # From the SLiM manual on is_vacant:
+    # M bytes (uint8_t): a series of bytes comprising a bitfield of is_vacant
+    # values, true (1) if this node represents a null haplosome for a given
+    # chromosome, false (0) otherwise. For chromosomes with indices 0...N−1, the
+    # chromosome with index k has its is_vacant bit in bit k%8 of byte k/8, where
+    # byte 0 is the first byte in the series of bytes provided, and bit 0 is the
+    # least-significant bit, the one with value 0x01 (hexadecimal 1). The number
+    # of bytes present, M, is equal to (N+7)/8, the minimum number of bytes
+    # necessary. The operators / and % here are integer divide (rounding down)
+    # and integer modulo, respectively.
+    assert len(b) >= (1 + k) / 8
+    b = b[int(k / 8)]
+    i = k % 8
+    return (b >> i & 1) > 0
+
+
+def has_vacant_samples(ts):
+    """
+    Returns whether the tree sequence has vacant sample nodes.
+    See {meth}`.remove_vacant`.
+
+    :param tskit.TreeSequence ts: The tree sequence.
+    """
+    out = False
+    k = _chromosome_index(ts)
+    for n in ts.samples():
+        md = ts.node(n).metadata
+        if md is not None:
+            if _is_chrom_vacant(k, md['is_vacant']):
+                out = True
+                break
+    return out
+
+
+def node_is_vacant(ts, node):
+    """
+    Returns True if the node is labelled as *vacant* in the node's metadata
+    recorded by SLiM. A vacant node represents a blank placeholder in SLiM:
+    either a "null haplosome" (used as placeholders for sex chromosomes and other
+    chromosome types not of consistent ploidy in all individuals) or simply an
+    unused node for haploid chromosome types. See {meth}`.remove_vacant`.
+
+    :param tskit.TreeSequence ts: The tree sequence.
+    :param tskit.Node node: The node object.
+    """
+    # not using chrom_index here because we expect people to call this on lots of nodes
+    k = ts.metadata['SLiM']['this_chromosome']['index']
+    return node.metadata is not None and _is_chrom_vacant(k, node.metadata['is_vacant'])
+
+
+def _record_vacant_tables(tables):
+    """
+    Records the list of node IDs of vacant, sample nodes in top-level
+    metdata, in ``tables.metadata['pyslim']['vacant_sample_nodes']``.
+    See {meth}`.remove_vacant`.
+
+    :param tskit.TableCollection tables: The table collection.
+    """
+    if "pyslim" in tables.metadata and "vacant_sample_nodes" in tables.metadata["pyslim"]:
+        warnings.warn("vacant_sample_nodes already exists in top-level metadata, and "
+                      "is being overwritten; this may mean you've already run "
+                      "remove_vacant and so don't need to run it again.")
+    k = _chromosome_index(tables)
+    is_vacant = np.full(tables.nodes.num_rows, False)
+    for j, n in enumerate(tables.nodes):
+        if n.metadata is not None:
+            is_vacant[j] = (
+                    _is_chrom_vacant(k, n.metadata['is_vacant'])
+                    and
+                    (n.flags & tskit.NODE_IS_SAMPLE)
+            )
+    md = tables.metadata
+    py_md = {"vacant_sample_nodes" : np.where(is_vacant)[0].tolist()}
+    if "pyslim" not in md:
+        md["pyslim"] = {}
+    md["pyslim"].update(py_md)
+    tables.metadata = md
+
+
+def remove_vacant(ts):
+    """
+    In SLiM's internal state, there are two nodes per individual, even on
+    chromosomes for which the individual is not diploid.  Thus, some sample
+    nodes may be placeholders, not actually representing physical haplosomes,
+    and are called "vacant" nodes. In the tree sequence these nodes have no
+    ancestry, and are thus have 'missing' data; however, their presence can
+    cause problems with methods not designed for missing data.
+
+    This method returns a copy of the tree sequence for which all vacant nodes
+    have the sample flag removed; these nodes will thus not affect
+    {meth}`.recapitate`, tree sequence statistics, etcetera. It also stores
+    the node IDs of any such vacant sample nodes in top-level metadata,
+    under ``ts.metadata['pyslim']['vacant_sample_nodes']``, so they can be
+    restored with {meth}`.restore_vacant`. You probably don't want to run this
+    method again on the output, since this metadata will be overwritten
+    and {meth}`.restore_vacant` will no longer work as expected.
+
+    :param tskit.TreeSequence ts: The tree sequence.
+    """
+    tables = ts.dump_tables()
+    remove_vacant_tables(tables)
+    return tables.tree_sequence()
+
+
+def remove_vacant_tables(tables):
+    """
+    Does the work of {meth}`.remove_vacant`, modifying ``tables`` in place.
+
+    :param tskit.TableCollection tables: The tables underlying a tree sequence.
+    """
+    _record_vacant_tables(tables)
+    is_vacant = tables.metadata["pyslim"]["vacant_sample_nodes"]
+    _mark_not_samples(tables, is_vacant)
+
+
+def restore_vacant(ts):
+    """
+    This method returns a copy of the tree sequence for which all nodes
+    whose IDs are stored in
+    ``ts.metadata['pyslim']['vacant_sample_nodes']``,
+    have their sample flags set. If these nodes are not vacant, an error will
+    be raised.  This is intended to be an inverse of
+    {meth}`.remove_vacant`.
+
+    :param tskit.TreeSequence ts: The tree sequence.
+    """
+    tables = ts.dump_tables()
+    restore_vacant_tables(tables)
+    return tables.tree_sequence()
+
+
+def restore_vacant_tables(tables):
+    """
+    Does the work of {meth}`.restore_vacant`, modifying ``tables`` in place.
+
+    :param tskit.TableCollection tables: The tables underlying a tree sequence.
+    """
+    if ("pyslim" not in tables.metadata
+        or "vacant_sample_nodes" not in tables.metadata["pyslim"]):
+        raise ValueError("'vacant_sample_nodes' not found in metadata.")
+    is_vacant = tables.metadata["pyslim"]["vacant_sample_nodes"]
+    k = _chromosome_index(tables)
+    for j in is_vacant:
+        n = tables.nodes[j]
+        if n.metadata is None:
+            raise ValueError("Something is wrong: node in "
+                             "vacant_sample_nodes has no metadata.")
+        if not _is_chrom_vacant(k, n.metadata['is_vacant']):
+            raise ValueError("Something is wrong: node in "
+                             "vacant_sample_nodes is not vacant.")
+    _mark_samples(tables, is_vacant)
+
+
 def recapitate(ts,
                ancestral_Ne=None,
+               *,
+               keep_vacant=False,
                **kwargs
     ):
     '''
@@ -39,13 +249,28 @@ def recapitate(ts,
     that if neither ``recombination_rate`` or a ``recombination_map`` are
     provided, there will be *no* recombination.
 
+    Sample flags from vacant nodes will be removed before recapitating:
+    see {meth}`.remove_vacant`. To restore these, use ``keep_vacant=True``.
+    You only need to do this if some individuals are not diploid and
+    you will be loading the tree sequence back into SLiM.
+
     :param tskit.TreeSequence ts: The tree sequence to transform.
     :param float ancestral_Ne: If specified, then will simulate from a single
         ancestral population of this size. It is an error to specify this
         as well as ``demography``.
+    :param bool keep_vacant: Whether to restore the sample flags on any
+        vacant sample nodes. Default: False.
     :param dict kwargs: Any other arguments to :func:`msprime.sim_ancestry`.
     '''
     is_current_version(ts, _warn=True)
+
+    # we need to ask msprime to *not* simulate from any 'vacant' haplosomes;
+    # which we do by marking these as not samples; note that `initial_state`
+    # can take a TableCollection, not just a TreeSequence
+    has_vacant = has_vacant_samples(ts)
+    if has_vacant:
+        ts = remove_vacant(ts)
+
     if ancestral_Ne is not None:
         if "demography" in kwargs:
             raise ValueError("You cannot specify both `demography` and `ancestral_Ne`.")
@@ -101,6 +326,9 @@ def recapitate(ts,
     recap = msprime.sim_ancestry(
                 initial_state = ts,
                 **kwargs)
+
+    if has_vacant and keep_vacant:
+        recap = restore_vacant(recap)
 
     return recap
 
@@ -673,8 +901,7 @@ def _annotate_nodes_individuals(tables, age):
     - (ind_id) SLiM individual pedigree IDs to sequential integers starting from 0
     - (ind_population) individual populations to 0
     - (node_id) SLiM genome IDs to sequential integers starting with samples from 0
-    - (node_is_null) genomes to be non-null
-    - (node_type) genome type to 0 (= autosome)
+    - (node_is_vacant) genomes to be non-null
     - (ind_flags) INDIVIDUAL_ALIVE
 
     If you have other situations, like non-alive "remembered" individuals, you

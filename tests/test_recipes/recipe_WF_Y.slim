@@ -1,27 +1,32 @@
-// Based on Example 18.1
-
-initialize() {
+initialize()
+{
     setSeed(23);
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
-	defineConstant("L", 1e2);
-	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
+    initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
     initializeTreeSeq();
-	initializeAncestralNucleotides(randomNucleotides(L));
-	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
-	initializeMutationType("m2", 0.5, "n", 0.0, 0.1);
-	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
-	initializeGenomicElement(g1, 0, L-1);
-	initializeRecombinationRate(1e-2);
+	 initializeSex();
+	 initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
+	 initializeMutationType("m2", 0.5, "n", 0.0, 0.1);
+	 initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(8e-2));
+    defineConstant("L", 100);
+	 initializeChromosome(1, L, type="Y", symbol="Y");
+    initializeGenomicElement(g1, 0, L-1);
+    initializeAncestralNucleotides(randomNucleotides(L));
+    initializeRecombinationRate(1e-2);
 }
 
-1 early() {
-	sim.addSubpop("p1", 10);
+1 early() { 
+    sim.addSubpop("p1", 10);
 }
-
 1: late() {
     // add *non-nucleotide* mutations also
-    sample(p1.haplosomes, 10).addNewDrawnMutation(m2, rdunif(10, 0, L-1));
+    for (chrom in sim.chromosomes) {
+        haps = p1.individuals.haplosomesForChromosomes(chrom, includeNulls=F);
+        if (length(haps) > 0) {
+          sample(haps, 1 + asInteger(length(haps)/2)).addNewDrawnMutation(m2, rdunif(10, 0, L-1));
+        }
+    }
 }
 
 10 late() {
@@ -72,4 +77,5 @@ initialize() {
         }
     }
 }
+
 

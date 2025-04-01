@@ -14,6 +14,22 @@ import pyslim
 import tests
 from .recipe_specs import restarted_recipe_eq
 
+def verify_slim_restart_equality(in_ts_dict, out_ts_dict, check_prov=True):
+    """
+    Check for equality, in everything but the last provenance.
+    """
+    assert in_ts_dict.keys() == out_ts_dict.keys()
+    for k in in_ts_dict:
+        in_ts = in_ts_dict[k]
+        out_ts = out_ts_dict[k]
+        if check_prov:
+            assert in_ts.num_provenances + 1 == out_ts.num_provenances
+        in_tables = in_ts.dump_tables()
+        in_tables.sort()
+        out_tables = out_ts.dump_tables()
+        out_tables.sort()
+        in_tables.assert_equals(out_tables, ignore_provenance=True)
+
 class TestAnnotate(tests.PyslimTestCase):
     '''
     Tests for tools to annotate existing msprime-derived tree sequences.
@@ -75,8 +91,7 @@ class TestAnnotate(tests.PyslimTestCase):
             if not n.is_sample():
                 assert md is None
             else:
-                assert md["is_null"] is False
-                assert md["genome_type"] == pyslim.GENOME_TYPE_AUTOSOME
+                assert md["is_vacant"] == [0]
                 do_pops[n.population] = True
         for ind in ts.individuals():
             md = ind.metadata
@@ -104,17 +119,6 @@ class TestAnnotate(tests.PyslimTestCase):
     def verify_provenance(self, ts):
         for u in ts.provenances():
             tskit.validate_provenance(json.loads(u.record))
-
-    def verify_slim_restart_equality(self, in_ts, out_ts):
-        """
-        Check for equality, in everything but the last provenance.
-        """
-        assert in_ts.num_provenances + 1 == out_ts.num_provenances
-        in_tables = in_ts.dump_tables()
-        in_tables.sort()
-        out_tables = out_ts.dump_tables()
-        out_tables.sort()
-        self.assertTableCollectionsEqual(in_tables, out_tables, skip_provenance=-1)
 
     def verify_remapping(self, ts, rts, subpop_map):
         # below we assume the restart has not done additional simulation
@@ -261,7 +265,9 @@ class TestAnnotate(tests.PyslimTestCase):
         )
         ts = msprime.sim_mutations(ts, rate=0.1, random_seed=11)
         slim_ts = pyslim.annotate(ts, model_type="WF", tick=1) 
-        loaded_ts = helper_functions.run_msprime_restart(slim_ts, tmp_path, WF=True)
+        loaded_ts = helper_functions.run_msprime_restart(
+                {"default": slim_ts}, tmp_path, multichrom=False, WF=True
+        )["default"]
         self.verify_annotated_trees(ts, loaded_ts)
 
     def test_basic_annotation(self, helper_functions, tmp_path):
@@ -289,7 +295,9 @@ class TestAnnotate(tests.PyslimTestCase):
                 self.verify_defaults(slim_ts)
                 self.verify_provenance(slim_ts)
                 # try loading this into SLiM
-                loaded_ts = helper_functions.run_msprime_restart(slim_ts, tmp_path, WF=True)
+                loaded_ts = helper_functions.run_msprime_restart(
+                        {"default": slim_ts}, tmp_path, multichrom=False, WF=True
+                )["default"]
                 self.verify_annotated_tables(loaded_ts, slim_ts)
                 self.verify_annotated_trees(loaded_ts, slim_ts)
                 self.verify_haplotype_equality(loaded_ts, slim_ts)
@@ -335,66 +343,10 @@ class TestAnnotate(tests.PyslimTestCase):
             self.verify_annotated_trees(new_ts, slim_ts)
             self.verify_haplotype_equality(new_ts, slim_ts)
             # try loading this into SLiM
-            loaded_ts = helper_functions.run_msprime_restart(new_ts, tmp_path, sex="A")
+            loaded_ts = helper_functions.run_msprime_restart(
+                    {"default": new_ts}, tmp_path, multichrom=False, sex="A"
+            )["default"]
             self.verify_trees_equal(new_ts, loaded_ts)
-
-    @pytest.mark.skip(reason="not working")
-    def test_annotate_XY(self, helper_functions, tmp_path):
-        # This is Not Right because as written the null chromosomes have history;
-        # we need to *only* simulate the non-null chromosomes.
-        random.seed(8)
-        for ts in helper_functions.get_msprime_examples():
-            for genome_type in ["X", "Y"]:
-                slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-                tables = slim_ts.dump_tables()
-                top_md = tables.metadata
-                top_md['SLiM']['separate_sexes'] = True
-                tables.metadata = top_md
-                metadata = [ind.metadata for ind in tables.individuals]
-                sexes = [random.choice([pyslim.INDIVIDUAL_TYPE_FEMALE, pyslim.INDIVIDUAL_TYPE_MALE])
-                         for _ in metadata]
-                for j in range(len(metadata)):
-                    metadata[j]["sex"] = sexes[j]
-                ims = tables.individuals.metadata_schema
-                tables.individuals.packset_metadata(
-                        [ims.validate_and_encode_row(r) for r in metadata])
-                node_metadata = [n.metadata for n in tables.nodes]
-                node_is_null = [False for _ in range(ts.num_nodes)]
-                for j in range(slim_ts.num_individuals):
-                    nodes = slim_ts.individual(j).nodes
-                    node_metadata[nodes[0]]["genome_type"] = pyslim.GENOME_TYPE_X
-                    node_metadata[nodes[0]]["is_null"] = (genome_type != "X")
-                    if sexes[j] == pyslim.INDIVIDUAL_TYPE_MALE:
-                        node_metadata[nodes[1]]["genome_type"] = pyslim.GENOME_TYPE_Y
-                        node_metadata[nodes[1]]["is_null"] = (genome_type != "Y")
-                    else:
-                        node_metadata[nodes[1]]["genome_type"] = pyslim.GENOME_TYPE_X
-                        node_metadata[nodes[1]]["is_null"] = (genome_type != "X")
-                    for n in nodes:
-                        node_is_null[n] = node_metadata[n]["is_null"]
-                nms = tables.nodes.metadata_schema
-                tables.nodes.packset_metadata(
-                        [nms.validate_and_encode_row(r) for r in node_metadata])
-                # update populations
-                pop_metadata = [p.metadata for p in tables.populations]
-                for j, md in enumerate(pop_metadata):
-                    # nonWF models always have this
-                    md['sex_ratio'] = 0.0
-                pms = tables.populations.metadata_schema
-                tables.populations.packset_metadata(
-                        [pms.validate_and_encode_row(r) for r in pop_metadata])
-                new_ts = tables.tree_sequence()
-                self.verify_annotated_tables(new_ts, slim_ts)
-                self.verify_annotated_trees(new_ts, slim_ts)
-                self.verify_haplotype_equality(new_ts, slim_ts)
-                # try loading this into SLiM
-                loaded_ts = helper_functions.run_msprime_restart(
-                    new_ts, tmp_path, sex=genome_type)
-                self.verify_trees_equal(new_ts, loaded_ts)
-                # these are *not* equal but only due to re-ordering of nodes and individuals
-                # ... and for some reason, .subset( ) or .simplify( ) do not produce equality
-                # self.assertTableCollectionsEqual(new_ts, loaded_ts,
-                #         skip_provenance=-1, reordered_individuals=True)
 
     def test_annotate_nodes(self, helper_functions):
         # test workflow of annotating defaults and then editing node metadata
@@ -402,21 +354,19 @@ class TestAnnotate(tests.PyslimTestCase):
             slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
             tables = slim_ts.dump_tables()
             metadata = [n.metadata for n in tables.nodes]
-            gtypes = [
-                    random.choice([pyslim.GENOME_TYPE_X, pyslim.GENOME_TYPE_Y])
-                    for _ in metadata
-            ]
-            for md, g in zip(metadata, gtypes):
+            sids = list(range(ts.num_nodes))
+            random.shuffle(sids)
+            for md, sid in zip(metadata, sids):
                 if md is not None:
-                    md["genome_type"] = g
+                    md["slim_id"] = sid
             nms = tables.nodes.metadata_schema
             tables.nodes.packset_metadata(
                     [nms.validate_and_encode_row(r) for r in metadata]
             )
             new_ts = tables.tree_sequence()
-            for x, g in zip(new_ts.nodes(), gtypes):
+            for x, sid in zip(new_ts.nodes(), sids):
                 if x.metadata is not None:
-                    assert x.metadata["genome_type"] == g
+                    assert x.metadata["slim_id"] == sid
             # not testing SLiM because needs annotation of indivs to make sense
 
     def test_annotate_mutations(self, helper_functions):
@@ -479,10 +429,11 @@ class TestAnnotate(tests.PyslimTestCase):
         ts = t.tree_sequence()
         with pytest.raises(RuntimeError, match='individual has a subpopulation id .1.'):
             _ = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_nonWF.slim",
                     tmp_path,
                     WF=False,
+                    multichrom=False,
             )
 
     def test_empty_populations_errors(self, helper_functions, tmp_path):
@@ -491,11 +442,12 @@ class TestAnnotate(tests.PyslimTestCase):
         ts = pyslim.annotate(ts, model_type='WF', tick=1, stage="late")
         # first make sure does not error without the empty pops
         rts = helper_functions.run_slim_restart(
-                ts,
+                {"default": ts},
                 "restart_WF.slim",
                 tmp_path,
+                multichrom=False,
                 WF=True,
-        )
+        )["default"]
         assert rts.num_populations == 1
         # now add empty subpops
         t = ts.dump_tables()
@@ -509,10 +461,11 @@ class TestAnnotate(tests.PyslimTestCase):
             assert "slim_id" in p.metadata
         with pytest.raises(RuntimeError, match='subpopulation.*empty'):
             _ = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_WF.slim",
                     tmp_path,
                     WF=True,
+                    multichrom=False,
             )
 
     def test_empty_populations(self, helper_functions, tmp_path):
@@ -535,12 +488,13 @@ class TestAnnotate(tests.PyslimTestCase):
                 {"p10": 0, "p2": 1, "p1": 2, "p9": 3, "p4": 4, "p6": 5},
             ):
             sts = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_nonWF.slim",
                     tmp_path,
                     WF=False,
                     subpop_map=subpop_map,
-            )
+                    multichrom=False,
+            )["default"]
             self.verify_remapping(ts, sts, subpop_map)
 
     def test_many_populations(self, helper_functions, tmp_path):
@@ -561,11 +515,12 @@ class TestAnnotate(tests.PyslimTestCase):
         for ind in ts.individuals():
             assert ind.flags == pyslim.INDIVIDUAL_ALIVE
         sts = helper_functions.run_slim_restart(
-                ts,
+                {"default": ts},
                 "restart_WF.slim",
                 tmp_path,
                 WF=True,
-        )
+                multichrom=False,
+        )["default"]
         for k in range(1, 6):
             md = sts.population(k).metadata
             assert md['name'] == f"new_pop_num_{k}"
@@ -632,11 +587,12 @@ class TestAnnotate(tests.PyslimTestCase):
         )
         ts = pyslim.annotate(ts, model_type='WF', tick=1)
         sts = helper_functions.run_slim_restart(
-                ts,
+                {"default": ts},
                 "restart_WF.slim",
                 tmp_path,
+                multichrom=False,
                 WF=True,
-        )
+        )["default"]
         assert sts.num_populations == 3
         assert np.all(ts.tables.nodes.population == 1)
         p = sts.population(0)
@@ -664,9 +620,10 @@ class TestAnnotate(tests.PyslimTestCase):
         # test must refer to all subpopulations
         with pytest.raises(RuntimeError, match='subpopulation id 2 is used.*but is not remapped'):
             _ = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_nonWF.slim",
                     tmp_path,
+                    multichrom=False,
                     WF=False,
                     subpop_map = {
                         "p0" : 0,
@@ -676,9 +633,10 @@ class TestAnnotate(tests.PyslimTestCase):
         # test can't map the same subpop to two different pops
         with pytest.raises(RuntimeError, match='subpopMap value .0. is not unique'):
             _ = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_nonWF.slim",
                     tmp_path,
+                    multichrom=False,
                     WF=False,
                     subpop_map = {
                         "p0" : 0,
@@ -690,9 +648,10 @@ class TestAnnotate(tests.PyslimTestCase):
         # test errors if it refers to non-existing subpop
         with pytest.raises(RuntimeError):
             _ = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_nonWF.slim",
                     tmp_path,
+                    multichrom=False,
                     WF=False,
                     subpop_map = {
                         "p0" : 0,
@@ -728,12 +687,13 @@ class TestAnnotate(tests.PyslimTestCase):
                     {"p0" : 0, "p1" : 1, "p3": 3},
                 ):
             rts = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_nonWF.slim",
                     tmp_path,
+                    multichrom=False,
                     WF=False,
                     subpop_map = subpop_map
-            )
+            )["default"]
             self.verify_remapping(ts, rts, subpop_map)
 
     def test_remapping(self, helper_functions, tmp_path):
@@ -790,12 +750,13 @@ class TestAnnotate(tests.PyslimTestCase):
                 {"p5" : 0, "p0" : 1, "p7" : 2, "p2" : 3, "p9" : 4},
         ):
             rts = helper_functions.run_slim_restart(
-                    ts,
+                    {"default": ts},
                     "restart_WF.slim",
                     tmp_path,
+                    multichrom=False,
                     WF=True,
                     subpop_map = subpop_map,
-            )
+            )["default"]
             self.verify_remapping(ts, rts, subpop_map)
 
     @pytest.mark.skip(reason="migration table not supported by simplify")
@@ -817,12 +778,13 @@ class TestAnnotate(tests.PyslimTestCase):
         ts = pyslim.annotate(ts, model_type='WF', tick=1, stage="late")
         assert ts.num_migrations > 0
         rts = helper_functions.run_slim_restart(
-                ts,
+                {"default": ts},
                 "restart_WF.slim",
                 tmp_path,
+                multichrom=False,
                 WF=True,
                 subpop_map = {"p5" : 0, "p2" : 1, "p0" : 2 },
-        )
+        )["default"]
         self.verify_remapping(ts, rts, subpop_map)
 
     @pytest.mark.parametrize(
@@ -832,13 +794,19 @@ class TestAnnotate(tests.PyslimTestCase):
         # even when those populations are removed
         in_ts = recipe["ts"]
         # this recipe moves everyone to subpop 0
-        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
-        for n in out_ts.samples(time=0):
-            assert out_ts.node(n).population == 0
-        for j in range(1, in_ts.num_populations):
-            in_md = in_ts.population(j).metadata
-            out_md = out_ts.population(j).metadata
-            assert in_md['name'] == out_md['name']
+        out_ts = helper_functions.run_slim_restart(
+                in_ts, restart_name, tmp_path, "multichrom" in recipe
+        )
+        assert in_ts.keys() == out_ts.keys()
+        for k in in_ts:
+            it = in_ts[k]
+            ot = out_ts[k]
+            for n in ot.samples(time=0):
+                assert ot.node(n).population == 0
+            for j in range(1, it.num_populations):
+                in_md = it.population(j).metadata
+                out_md = ot.population(j).metadata
+                assert in_md['name'] == out_md['name']
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
@@ -846,29 +814,41 @@ class TestAnnotate(tests.PyslimTestCase):
         self, restart_name, recipe, helper_functions, tmp_path
     ):
         # Test the ability of SLiM to load our files after recapitation.
-        ts = recipe["ts"]
-        # recapitate, reload
-        in_ts = self.do_recapitate(ts, recombination_rate=1e-2, ancestral_Ne=10, random_seed=25)
+        in_ts = {}
+        for chrom, ts in recipe["ts"].items():
+            # recapitate, reload
+            in_ts[chrom] = self.do_recapitate(
+                    ts, recombination_rate=1e-2, ancestral_Ne=10, random_seed=25
+            )
         # put it through SLiM (which just reads in and writes out)
-        print("IN")
-        for p in in_ts.populations():
-            print(p)
-        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
+        out_ts = helper_functions.run_slim_restart(
+                in_ts,
+                restart_name,
+                tmp_path,
+                "multichrom" in recipe,
+                WF=False,
+        )
         # check for equality, in everything but the last provenance
-        self.verify_slim_restart_equality(in_ts, out_ts)
+        verify_slim_restart_equality(in_ts, out_ts)
         # test for restarting with a subpop map
+        ex_in_ts = list(in_ts.values())[0]
         for j, k in [(1, 7), (5, 7)]:
             subpop_map = {
                     f"p{i * j % k}" : i
-                    for i in range(in_ts.num_populations)
+                    for i in range(ex_in_ts.num_populations)
             }
             out_ts = helper_functions.run_slim_restart(
                     in_ts,
                     restart_name,
                     tmp_path,
+                    "multichrom" in recipe,
                     subpop_map=subpop_map
             )
-            self.verify_remapping(in_ts, out_ts, subpop_map)
+            assert in_ts.keys() == out_ts.keys()
+            for k in in_ts:
+                it = in_ts[k]
+                ot = out_ts[k]
+                self.verify_remapping(it, ot, subpop_map)
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
@@ -876,34 +856,37 @@ class TestAnnotate(tests.PyslimTestCase):
         self, restart_name, recipe, helper_functions, tmp_path
     ):
         # Test the ability of SLiM to load our files after annotation.
-        ts = recipe["ts"]
-        tables = ts.dump_tables()
-        metadata = [m.metadata for m in tables.mutations]
-        has_nucleotides = tables.metadata['SLiM']['nucleotide_based']
-        if has_nucleotides:
-            nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
-            refseq = "".join(
-                    random.choices(
-                        pyslim.NUCLEOTIDES,
-                        k = int(ts.sequence_length),
-                    ),
-            )
-            for n, md in zip(nucs, metadata):
+        in_ts = {}
+        for chrom, ts in recipe["ts"].items():
+            tables = ts.dump_tables()
+            metadata = [m.metadata for m in tables.mutations]
+            has_nucleotides = tables.metadata['SLiM']['nucleotide_based']
+            if has_nucleotides:
+                nucs = [random.choice([0, 1, 2, 3]) for _ in metadata]
+                refseq = "".join(
+                        random.choices(
+                            pyslim.NUCLEOTIDES,
+                            k = int(ts.sequence_length),
+                        ),
+                )
+                for n, md in zip(nucs, metadata):
+                    for m in md['mutation_list']:
+                        m["nucleotide"] = n
+                tables.reference_sequence.data = refseq
+            for md in metadata:
                 for m in md['mutation_list']:
-                    m["nucleotide"] = n
-            tables.reference_sequence.data = refseq
-        for md in metadata:
-            for m in md['mutation_list']:
-                m["selection_coeff"] = random.random()
-        ms = tables.mutations.metadata_schema
-        tables.mutations.packset_metadata(
-                [ms.validate_and_encode_row(r) for r in metadata]
-        )
-        in_ts = tables.tree_sequence()
+                    m["selection_coeff"] = random.random()
+            ms = tables.mutations.metadata_schema
+            tables.mutations.packset_metadata(
+                    [ms.validate_and_encode_row(r) for r in metadata]
+            )
+            in_ts[chrom] = tables.tree_sequence()
         # put it through SLiM (which just reads in and writes out)
-        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
+        out_ts = helper_functions.run_slim_restart(
+                in_ts, restart_name, tmp_path, "multichrom" in recipe
+        )
         # check for equality, in everything but the last provenance
-        self.verify_slim_restart_equality(in_ts, out_ts)
+        verify_slim_restart_equality(in_ts, out_ts)
 
 
 class TestReload(tests.PyslimTestCase):
@@ -916,16 +899,16 @@ class TestReload(tests.PyslimTestCase):
     def test_load_without_provenance(
         self, restart_name, recipe, helper_functions, tmp_path
     ):
-        in_ts = recipe["ts"]
-        in_tables = in_ts.dump_tables()
-        in_tables.provenances.clear()
-        in_tables.sort()
-        cleared_ts = in_tables.tree_sequence()
-        out_ts = helper_functions.run_slim_restart(cleared_ts, restart_name, tmp_path)
-        out_tables = out_ts.dump_tables()
-        out_tables.provenances.clear()
-        out_tables.sort()
-        in_tables.assert_equals(out_tables)
+        cleared_ts = {}
+        for chrom, in_ts in recipe["ts"].items():
+            in_tables = in_ts.dump_tables()
+            in_tables.provenances.clear()
+            in_tables.sort()
+            cleared_ts[chrom] = in_tables.tree_sequence()
+        out_ts = helper_functions.run_slim_restart(
+                cleared_ts, restart_name, tmp_path, "multichrom" in recipe
+        )
+        verify_slim_restart_equality(recipe["ts"], cleared_ts, check_prov=False)
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq("no_op", "nucleotides"), indirect=["recipe"])
@@ -933,12 +916,18 @@ class TestReload(tests.PyslimTestCase):
         self, restart_name, recipe, helper_functions, tmp_path
     ):
         in_ts = recipe["ts"]
-        out_ts = helper_functions.run_slim_restart(in_ts, restart_name, tmp_path)
-        assert in_ts.metadata['SLiM']['nucleotide_based'] is True
-        assert out_ts.metadata['SLiM']['nucleotide_based'] is True
-        assert in_ts.has_reference_sequence() == out_ts.has_reference_sequence()
-        if in_ts.has_reference_sequence():
-            in_ts.reference_sequence.assert_equals(out_ts.reference_sequence)
+        out_ts = helper_functions.run_slim_restart(
+                in_ts, restart_name, tmp_path, "multichrom" in recipe
+        )
+        assert in_ts.keys() == out_ts.keys()
+        for k in in_ts:
+            it = in_ts[k]
+            ot = out_ts[k]
+            assert it.metadata['SLiM']['nucleotide_based'] is True
+            assert ot.metadata['SLiM']['nucleotide_based'] is True
+            assert it.has_reference_sequence() == ot.has_reference_sequence()
+            if it.has_reference_sequence():
+                it.reference_sequence.assert_equals(ot.reference_sequence)
 
     @pytest.mark.parametrize(
         'restart_name, recipe', restarted_recipe_eq(), indirect=["recipe"])
@@ -946,14 +935,24 @@ class TestReload(tests.PyslimTestCase):
         self, restart_name, recipe, helper_functions, tmp_path
     ):
         in_ts = recipe["ts"]
-        n = set(in_ts.samples()[:4])
-        for k in n:
-            n |= set(in_ts.individual(in_ts.node(k).individual).nodes)
-        py_ts = in_ts.simplify(list(n), filter_populations=False)
+        py_ts = {}
+        n = None
+        for chrom, ts in in_ts.items():
+            if n is None:
+                n = set(ts.samples()[:4])
+                for k in n:
+                    n |= set(ts.individual(ts.node(k).individual).nodes)
+                n = list(n)
+                n.sort()
+            py_ts[chrom] = ts.simplify(n, filter_populations=False)
         out_ts = helper_functions.run_slim_restart(
                 py_ts,
                 restart_name,
                 tmp_path,
+                "multichrom" in recipe
         )
-        assert out_ts.metadata["SLiM"]["tick"] >= in_ts.metadata["SLiM"]["tick"]
-
+        assert in_ts.keys() == out_ts.keys()
+        for k in in_ts:
+            it = in_ts[k]
+            ot = out_ts[k]
+        assert ot.metadata["SLiM"]["tick"] >= it.metadata["SLiM"]["tick"]

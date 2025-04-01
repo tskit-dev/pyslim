@@ -29,7 +29,6 @@ warnings.simplefilter('ignore', msprime.TimeUnitsMismatchWarning)
 ```
 
 
-
 # Tutorial
 
 This tutorial covers the most common uses of tree sequences in SLiM/pyslim.
@@ -583,7 +582,7 @@ Recall that this recipe had two populations, ``p1`` and ``p2``,
 each of size 1000.
 Recapitation takes a bit more thought, because if the two populations stay separate,
 it will run forever, unable to coalesce.
-By default, :func:`.recapitate` *merges* the two populations into a single
+By default, {func}`.recapitate` *merges* the two populations into a single
 one of size ``ancestral_Ne``.
 But, if we'd like them to stay separate, we need to inclue migration between them.
 Here's how we set up the demography using msprime's tools:
@@ -741,6 +740,36 @@ print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} dis
 ```
 
 
+## Vacant nodes
+
+As discussed in [the Overview](sec_overview_vacant_nodes),
+if not all individuals have two copies of the chromosome stored in the tree sequence,
+then some nodes will be *vacant*,
+which means they are merely a placeholder and don't represent actual genetic material.
+The presence of these nodes can cause problems.
+For instance, running an msprime simulation backwards from 
+a tree sequence with vacant sample nodes
+(as in {numref}`figure {number} <pedigree_hap>` of the Overview)
+would also simulate ancestry of the vacant nodes.
+For this reason, {func}`.recapitate` removes these nodes
+from the sample before running msprime,
+which makes it so their ancestry will not be simulated.
+Similarly, at present {ref}`statistics in tskit<tskit:sec_stats>`
+do not account for missing data, so will return incorrect results
+if these vacant nodes are not removed from the sample.
+
+To be clear, the vacant nodes will still be present,
+just not marked as samples (i.e., with the ``tskit.NODE_IS_SAMPLE``
+flag removed from their node flags).
+Once they are not part of the sample,
+they are essentially invisible to most operations.
+However, it is helpful to know that they are there.
+Why not remove them entirely, e.g., with ``simplify()``?
+Two reasons: first, if you wish to read the tree sequence back into SLiM
+then you'll need them there,
+and can put them back in the sample with {func}`.restore_vacant`.
+
+
 ## Historical individuals
 
 As we've seen, a basic tree sequence output by SLiM only contains the currently alive
@@ -762,7 +791,9 @@ scale: 40%
 align: right
 name: pedigree_remember
 ---
-CAPTION TODO
+Individuals not alive in the last generation may still be present in the tree sequence
+if they are either remembered permanently (purple),
+or simply retained with ``permanent=F`` (dotted circle).
 ```
 
 
@@ -965,6 +996,74 @@ slim -s 123 neutral_restart.slim
 
 A more in-depth example is provided at [](sec_vignette_coalescent_diversity).
 See the SLiM manual for more about this operation.
+
+
+## Nucleotide-based models
+
+By default, {func}`.annotate` produces standard SLiM mutations, not "nucleotide-based" mutations.
+To demonstrate how to further adjust the starting state of the simulation,
+we'll further adjust the tree sequence `ts` from the previous section
+to add in information about nucleotides.
+
+First, we need to set the ``nucleotide_based`` property in top-level metadata.
+To do this, there are two possibly unfamiliar things:
+first, we need to modify the underlying {class}`tskit.TableCollection`
+(since tree sequences are immutable);
+and second, we have to extract the metadata, modify it, and put it back in
+(modifying it in-place will silently do nothing):
+
+```{code-cell}
+tables = ts.dump_tables()
+md = tables.metadata
+md['SLiM']['nucleotide_based'] = True
+tables.metadata = md
+ts = tables.tree_sequence()
+```
+
+Next, we need to generate a reference sequence
+and nucleotides for each mutation.
+This is easy with {meth}`.generate_nucleotides`:
+
+```{code-cell}
+ts = pyslim.generate_nucleotides(ts)
+ts.dump("initialize_nonWF_nuc.trees")
+ts.reference_sequence.data[:20]
+```
+
+Now, mutations have a ``nucleotide`` property in metadata that is not ``-1``:
+
+```{code-cell}
+:tags: ["remove-output"]
+m = ts.mutation(0)
+print(m)
+```
+
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(m)
+```
+
+We can see which nucleotide is the derived state produced by each mutation
+ by indexing the {data}`.NUCLEOTIDES` object:
+
+```{code-cell}
+for k in range(3):
+    m = ts.mutation(k)
+    print(f"Mutation {k}: position {ts.site(m.site).position}, time {m.time}")
+    for ml in m.metadata['mutation_list']:
+        print(f"  nucleotide: {pyslim.NUCLEOTIDES[ml['nucleotide']]}")
+```
+
+Here's a script minimally modified from the above to be nucleotide-based:
+
+```{literalinclude} neutral_restart.slim
+```
+
+```{code-cell}
+:tags: ["hide-output"]
+%%bash
+slim -s 123 neutral_nucleotide_restart.slim
+```
 
 
 ## Extracting information about selected mutations
@@ -1209,3 +1308,8 @@ Also known as "gotchas".
       simplification. This means that a retained individual may only have one node (but
       if both nodes are lost due to simplification, the individual is removed too, and
       will not appear in the Individual table).
+
+4. SLiM requires that the two nodes corresponding to the haplosomes of each individual
+    are adjacent in the node table, and are sorted by haplosome ID.
+    SLiM always writes out tree sequences like this, but it is possible to make
+    tree sequences in python that are leval otherwise but don't satisfy this requirement.

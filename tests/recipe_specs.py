@@ -13,6 +13,16 @@ import os
 # All files are of the form `tests/test_recipes/{key}`
 recipe_specs = {
     "recipe_nonWF.slim":                       {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_X.slim":                     {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_Y.slim":                     {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_H.slim":                     {"nonWF": True, "pedigree": True},
+    "recipe_WF_X.slim":                        {"WF": True, "pedigree": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
+    "recipe_WF_Y.slim":                        {"WF": True, "pedigree": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
+    "recipe_WF_H.slim":                        {"WF": True, "pedigree": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
+    "recipe_WF_Z.slim":                        {"WF": True, "pedigree": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
+    "recipe_WF_W.slim":                        {"WF": True, "pedigree": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
+    "recipe_WF_HF.slim":                       {"WF": True, "pedigree": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
+    "recipe_WF_HM.slim":                       {"WF": True, "pedigree": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
     "recipe_long_nonWF.slim":                  {"nonWF": True, "long": True},
     "recipe_old_nonWF.slim":                   {"nonWF": True, "remembered_first": True},
     "recipe_WF.slim":                          {"WF": True, "pedigree": True},
@@ -21,8 +31,8 @@ recipe_specs = {
     "recipe_nucleotides_WF.slim":              {"WF": True, "pedigree": True, "nucleotides": True},
     "recipe_nucleotides_nonWF.slim":           {"nonWF": True, "pedigree": True, "nucleotides": True},
     "recipe_nucleotides_plus_others.slim":     {"WF": True, "pedigree": True, "nucleotides": True, "non-nucleotides": True, "adds_mutations": True},
-    "recipe_long_nucleotides.slim":            {"WF": True, "nucleotides": True, "long": True},
-    "recipe_mutation_spectrum.slim":           {"WF": True, "nucleotides": True, "mutation_spectrum": True},
+    "recipe_long_nucleotides.slim":            {"WF": True, "nucleotides": True, "long": True, "nucleotides": True},
+    "recipe_mutation_spectrum.slim":           {"WF": True, "nucleotides": True, "mutation_spectrum": True, "nucleotides": True},
     "recipe_roots.slim":                       {"WF": True, "pedigree": True, "long": True},
     "recipe_nonWF_selfing.slim":               {"nonWF": True, "pedigree": True},
     "recipe_nonWF_nonstacked.slim":            {"nonWF": True, "nonstacked": True},
@@ -36,6 +46,10 @@ recipe_specs = {
     "recipe_retain_sometimes_nonWF_late.slim": {"nonWF": True, "pedigree": True, "retained": True},
     "recipe_retain_unary_nonWF_late.slim":     {"nonWF": True, "pedigree": True, "retained": True, "retainCoalescentOnly": False},
     "recipe_remember_and_retain.slim":         {"nonWF": True, "pedigree": True, "retained": True},
+    "recipe_all_the_chromosome_types.slim":    {"nonWF": True, "pedigree": True, "multichrom": True, "nucleotides": True},
+    "recipe_chromosomes_adds_muts.slim":       {"WF": True, "pedigree": True, "multichrom": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
+    "recipe_many_chromosomes.slim":            {"nonWF": True, "pedigree": True, "multichrom": True},
+    "recipe_H-_chromosome.slim":               {"nonWF": True, "pedigree": True, "multichrom": True},
 }
 
 for x in ("first", "early", "late"):

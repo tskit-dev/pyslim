@@ -1,27 +1,42 @@
-// Based on Example 18.1
+// Keywords: multiple chromosomes, inheritance patterns, mating systems
 
 initialize() {
     setSeed(23);
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
-	defineConstant("L", 1e2);
-	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
-    initializeTreeSeq();
-	initializeAncestralNucleotides(randomNucleotides(L));
+	initializeSLiMOptions(keepPedigrees=T, dimensionality="xy", nucleotideBased=T);
+	initializeTreeSeq();
+	initializeSex();
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
 	initializeMutationType("m2", 0.5, "n", 0.0, 0.1);
-	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
-	initializeGenomicElement(g1, 0, L-1);
-	initializeRecombinationRate(1e-2);
+	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-4));
+	m1.convertToSubstitution = T;
+	
+	types = c("A", "X", "Y", "H", "Z", "W", "HF", "FL", "HM", "ML", "-Y");
+	symbols = c("A", "X", "Y", "H", "Z", "W", "HF", "FL", "HM", "ML", "nY");
+	ids = 1 + seqAlong(types);
+   length = 1e4;
+	
+	for (id in ids, symbol in symbols, type in types)
+	{
+		initializeChromosome(id, length, type, symbol);
+      initializeAncestralNucleotides(paste0(rep("A", length)));
+		initializeRecombinationRate(1e-5);
+		initializeGenomicElement(g1, 0, length-1);
+	}
 }
-
 1 early() {
 	sim.addSubpop("p1", 10);
 }
-
 1: late() {
     // add *non-nucleotide* mutations also
-    sample(p1.haplosomes, 10).addNewDrawnMutation(m2, rdunif(10, 0, L-1));
+    for (chrom in sim.chromosomes) {
+        inds = p1.individuals;
+        haps = inds.haplosomesForChromosomes(chrom, includeNulls=F);
+        if (length(haps) > 0) {
+          sample(haps, 1 + asInteger(length(haps)/2)).addNewDrawnMutation(m2, rdunif(10, 0, chrom.length-1));
+        }
+    }
 }
 
 10 late() {
