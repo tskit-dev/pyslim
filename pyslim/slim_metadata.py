@@ -38,7 +38,21 @@ An individual flag indicating the individual is a migrant.
 # by changing false->False and true->True, then printed with
 # json.dump(..., indent=True), then lightly edited.
 
-def _get_node_metadata_schema(num_chroms=1):
+def _isnull_num_bytes(num_chromosomes):
+    return int((num_chromosomes + 7)/8)
+
+def _get_node_metadata_schema(num_chromosomes=1):
+    # From the SLiM manual on is_null:
+    # M bytes (uint8_t): a series of bytes comprising a bitfield of is_null
+    # values, true (1) if this node represents a null haplosome for a given
+    # chromosome, false (0) otherwise. For chromosomes with indices 0...N−1, the
+    # chromosome with index k has its is_null bit in bit k%8 of byte k/8, where
+    # byte 0 is the first byte in the series of bytes provided, and bit 0 is the
+    # least-significant bit, the one with value 0x01 (hexadecimal 1). The number
+    # of bytes present, M, is equal to (N+7)/8, the minimum number of bytes
+    # necessary. The operators / and % here are integer divide (rounding down)
+    # and integer modulo, respectively.
+    num_bytes = _isnull_num_bytes(num_chromosomes)
     return {
         "$schema": "http://json-schema.org/schema#",
         "additionalProperties": False,
@@ -58,7 +72,7 @@ def _get_node_metadata_schema(num_chroms=1):
                 "type": "integer"
             },
             "is_null": {
-                "binaryFormat": f"{num_chroms}s",  # <-- here num_chroms is inserted!
+                "binaryFormat": f"{num_chromosomes}s",  # <-- here num_bytes is inserted!
                 "description": "A vector of byte (uint8_t) values, with each bit representing whether the haplosome in the corresponding chromosome is a null haplosome (1) or not (0). This field encodes null haplosome information for all of the chromosomes in the model, not just the chromosome represented in this file (so that the node table is identical across all chromosomes for a multi-chromosome model). Each chromosome receives one bit here; there are two node table entries per individual, used for the two haplosomes of every chromosome, so only one bit is needed in each entry (making two bits total per chromosome, across the two node table entries). The least significant bit of the first byte is used first (for one haplosome of the first chromosome); the most significant bit of the last byte is used last. The number of bytes present in this field is indicated by this schema's 'binaryFormat' field, which is variable (!), and can also be deduced from the number of chromosomes in the model as given in the top-level 'chromosomes' metadata key, which should always be present if this metadata is present.",
                 "index": 1,
                 "type": "integer"
@@ -341,7 +355,7 @@ _raw_slim_metadata_schemas = {
         ],
         "type": "object"
     },
-    "node" : _get_node_metadata_schema(), # TODO WHAT ABOUT THIS
+    # "node" : _get_node_metadata_schema(), # TODO
     "individual" :
     {
         "$schema": "http://json-schema.org/schema#",
@@ -544,7 +558,7 @@ and for top-level metadata.
 """
 
 
-def default_slim_metadata(name):
+def default_slim_metadata(name, num_chromosomes=1):
     """
     Returns default metadata of type ``name``, where ``name`` is one of
     "tree_sequence", "edge", "site", "mutation", "mutation_list_entry",
@@ -586,10 +600,10 @@ def default_slim_metadata(name):
             "nucleotide": -1,
         }
     elif name == "node":
+        # bytes(k) returns k bytes of zeros
         out = {
             "slim_id": tskit.NULL,
-            "is_null": False,
-            "genome_type": 0,
+            "is_null": bytes(_isnull_num_bytes(num_chromosomes)),
         }
     elif name == "individual":
         out = {
