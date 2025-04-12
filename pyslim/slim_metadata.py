@@ -34,250 +34,254 @@ INDIVIDUAL_FLAG_MIGRATED = 0x01
 An individual flag indicating the individual is a migrant.
 """
 
-# These are copied from slim_globals.h, modified to be python not json
+# These are copied from slim_globals.cpp, modified to be python not json
 # by changing false->False and true->True, then printed with
 # json.dump(..., indent=True), then lightly edited.
 
-def _isnull_num_bytes(num_chromosomes):
+def _isvacant_num_bytes(num_chromosomes):
     return int((num_chromosomes + 7)/8)
 
 def _get_node_metadata_schema(num_chromosomes=1):
-    # From the SLiM manual on is_null:
-    # M bytes (uint8_t): a series of bytes comprising a bitfield of is_null
-    # values, true (1) if this node represents a null haplosome for a given
+    # From the SLiM manual on is_vacant:
+    # M bytes (uint8_t): a series of bytes comprising a bitfield of is_vacant
+    # values, true (1) if this node represents a vacant haplosome for a given
     # chromosome, false (0) otherwise. For chromosomes with indices 0...N−1, the
-    # chromosome with index k has its is_null bit in bit k%8 of byte k/8, where
+    # chromosome with index k has its is_vacant bit in bit k%8 of byte k/8, where
     # byte 0 is the first byte in the series of bytes provided, and bit 0 is the
     # least-significant bit, the one with value 0x01 (hexadecimal 1). The number
     # of bytes present, M, is equal to (N+7)/8, the minimum number of bytes
     # necessary. The operators / and % here are integer divide (rounding down)
     # and integer modulo, respectively.
-    num_bytes = _isnull_num_bytes(num_chromosomes)
+    num_bytes = _isvacant_num_bytes(num_chromosomes)
     return {
-        "$schema": "http://json-schema.org/schema#",
-        "additionalProperties": False,
-        "codec": "struct",
-        "description": "SLiM schema for node metadata.",
-        "examples": [
-            {
-                "slim_id": 123,
-                "is_null": 0
-            }
-        ],
-        "properties": {
-            "slim_id": {
-                "binaryFormat": "q",
-                "description": "The 'pedigree ID' of the haplosomes associated with this node in SLiM.",
-                "index": 0,
-                "type": "integer"
-            },
-            "is_null": {
-                "binaryFormat": f"{num_chromosomes}s",  # <-- here num_bytes is inserted!
-                "description": "A vector of byte (uint8_t) values, with each bit representing whether the haplosome in the corresponding chromosome is a null haplosome (1) or not (0). This field encodes null haplosome information for all of the chromosomes in the model, not just the chromosome represented in this file (so that the node table is identical across all chromosomes for a multi-chromosome model). Each chromosome receives one bit here; there are two node table entries per individual, used for the two haplosomes of every chromosome, so only one bit is needed in each entry (making two bits total per chromosome, across the two node table entries). The least significant bit of the first byte is used first (for one haplosome of the first chromosome); the most significant bit of the last byte is used last. The number of bytes present in this field is indicated by this schema's 'binaryFormat' field, which is variable (!), and can also be deduced from the number of chromosomes in the model as given in the top-level 'chromosomes' metadata key, which should always be present if this metadata is present.",
-                "index": 1,
-                "type": "integer"
-            }
-        },
-        "required": [
-            "slim_id",
-            "is_null"
-        ],
-        "type": [
-            "object",
-            "null"
-        ]
+     "$schema": "http://json-schema.org/schema#",
+     "additionalProperties": false,
+     "codec": "struct",
+     "description": "SLiM schema for node metadata.",
+     "examples": [
+      {
+       "slim_id": 123,
+       "is_vacant": 0
+      }
+     ],
+     "properties": {
+      "slim_id": {
+       "binaryFormat": "q",
+       "description": "The 'pedigree ID' of the haplosomes associated with this node in SLiM.",
+       "index": 0,
+       "type": "integer"
+      },
+      "is_vacant": {
+       "description": "A vector of byte (uint8_t) values, with each bit representing whether the node represents a vacant position, either unused or a null haplosome (1), or a non-null haplosome (0), in the corresponding chromosome. This field encodes vacancy for all of the chromosomes in the model, not just the chromosome represented in this file (so that the node table is identical across all chromosomes for a multi-chromosome model). Each chromosome receives one bit here; there are two node table entries per individual, used for the two haplosomes of every chromosome, so only one bit is needed in each entry (making two bits total per chromosome, across the two node table entries). The least significant bit of the first byte is used first (for one haplosome of the first chromosome); the most significant bit of the last byte is used last. The number of bytes present in this field is indicated by this schema's 'binaryFormat' field, which is variable (!), and can also be deduced from the number of chromosomes in the model as given in the top-level 'chromosomes' metadata key, which should always be present if this metadata is present.",
+       "index": 1,
+       "type": "array",
+       "length": f"{num_bytes}",
+       "items": {
+        "type": "number",
+        "binaryFormat": "B"
+       }
+      }
+     },
+     "required": [
+      "slim_id",
+      "is_vacant"
+     ],
+     "type": [
+      "object",
+      "null"
+     ]
     }
 
 
 _raw_slim_metadata_schemas = {
     "tree_sequence" : {
-        "$schema": "http://json-schema.org/schema#",
-        "codec": "json",
-        "examples": [
-            {
-                "SLiM": {
-                    "file_version": "0.9",
-                    "name": "fox",
-                    "description": "foxes on Catalina island",
-                    "cycle": 123,
-                    "tick": 123,
-                    "model_type": "WF",
-                    "this_chromosome": {
-                        "id": 1,
-                        "index": 0,
-                        "symbol": "1",
-                        "name": "autosome_1",
-                        "type": "A"
-                    },
-                    "chromosomes": [
-                        {
-                            "id": 1,
-                            "symbol": "1",
-                            "name": "autosome_1",
-                            "type": "A"
-                        },
-                        {
-                            "id": 35,
-                            "symbol": "MT",
-                            "name": "mtDNA",
-                            "type": "HF"
-                        }
-                    ],
-                    "nucleotide_based": False,
-                    "separate_sexes": True,
-                    "spatial_dimensionality": "xy",
-                    "spatial_periodicity": "x"
-                }
+         "$schema": "http://json-schema.org/schema#",
+         "codec": "json",
+         "examples": [
+          {
+           "SLiM": {
+            "file_version": "0.9",
+            "name": "fox",
+            "description": "foxes on Catalina island",
+            "cycle": 123,
+            "tick": 123,
+            "model_type": "WF",
+            "this_chromosome": {
+             "id": 1,
+             "index": 0,
+             "symbol": "1",
+             "name": "autosome_1",
+             "type": "A"
+            },
+            "chromosomes": [
+             {
+              "id": 1,
+              "symbol": "1",
+              "name": "autosome_1",
+              "type": "A"
+             },
+             {
+              "id": 35,
+              "symbol": "MT",
+              "name": "mtDNA",
+              "type": "HF"
+             }
+            ],
+            "nucleotide_based": false,
+            "separate_sexes": true,
+            "spatial_dimensionality": "xy",
+            "spatial_periodicity": "x"
+           }
+          }
+         ],
+         "properties": {
+          "SLiM": {
+           "description": "Top-level metadata for a SLiM tree sequence, file format version 0.9",
+           "properties": {
+            "file_version": {
+             "description": "The SLiM 'file format version' of this tree sequence.",
+             "type": "string"
+            },
+            "name": {
+             "description": "The SLiM species name represented by this tree sequence.",
+             "type": "string"
+            },
+            "description": {
+             "description": "A user-configurable description of the species represented by this tree sequence.",
+             "type": "string"
+            },
+            "cycle": {
+             "description": "The 'SLiM cycle' counter when this tree sequence was recorded.",
+             "type": "integer"
+            },
+            "tick": {
+             "description": "The 'SLiM tick' counter when this tree sequence was recorded.",
+             "type": "integer"
+            },
+            "model_type": {
+             "description": "The model type used for the last part of this simulation (WF or nonWF).",
+             "enum": [
+              "WF",
+              "nonWF"
+             ],
+             "type": "string"
+            },
+            "this_chromosome": {
+             "description": "The chromosome represented by the tree sequence in this file.",
+             "properties": {
+              "id": {
+               "description": "An integer identifier for the chromosome, unique within this set of tree sequences; often the chromosome number in the organism being represented, such as 1.",
+               "type": "integer"
+              },
+              "index": {
+               "description": "The (zero-based) index of this chromosome in the chromosomes metadata array (if present), which should match the information given here.",
+               "type": "integer"
+              },
+              "symbol": {
+               "description": "A short string symbol for the chromosome, unique within this set of tree sequences, such as \"1\" or \"MT\".",
+               "type": "string"
+              },
+              "name": {
+               "description": "A user-specified name for the chromosome, such as an accession identifier.",
+               "type": "string"
+              },
+              "type": {
+               "description": "The type of chromosome, as specified by SLiM.",
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "index",
+              "symbol",
+              "type"
+             ],
+             "type": "object"
+            },
+            "chromosomes": {
+             "description": "The chromosomes represented by the collection of tree sequences, of which this tree sequence is one member.",
+             "items": {
+              "properties": {
+               "id": {
+                "description": "An integer identifier for the chromosome, unique within this set of tree sequences; often the chromosome number in the organism being represented, such as 1.",
+                "type": "integer"
+               },
+               "symbol": {
+                "description": "A short string symbol for the chromosome, unique within this set of tree sequences, such as \"1\" or \"MT\".",
+                "type": "string"
+               },
+               "name": {
+                "description": "A user-specified name for the chromosome, such as an accession identifier.",
+                "type": "string"
+               },
+               "type": {
+                "description": "The type of chromosome, as specified by SLiM.",
+                "type": "string"
+               }
+              },
+              "required": [
+               "id",
+               "symbol",
+               "type"
+              ],
+              "type": "object"
+             },
+             "type": "array"
+            },
+            "nucleotide_based": {
+             "description": "Whether the simulation was nucleotide-based.",
+             "type": "boolean"
+            },
+            "separate_sexes": {
+             "description": "Whether the simulation had separate sexes.",
+             "type": "boolean"
+            },
+            "spatial_dimensionality": {
+             "description": "The spatial dimensionality of the simulation.",
+             "enum": [
+              "",
+              "x",
+              "xy",
+              "xyz"
+             ],
+             "type": "string"
+            },
+            "spatial_periodicity": {
+             "description": "The spatial periodicity of the simulation.",
+             "enum": [
+              "",
+              "x",
+              "y",
+              "z",
+              "xy",
+              "xz",
+              "yz",
+              "xyz"
+             ],
+             "type": "string"
+            },
+            "stage": {
+             "description": "The stage of the SLiM life cycle when this tree sequence was recorded.",
+             "type": "string"
             }
-        ],
-        "properties": {
-            "SLiM": {
-                "description": "Top-level metadata for a SLiM tree sequence, file format version 0.9",
-                "properties": {
-                    "file_version": {
-                        "description": "The SLiM 'file format version' of this tree sequence.",
-                        "type": "string"
-                    },
-                    "name": {
-                        "description": "The SLiM species name represented by this tree sequence.",
-                        "type": "string"
-                    },
-                    "description": {
-                        "description": "A user-configurable description of the species represented by this tree sequence.",
-                        "type": "string"
-                    },
-                    "cycle": {
-                        "description": "The 'SLiM cycle' counter when this tree sequence was recorded.",
-                        "type": "integer"
-                    },
-                    "tick": {
-                        "description": "The 'SLiM tick' counter when this tree sequence was recorded.",
-                        "type": "integer"
-                    },
-                    "model_type": {
-                        "description": "The model type used for the last part of this simulation (WF or nonWF).",
-                        "enum": [
-                            "WF",
-                            "nonWF"
-                        ],
-                        "type": "string"
-                    },
-                    "this_chromosome": {
-                        "description": "The chromosome represented by the tree sequence in this file.",
-                        "properties": {
-                            "id": {
-                                "description": "An integer identifier for the chromosome, unique within this set of tree sequences; often the chromosome number in the organism being represented, such as 1.",
-                                "type": "integer"
-                            },
-                            "index": {
-                                "description": "The (zero-based) index of this chromosome in the chromosomes metadata array (if present), which should match the information given here.",
-                                "type": "integer"
-                            },
-                            "symbol": {
-                                "description": "A short string symbol for the chromosome, unique within this set of tree sequences, such as \"1\" or \"MT\".",
-                                "type": "string"
-                            },
-                            "name": {
-                                "description": "A user-specified name for the chromosome, such as an accession identifier.",
-                                "type": "string"
-                            },
-                            "type": {
-                                "description": "The type of chromosome, as specified by SLiM.",
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "id",
-                            "index",
-                            "symbol",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    "chromosomes": {
-                        "description": "The chromosomes represented by the collection of tree sequences, of which this tree sequence is one member.",
-                        "items": {
-                            "properties": {
-                                "id": {
-                                    "description": "An integer identifier for the chromosome, unique within this set of tree sequences; often the chromosome number in the organism being represented, such as 1.",
-                                    "type": "integer"
-                                },
-                                "symbol": {
-                                    "description": "A short string symbol for the chromosome, unique within this set of tree sequences, such as \"1\" or \"MT\".",
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "description": "A user-specified name for the chromosome, such as an accession identifier.",
-                                    "type": "string"
-                                },
-                                "type": {
-                                    "description": "The type of chromosome, as specified by SLiM.",
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "id",
-                                "symbol",
-                                "type"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "nucleotide_based": {
-                        "description": "Whether the simulation was nucleotide-based.",
-                        "type": "boolean"
-                    },
-                    "separate_sexes": {
-                        "description": "Whether the simulation had separate sexes.",
-                        "type": "boolean"
-                    },
-                    "spatial_dimensionality": {
-                        "description": "The spatial dimensionality of the simulation.",
-                        "enum": [
-                            "",
-                            "x",
-                            "xy",
-                            "xyz"
-                        ],
-                        "type": "string"
-                    },
-                    "spatial_periodicity": {
-                        "description": "The spatial periodicity of the simulation.",
-                        "enum": [
-                            "",
-                            "x",
-                            "y",
-                            "z",
-                            "xy",
-                            "xz",
-                            "yz",
-                            "xyz"
-                        ],
-                        "type": "string"
-                    },
-                    "stage": {
-                        "description": "The stage of the SLiM life cycle when this tree sequence was recorded.",
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "model_type",
-                    "tick",
-                    "file_version",
-                    "spatial_dimensionality",
-                    "spatial_periodicity",
-                    "this_chromosome",
-                    "separate_sexes",
-                    "nucleotide_based"
-                ],
-                "type": "object"
-            }
-        },
-        "required": [
-            "SLiM"
-        ],
-        "type": "object"
+           },
+           "required": [
+            "model_type",
+            "tick",
+            "file_version",
+            "spatial_dimensionality",
+            "spatial_periodicity",
+            "this_chromosome",
+            "separate_sexes",
+            "nucleotide_based"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "SLiM"
+         ],
+         "type": "object"
     }
     ,
     "edge" : None,
@@ -603,7 +607,7 @@ def default_slim_metadata(name, num_chromosomes=1):
         # bytes(k) returns k bytes of zeros
         out = {
             "slim_id": tskit.NULL,
-            "is_null": bytes(_isnull_num_bytes(num_chromosomes)),
+            "is_vacant": bytes(_isvacant_num_bytes(num_chromosomes)),
         }
     elif name == "individual":
         out = {
@@ -693,11 +697,11 @@ def set_tree_sequence_metadata(tables,
     tables.metadata = metadata_dict
 
 
-def set_metadata_schemas(tables, num_chroms=1):
+def set_metadata_schemas(tables, num_chromosomes=1):
     tables.edges.metadata_schema = slim_metadata_schemas['edge']
     tables.sites.metadata_schema = slim_metadata_schemas['site']
     tables.mutations.metadata_schema = slim_metadata_schemas['mutation']
-    tables.nodes.metadata_schema = _get_node_metadata_schema(num_chroms)
+    tables.nodes.metadata_schema = _get_node_metadata_schema(num_chromosomes)
     tables.individuals.metadata_schema = slim_metadata_schemas['individual']
     tables.populations.metadata_schema = slim_metadata_schemas['population']
 
