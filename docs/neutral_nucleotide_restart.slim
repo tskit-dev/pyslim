@@ -1,0 +1,35 @@
+initialize()
+{
+   initializeSLiMModelType("nonWF");
+   initializeSLiMOptions(nucleotideBased=T);
+   // we must generate ancestral nucleotides, but they will be unused,
+   // replaced by the reference sequence in the .trees file loaded below
+   initializeAncestralNucleotides(randomNucleotides(1e6));
+   initializeTreeSeq();
+	initializeMutationTypeNuc("m0", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m0, 1.0, mmJukesCantor(1e-7));
+   initializeGenomicElement(g1, 0, 1e6-1);
+   initializeRecombinationRate(1e-8);
+   defineConstant("K", 1000);
+}
+
+reproduction(p1) {
+   subpop.addCrossed(individual,
+                     subpop.sampleIndividuals(1));
+}
+
+1 early() { 
+   sim.readFromPopulationFile("initialize_nonWF_nuc.trees");
+   catn("Loaded " + length(sim.subpopulations)
+        + " populations from a file; now in generation " + sim.cycle);
+   catn("Population sizes: " + paste(sim.subpopulations.individualCount));
+}
+
+2: early() {
+   p0.fitnessScaling = K / p0.individualCount;
+}
+
+10 early() {
+   catn("Done.");
+   sim.simulationFinished();
+}
