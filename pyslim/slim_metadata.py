@@ -55,7 +55,7 @@ def _get_node_metadata_schema(num_chromosomes=1):
     num_bytes = _isvacant_num_bytes(num_chromosomes)
     return {
      "$schema": "http://json-schema.org/schema#",
-     "additionalProperties": false,
+     "additionalProperties": False,
      "codec": "struct",
      "description": "SLiM schema for node metadata.",
      "examples": [
@@ -127,8 +127,8 @@ _raw_slim_metadata_schemas = {
               "type": "HF"
              }
             ],
-            "nucleotide_based": false,
-            "separate_sexes": true,
+            "nucleotide_based": False,
+            "separate_sexes": True,
             "spatial_dimensionality": "xy",
             "spatial_periodicity": "x"
            }
