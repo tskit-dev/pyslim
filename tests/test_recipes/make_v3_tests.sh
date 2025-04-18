@@ -81,3 +81,16 @@ $SLIMDIR/slim recipe_nonWF.slim && mv out.trees recipe_nonWF.${TAG}.trees
 $SLIMDIR/slim recipe_WF.slim && mv out.trees recipe_WF.${TAG}.trees
 git add -f recipe_nonWF.${TAG}.trees recipe_WF.${TAG}.trees
 
+# To make the v4.2.2 files:
+
+TAG=v4.2.2
+git checkout $TAG
+mkdir -p build_$TAG && cd build_$TAG
+cmake .. && make
+SLIMDIR=$(pwd)
+cd ../..
+$SLIMDIR/slim recipe_nonWF.slim && mv out.trees recipe_nonWF.${TAG}.trees
+$SLIMDIR/slim recipe_WF.slim && mv out.trees recipe_WF.${TAG}.trees
+git add -f recipe_nonWF.${TAG}.trees recipe_WF.${TAG}.trees
+
+

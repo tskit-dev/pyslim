@@ -74,6 +74,22 @@ class TestMetadataSchemas(tests.PyslimTestCase):
         assert t.individuals.metadata_schema == pyslim.slim_metadata_schemas['individual']
         assert t.populations.metadata_schema == pyslim.slim_metadata_schemas['population']
 
+    def test_node_schema(self):
+        s = pyslim.slim_node_metadata_schema()
+        sd = s.asdict()
+        assert sd['properties']['is_vacant']['length'] == 1
+        s1 = pyslim.slim_node_metadata_schema(num_chromosomes=1)
+        assert s == s1
+        s8 = pyslim.slim_node_metadata_schema(num_chromosomes=8)
+        assert s == s8
+        for nc in [7, 12, 25, 32]:
+            sx = pyslim.slim_node_metadata_schema(num_chromosomes=nc)
+            sxd = sx.asdict()
+            n = sxd['properties']['is_vacant']['length']
+            assert n - 1 < nc / 8 and nc / 8 <= n
+            sxd['properties']['is_vacant']['length']  = 1
+            assert sxd == sd
+
 
 class TestTreeSequenceMetadata(tests.PyslimTestCase):
     arbitrary_recipe = [next(recipe_eq())]  # for testing any one recipe

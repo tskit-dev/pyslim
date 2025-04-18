@@ -338,64 +338,6 @@ class TestAnnotate(tests.PyslimTestCase):
             loaded_ts = helper_functions.run_msprime_restart(new_ts, tmp_path, sex="A")
             self.verify_trees_equal(new_ts, loaded_ts)
 
-    @pytest.mark.skip(reason="not working")
-    def test_annotate_XY(self, helper_functions, tmp_path):
-        # This is Not Right because as written the null chromosomes have history;
-        # we need to *only* simulate the non-null chromosomes.
-        random.seed(8)
-        for ts in helper_functions.get_msprime_examples():
-            for genome_type in ["X", "Y"]:
-                slim_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-                tables = slim_ts.dump_tables()
-                top_md = tables.metadata
-                top_md['SLiM']['separate_sexes'] = True
-                tables.metadata = top_md
-                metadata = [ind.metadata for ind in tables.individuals]
-                sexes = [random.choice([pyslim.INDIVIDUAL_TYPE_FEMALE, pyslim.INDIVIDUAL_TYPE_MALE])
-                         for _ in metadata]
-                for j in range(len(metadata)):
-                    metadata[j]["sex"] = sexes[j]
-                ims = tables.individuals.metadata_schema
-                tables.individuals.packset_metadata(
-                        [ims.validate_and_encode_row(r) for r in metadata])
-                node_metadata = [n.metadata for n in tables.nodes]
-                node_is_null = [False for _ in range(ts.num_nodes)]
-                for j in range(slim_ts.num_individuals):
-                    nodes = slim_ts.individual(j).nodes
-                    node_metadata[nodes[0]]["genome_type"] = pyslim.GENOME_TYPE_X
-                    node_metadata[nodes[0]]["is_null"] = (genome_type != "X")
-                    if sexes[j] == pyslim.INDIVIDUAL_TYPE_MALE:
-                        node_metadata[nodes[1]]["genome_type"] = pyslim.GENOME_TYPE_Y
-                        node_metadata[nodes[1]]["is_null"] = (genome_type != "Y")
-                    else:
-                        node_metadata[nodes[1]]["genome_type"] = pyslim.GENOME_TYPE_X
-                        node_metadata[nodes[1]]["is_null"] = (genome_type != "X")
-                    for n in nodes:
-                        node_is_null[n] = node_metadata[n]["is_null"]
-                nms = tables.nodes.metadata_schema
-                tables.nodes.packset_metadata(
-                        [nms.validate_and_encode_row(r) for r in node_metadata])
-                # update populations
-                pop_metadata = [p.metadata for p in tables.populations]
-                for j, md in enumerate(pop_metadata):
-                    # nonWF models always have this
-                    md['sex_ratio'] = 0.0
-                pms = tables.populations.metadata_schema
-                tables.populations.packset_metadata(
-                        [pms.validate_and_encode_row(r) for r in pop_metadata])
-                new_ts = tables.tree_sequence()
-                self.verify_annotated_tables(new_ts, slim_ts)
-                self.verify_annotated_trees(new_ts, slim_ts)
-                self.verify_haplotype_equality(new_ts, slim_ts)
-                # try loading this into SLiM
-                loaded_ts = helper_functions.run_msprime_restart(
-                    new_ts, tmp_path, sex=genome_type)
-                self.verify_trees_equal(new_ts, loaded_ts)
-                # these are *not* equal but only due to re-ordering of nodes and individuals
-                # ... and for some reason, .subset( ) or .simplify( ) do not produce equality
-                # self.assertTableCollectionsEqual(new_ts, loaded_ts,
-                #         skip_provenance=-1, reordered_individuals=True)
-
     def test_annotate_nodes(self, helper_functions):
         # test workflow of annotating defaults and then editing node metadata
         for ts in helper_functions.get_msprime_examples():

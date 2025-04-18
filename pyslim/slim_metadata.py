@@ -34,17 +34,10 @@ INDIVIDUAL_FLAG_MIGRATED = 0x01
 An individual flag indicating the individual is a migrant.
 """
 
-# These are copied from slim_globals.cpp, modified to be python not json
-# by changing false->False and true->True, then printed with
-# json.dump(..., indent=True), then lightly edited.
-
-def _isvacant_num_bytes(num_chromosomes):
-    return int((num_chromosomes + 7)/8)
-
-def _get_node_metadata_schema(num_chromosomes=1):
+def _is_chrom_vacant(k, b):
     # From the SLiM manual on is_vacant:
     # M bytes (uint8_t): a series of bytes comprising a bitfield of is_vacant
-    # values, true (1) if this node represents a vacant haplosome for a given
+    # values, true (1) if this node represents a null haplosome for a given
     # chromosome, false (0) otherwise. For chromosomes with indices 0...N−1, the
     # chromosome with index k has its is_vacant bit in bit k%8 of byte k/8, where
     # byte 0 is the first byte in the series of bytes provided, and bit 0 is the
@@ -52,46 +45,34 @@ def _get_node_metadata_schema(num_chromosomes=1):
     # of bytes present, M, is equal to (N+7)/8, the minimum number of bytes
     # necessary. The operators / and % here are integer divide (rounding down)
     # and integer modulo, respectively.
-    num_bytes = _isvacant_num_bytes(num_chromosomes)
-    return {
-     "$schema": "http://json-schema.org/schema#",
-     "additionalProperties": False,
-     "codec": "struct",
-     "description": "SLiM schema for node metadata.",
-     "examples": [
-      {
-       "slim_id": 123,
-       "is_vacant": 0
-      }
-     ],
-     "properties": {
-      "slim_id": {
-       "binaryFormat": "q",
-       "description": "The 'pedigree ID' of the haplosomes associated with this node in SLiM.",
-       "index": 0,
-       "type": "integer"
-      },
-      "is_vacant": {
-       "description": "A vector of byte (uint8_t) values, with each bit representing whether the node represents a vacant position, either unused or a null haplosome (1), or a non-null haplosome (0), in the corresponding chromosome. This field encodes vacancy for all of the chromosomes in the model, not just the chromosome represented in this file (so that the node table is identical across all chromosomes for a multi-chromosome model). Each chromosome receives one bit here; there are two node table entries per individual, used for the two haplosomes of every chromosome, so only one bit is needed in each entry (making two bits total per chromosome, across the two node table entries). The least significant bit of the first byte is used first (for one haplosome of the first chromosome); the most significant bit of the last byte is used last. The number of bytes present in this field is indicated by this schema's 'binaryFormat' field, which is variable (!), and can also be deduced from the number of chromosomes in the model as given in the top-level 'chromosomes' metadata key, which should always be present if this metadata is present.",
-       "index": 1,
-       "type": "array",
-       "length": f"{num_bytes}",
-       "items": {
-        "type": "number",
-        "binaryFormat": "B"
-       }
-      }
-     },
-     "required": [
-      "slim_id",
-      "is_vacant"
-     ],
-     "type": [
-      "object",
-      "null"
-     ]
-    }
+    assert len(b) >= (1 + k) / 8
+    b = b[int(k / 8)]
+    i = k % 8
+    return (b >> i & 1) > 0
 
+def _isvacant_num_bytes(num_chromosomes):
+    return int((num_chromosomes + 7)/8)
+
+
+def _isvacant_values(vacancy):
+    """
+    Returns the correct is_vacant metadata for the given vacancy pattern.
+
+    :param list vacancy: A list of booleans.
+    """
+    out = [0 for _ in _isvacant_num_bytes(len(vacancy))]
+    powers = [1, 2, 4, 8, 16, 32, 64, 128]
+    for k, v in enumerate(vacancy):
+        if v:
+            n = k % 8
+            m = int(k / 8)
+            out[m] += powers[n]
+    return out
+
+
+# These are copied from slim_globals.cpp, modified to be python not json
+# by changing false->False and true->True, then printed with
+# json.dump(..., indent=True), then lightly edited.
 
 _raw_slim_metadata_schemas = {
     "tree_sequence" : {
@@ -359,7 +340,45 @@ _raw_slim_metadata_schemas = {
         ],
         "type": "object"
     },
-    # "node" : _get_node_metadata_schema(), # TODO
+    "node" : 
+    {
+     "$schema": "http://json-schema.org/schema#",
+     "additionalProperties": False,
+     "codec": "struct",
+     "description": "SLiM schema for node metadata.",
+     "examples": [
+      {
+       "slim_id": 123,
+       "is_vacant": 0
+      }
+     ],
+     "properties": {
+      "slim_id": {
+       "binaryFormat": "q",
+       "description": "The 'pedigree ID' of the haplosomes associated with this node in SLiM.",
+       "index": 0,
+       "type": "integer"
+      },
+      "is_vacant": {
+       "description": "A vector of byte (uint8_t) values, with each bit representing whether the node represents a vacant position, either unused or a null haplosome (1), or a non-null haplosome (0), in the corresponding chromosome. This field encodes vacancy for all of the chromosomes in the model, not just the chromosome represented in this file (so that the node table is identical across all chromosomes for a multi-chromosome model). Each chromosome receives one bit here; there are two node table entries per individual, used for the two haplosomes of every chromosome, so only one bit is needed in each entry (making two bits total per chromosome, across the two node table entries). The least significant bit of the first byte is used first (for one haplosome of the first chromosome); the most significant bit of the last byte is used last. The number of bytes present in this field is indicated by this schema's 'binaryFormat' field, which is variable (!), and can also be deduced from the number of chromosomes in the model as given in the top-level 'chromosomes' metadata key, which should always be present if this metadata is present.",
+       "index": 1,
+       "type": "array",
+       "length": "%d",  # MUST BE FILLED IN
+       "items": {
+        "type": "number",
+        "binaryFormat": "B"
+       }
+      }
+     },
+     "required": [
+      "slim_id",
+      "is_vacant"
+     ],
+     "type": [
+      "object",
+      "null"
+     ]
+    },
     "individual" :
     {
         "$schema": "http://json-schema.org/schema#",
@@ -555,10 +574,49 @@ _raw_slim_metadata_schemas = {
 }
 
 
-slim_metadata_schemas = {k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k]) for k in _raw_slim_metadata_schemas}
+def slim_node_metadata_schema(num_chromosomes=1):
+    """
+    Unlike other schema, the node metadata schema depends on the number of
+    chromosomes in a multichromosome simulation, and
+    {data}`.slim_metadata_schemas`
+    returns the schema for a single-chromosome simulation. This function
+    returns the correct schema for a simulation with arbitrary number of
+    chromosomes. (The resulting schemas only differ in the
+    ``schema["properties"]["is_vacant"]["length"]`` property,
+    which is set to ``floor(num_chromosomes+7)/8``, as described in
+    the SLiM manual.)
+
+    :param int num_chromosomes: The number of chromosomes in the model.
+    :return tskit.MetadataSchema: The metadata schema to be used
+        in the node table.
+    """
+    # From the SLiM manual on is_vacant:
+    # M bytes (uint8_t): a series of bytes comprising a bitfield of is_vacant
+    # values, true (1) if this node represents a vacant haplosome for a given
+    # chromosome, false (0) otherwise. For chromosomes with indices 0...N−1, the
+    # chromosome with index k has its is_vacant bit in bit k%8 of byte k/8, where
+    # byte 0 is the first byte in the series of bytes provided, and bit 0 is the
+    # least-significant bit, the one with value 0x01 (hexadecimal 1). The number
+    # of bytes present, M, is equal to (N+7)/8, the minimum number of bytes
+    # necessary. The operators / and % here are integer divide (rounding down)
+    # and integer modulo, respectively.
+    num_bytes = _isvacant_num_bytes(num_chromosomes)
+    schema = _raw_slim_metadata_schemas["node"]
+    schema["properties"]["is_vacant"]["length"] = num_bytes
+    return tskit.MetadataSchema(schema)
+
+
+slim_metadata_schemas = {
+    k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k])
+    for k in _raw_slim_metadata_schemas
+    if k != "node"
+}
+slim_metadata_schemas["node"] = slim_node_metadata_schema()
 """
-A dictionary containing the metadata schemas used by SLiM for each of the tables,
-and for top-level metadata.
+A dictionary containing the metadata schemas used by SLiM for each of the tables
+and for top-level metadata. **Warning:** node metadata schema depends on the
+number of chromosomes, and so `slim_metadata_schemas["node"]` is not valid for
+a SLiM simulation with more than 8 chromosomes.
 """
 
 
@@ -583,8 +641,19 @@ def default_slim_metadata(name, num_chromosomes=1):
                  "separate_sexes" : False,
                  "nucleotide_based" : False,
                  "stage" : "late",
-                 "name" : "",
+                 "name" : "sim",
                  "description" : "",
+                 "this_chromosome" : {
+                     "id": 1,
+                     "index": 0,
+                     "symbol": "A",
+                     "type": "A",
+                 },
+                 "chromosomes": [{
+                     'id': 1,
+                     'symbol': 'A',
+                     'type': 'A'
+                 }],
              }
          }
     elif name == "edge":
@@ -659,8 +728,11 @@ def set_tree_sequence_metadata(tables,
         stage='late',
         name='',
         description='',
+        this_chromosome=None,
+        chromosomes=None,
         file_version=None,
         set_table_schemas=True):
+    defaults = default_slim_metadata("tree_sequence")
     if file_version is None:
         file_version = slim_file_version
     if isinstance(tables.metadata, bytes):
@@ -675,6 +747,10 @@ def set_tree_sequence_metadata(tables,
         metadata_dict = tables.metadata
     if cycle is None:
         cycle = tick
+    if this_chromosome is None:
+        this_chromosome = defaults['this_chromosome']
+    if chromosomes is None:
+        chromosomes = defaults['chromosomes']
     assert(schema_dict['codec'] == 'json')
     assert(schema_dict['type'] == 'object')
     if "properties" not in schema_dict:
@@ -693,6 +769,8 @@ def set_tree_sequence_metadata(tables,
             "stage": stage,
             "name": name,
             "description": description,
+            "this_chromosome": this_chromosome,
+            "chromosomes": chromosomes,
             }
     tables.metadata = metadata_dict
 
@@ -701,7 +779,7 @@ def set_metadata_schemas(tables, num_chromosomes=1):
     tables.edges.metadata_schema = slim_metadata_schemas['edge']
     tables.sites.metadata_schema = slim_metadata_schemas['site']
     tables.mutations.metadata_schema = slim_metadata_schemas['mutation']
-    tables.nodes.metadata_schema = _get_node_metadata_schema(num_chromosomes)
+    tables.nodes.metadata_schema = slim_node_metadata_schema(num_chromosomes)
     tables.individuals.metadata_schema = slim_metadata_schemas['individual']
     tables.populations.metadata_schema = slim_metadata_schemas['population']
 
@@ -801,7 +879,7 @@ def _old_metadata_schema(name, file_version):
             "type": "object"
         }
 
-        ms = pre_0_0_tree_sequence
+        ms = pre_0_9_tree_sequence
 
     if (name == "tree_sequence"
         and file_version in ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7"]):
@@ -1221,12 +1299,50 @@ def update_tables(tables):
                 num_chroms = len(tables.metadata["chromosomes"])
             else:
                 num_chroms = 1
-            new_schema = _get_node_metadata_schema(num_chroms)
-            defaults = default_slim_metadata("node")
+            new_schema = slim_node_metadata_schema(num_chroms)
+            tables.nodes.metadata_schema = new_schema
+            not_vacant = [0]  # single chromosome
+            yes_vacant = [1]
+            gt = None
             for n in nodes:
                 md = n.metadata
-                md.update(d)
+                if len(md) > 0:
+                    md['is_vacant'] = yes_vacant if md['is_null'] else not_vacant
+                    if not md['is_null']:
+                        if gt is None:
+                            gt = md['genome_type']
+                        else:
+                            assert md['genome_type'] == gt, ("Inconsistent tables: "
+                                            f"mismatching genome types {gt} and "
+                                            f"{md['genome_type']} in node metadata.")
+                    del md['is_null']
+                    del md['genome_type']
                 tables.nodes.append(n.replace(metadata=md))
+            # flags for node genome type pre-0.9:
+            # confusingly and sub-optimally, these were redundant:
+            # all non-null nodes in the same sim would have the same genome type
+            print("GT", gt)
+            assert gt is not None
+            GENOME_TYPE_AUTOSOME = 0
+            GENOME_TYPE_X = 1
+            GENOME_TYPE_Y = 2
+            top_md = tables.metadata
+            i = top_md['SLiM']['this_chromosome']['index']
+            if gt == GENOME_TYPE_X:
+                top_md['SLiM']['this_chromosome']['type'] = "X"
+                top_md['SLiM']['this_chromosome']['symbol'] = "X"
+                if "chromosomes" in tables.metadata['SLiM']:
+                    top_md['SLiM']['chromosomes'][i]['type'] = "X"
+                    top_md['SLiM']['chromosomes'][i]['symbol'] = "X"
+            elif gt == GENOME_TYPE_Y:
+                top_md['SLiM']['this_chromosome']['type'] = "-Y"
+                top_md['SLiM']['this_chromosome']['symbol'] = "Y"
+                if "chromosomes" in tables.metadata['SLiM']:
+                    top_md['SLiM']['chromosomes'][i]['type'] = "-Y"
+                    top_md['SLiM']['chromosomes'][i]['symbol'] = "Y"
+            else:
+                assert gt == GENOME_TYPE_AUTOSOME
+            tables.metadata = top_md
 
         old_schema = _old_metadata_schema("population", file_version)
         if old_schema is not None:
@@ -1236,7 +1352,6 @@ def update_tables(tables):
                 pops.metadata_schema = old_schema
             new_schema = slim_metadata_schemas["population"]
             tables.populations.metadata_schema = new_schema
-            defaults = default_slim_metadata("population")
             # just needs recoding
             for pop in pops:
                 tables.populations.append(pop)

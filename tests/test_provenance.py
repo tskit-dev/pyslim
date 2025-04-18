@@ -173,6 +173,15 @@ class TestProvenance(tests.PyslimTestCase):
         ]:
             yield tskit.load(filename)
 
+    def get_0_8_slim_examples(self):
+        for filename in [
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v4.2.2.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF_X.v4.2.2.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_WF_Y.v4.2.2.trees'),
+            os.path.join(self.script_dir, 'test_recipes', 'recipe_nonWF.v4.2.2.trees'),
+        ]:
+            yield tskit.load(filename)
+
     def get_mixed_slim_examples(self):
         for filename in [
             os.path.join(self.script_dir, 'test_recipes', 'recipe_WF.v3.5_and_v3.6.trees'),
@@ -373,6 +382,49 @@ class TestProvenance(tests.PyslimTestCase):
             assert list(ts.samples()) == list(pts.samples())
             assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
             samples = list(ts.samples())
+            t = ts.first()
+            pt = pts.first()
+            for _ in range(20):
+                u = random.sample(samples, 1)[0]
+                assert t.parent(u) == pt.parent(u)
+                if t.parent(u) != tskit.NULL:
+                    assert t.branch_length(u) == pt.branch_length(u)
+
+    def test_convert_0_8_files(self):
+        for ts in self.get_0_8_slim_examples():
+            assert not pyslim.is_current_version(ts)
+            with pytest.warns(Warning):
+                pts = pyslim.update(ts)
+            assert pyslim.is_current_version(pts)
+            self.verify_upgrade(pts)
+            assert ts.num_provenances == 1
+            assert pts.num_provenances == 2
+            assert ts.provenance(0).record == pts.provenance(0).record
+            record = json.loads(ts.provenance(0).record)
+            assert isinstance(pts.metadata, dict)
+            assert 'SLiM' in pts.metadata
+            assert record['parameters']['model_type'] == pts.metadata['SLiM']['model_type']
+            assert record['slim']['tick'] == pts.metadata['SLiM']['tick']
+            assert list(ts.samples()) == list(pts.samples())
+            assert np.array_equal(ts.tables.nodes.flags, pts.tables.nodes.flags)
+            samples = list(ts.samples())
+            genome_type = None
+            for n in samples:
+                md = ts.node(n).metadata
+                if not md['is_null']:
+                    genome_type = md['genome_type']
+                    break
+            assert genome_type is not None
+            chromosome_type = pts.metadata['SLiM']['this_chromosome']['type']
+            GENOME_TYPE_AUTOSOME = 0
+            GENOME_TYPE_X = 1
+            GENOME_TYPE_Y = 2
+            if genome_type == GENOME_TYPE_AUTOSOME:
+                assert chromosome_type == "A"
+            elif genome_type == GENOME_TYPE_X:
+                assert chromosome_type == "X"
+            elif genome_type == GENOME_TYPE_Y:
+                assert chromosome_type == "-Y"
             t = ts.first()
             pt = pts.first()
             for _ in range(20):

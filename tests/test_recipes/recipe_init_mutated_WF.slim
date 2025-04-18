@@ -12,8 +12,8 @@ initialize()
 
 1 early() { 
     sim.addSubpop("p1", 10);
-    for (k in seqLen(length(p1.genomes))) {
-        genome = p1.genomes[k];
+    for (k in seqLen(length(p1.haplosomes))) {
+        genome = p1.haplosomes[k];
         genome.addNewMutation(m1, 0.0, k);
     }
 }

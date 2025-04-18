@@ -27,9 +27,9 @@ mutation(NULL)
 	if (mut.position > 0 & mut.position < L - 1) {
 		context = substr(REFSEQ, mut.position - 1, mut.position + 1);
 		for (k in 0:2) {
-			mut_k = which(genome.mutations.position == mut.position + k - 1);
+			mut_k = which(haplosome.mutations.position == mut.position + k - 1);
 			if (length(mut_k) > 0) {
-				muts = genome.mutations[mut_k];
+				muts = haplosome.mutations[mut_k];
 				parent_mut = muts[whichMax(muts.originTick)];
 				context = (
 					substr(context, 0, k-1)
