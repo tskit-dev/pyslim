@@ -651,6 +651,7 @@ def default_slim_metadata(name, num_chromosomes=1):
                  },
                  "chromosomes": [{
                      'id': 1,
+                     "index": 0,
                      'symbol': 'A',
                      'type': 'A'
                  }],
@@ -676,7 +677,7 @@ def default_slim_metadata(name, num_chromosomes=1):
         # bytes(k) returns k bytes of zeros
         out = {
             "slim_id": tskit.NULL,
-            "is_vacant": bytes(_isvacant_num_bytes(num_chromosomes)),
+            "is_vacant": [0 for _ in range(_isvacant_num_bytes(num_chromosomes))],
         }
     elif name == "individual":
         out = {
@@ -732,7 +733,6 @@ def set_tree_sequence_metadata(tables,
         chromosomes=None,
         file_version=None,
         set_table_schemas=True):
-    defaults = default_slim_metadata("tree_sequence")
     if file_version is None:
         file_version = slim_file_version
     if isinstance(tables.metadata, bytes):
@@ -747,10 +747,11 @@ def set_tree_sequence_metadata(tables,
         metadata_dict = tables.metadata
     if cycle is None:
         cycle = tick
+    defaults = default_slim_metadata("tree_sequence")
     if this_chromosome is None:
-        this_chromosome = defaults['this_chromosome']
+        this_chromosome = defaults['SLiM']['this_chromosome']
     if chromosomes is None:
-        chromosomes = defaults['chromosomes']
+        chromosomes = defaults['SLiM']['chromosomes']
     assert(schema_dict['codec'] == 'json')
     assert(schema_dict['type'] == 'object')
     if "properties" not in schema_dict:
