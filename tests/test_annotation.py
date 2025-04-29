@@ -75,8 +75,7 @@ class TestAnnotate(tests.PyslimTestCase):
             if not n.is_sample():
                 assert md is None
             else:
-                assert md["is_null"] is False
-                assert md["genome_type"] == pyslim.GENOME_TYPE_AUTOSOME
+                assert md["is_vacant"] == [0]
                 do_pops[n.population] = True
         for ind in ts.individuals():
             md = ind.metadata
@@ -344,21 +343,19 @@ class TestAnnotate(tests.PyslimTestCase):
             slim_ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
             tables = slim_ts.dump_tables()
             metadata = [n.metadata for n in tables.nodes]
-            gtypes = [
-                    random.choice([pyslim.GENOME_TYPE_X, pyslim.GENOME_TYPE_Y])
-                    for _ in metadata
-            ]
-            for md, g in zip(metadata, gtypes):
+            sids = list(range(ts.num_nodes))
+            random.shuffle(sids)
+            for md, sid in zip(metadata, sids):
                 if md is not None:
-                    md["genome_type"] = g
+                    md["slim_id"] = sid
             nms = tables.nodes.metadata_schema
             tables.nodes.packset_metadata(
                     [nms.validate_and_encode_row(r) for r in metadata]
             )
             new_ts = tables.tree_sequence()
-            for x, g in zip(new_ts.nodes(), gtypes):
+            for x, sid in zip(new_ts.nodes(), sids):
                 if x.metadata is not None:
-                    assert x.metadata["genome_type"] == g
+                    assert x.metadata["slim_id"] == sid
             # not testing SLiM because needs annotation of indivs to make sense
 
     def test_annotate_mutations(self, helper_functions):
@@ -891,11 +888,12 @@ class TestReload(tests.PyslimTestCase):
         n = set(in_ts.samples()[:4])
         for k in n:
             n |= set(in_ts.individual(in_ts.node(k).individual).nodes)
-        py_ts = in_ts.simplify(list(n), filter_populations=False)
+        n = list(n)
+        n.sort()
+        py_ts = in_ts.simplify(n, filter_populations=False)
         out_ts = helper_functions.run_slim_restart(
                 py_ts,
                 restart_name,
                 tmp_path,
         )
         assert out_ts.metadata["SLiM"]["tick"] >= in_ts.metadata["SLiM"]["tick"]
-

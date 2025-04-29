@@ -1277,3 +1277,8 @@ Also known as "gotchas".
       simplification. This means that a retained individual may only have one node (but
       if both nodes are lost due to simplification, the individual is removed too, and
       will not appear in the Individual table).
+
+4. SLiM requires that the two nodes corresponding to the haplosomes of each individual
+    are adjacent in the node table, and are sorted by haplosome ID.
+    SLiM always writes out tree sequences like this, but it is possible to make
+    tree sequences in python that are leval otherwise but don't satisfy this requirement.

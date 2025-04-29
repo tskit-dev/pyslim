@@ -673,8 +673,7 @@ def _annotate_nodes_individuals(tables, age):
     - (ind_id) SLiM individual pedigree IDs to sequential integers starting from 0
     - (ind_population) individual populations to 0
     - (node_id) SLiM genome IDs to sequential integers starting with samples from 0
-    - (node_is_null) genomes to be non-null
-    - (node_type) genome type to 0 (= autosome)
+    - (node_is_vacant) genomes to be non-null
     - (ind_flags) INDIVIDUAL_ALIVE
 
     If you have other situations, like non-alive "remembered" individuals, you

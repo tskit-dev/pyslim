@@ -15,6 +15,32 @@ import tests
 
 from .recipe_specs import recipe_eq
 
+
+def mutations_above(ts, node, pos):
+    for s in ts.sites():
+        if s.position == pos:
+            tree = ts.at(pos)
+            site_muts = s.mutations.copy()
+            # parent mutations come before children
+            site_muts.reverse()
+            while node != tskit.NULL:
+                for mut in site_muts:
+                    if mut.node == node:
+                        yield mut.id
+                node = tree.parent(node)
+    yield -1
+
+
+def naive_mutation_at(ts, node, pos, time=None):
+    if time is None:
+        time = ts.node(node).time
+    assert ts.node(node).time <= time
+    for mut_id in mutations_above(ts, node, pos):
+        if mut_id >= 0 and ts.mutation(mut_id).time >= time:
+            break
+    return mut_id
+
+
 class TestSlimTime(tests.PyslimTestCase):
     # Tests for slim_time()
 
@@ -32,13 +58,17 @@ class TestSlimTime(tests.PyslimTestCase):
                 mut_time = max([x['slim_time'] for x in mut.metadata['mutation_list']])
                 assert mut_time == pyslim.slim_time(ts, mut.time, stage="early")
 
+
 class TestNextMutationID(tests.PyslimTestCase):
     '''
     Tests for the function that returns the largest SLiM mutation ID.
     '''
     def test_next_id(self, recipe):
         ts = recipe["ts"]
-        mt_ids_str = ','.join(tskit.unpack_strings(ts.tables.mutations.derived_state, ts.tables.mutations.derived_state_offset))
+        mt_ids_str = ','.join(
+                tskit.unpack_strings(ts.tables.mutations.derived_state,
+                                     ts.tables.mutations.derived_state_offset)
+        )
         mt_ids = [int(i or 0) for i in mt_ids_str.split(',')]
         max_mt_id = max(mt_ids)
         assert max_mt_id + 1 == pyslim.next_slim_mutation_id(ts)
@@ -55,9 +85,10 @@ class TestNextMutationID(tests.PyslimTestCase):
         next_id = pyslim.next_slim_mutation_id(rts)
         mts = msprime.sim_mutations(
                 rts,
-                rate=1e-4,
+                rate=3e-4,
                 keep=True,
                 model=msprime.SLiMMutationModel(type=1, next_id=next_id),
+                random_seed=135,
         )
         assert mts.num_mutations > rts.num_mutations
         rrts = helper_functions.run_slim_restart(
@@ -77,10 +108,12 @@ class TestNextMutationID(tests.PyslimTestCase):
                     population_size=10,
                     random_seed=10,
             )
-            mts = msprime.sim_mutations(ts,
+            mts = msprime.sim_mutations(
+                    ts,
                     model="jc69",
                     rate=0.5,
-                    random_seed=23)
+                    random_seed=23,
+            )
             with pytest.raises(ValueError, match="need to be coercible to int"):
                 pyslim.next_slim_mutation_id(mts)
 
@@ -633,25 +666,43 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     pyslim.nucleotide_at(ts, u, 3)
 
     def test_mutation_at(self, recipe):
-        random.seed(42)
+        rng = random.Random(42)
         ts = recipe["ts"]
-        for _ in range(100):
-            node = random.randint(0, ts.num_nodes - 1)
-            pos = random.randint(0, ts.sequence_length - 1)
+        for _ in range(min(10, ts.num_sites)):
+            site = rng.choice(ts.sites())
+            pos = site.position
             tree = ts.at(pos)
-            parent = tree.parent(node)
-            a = pyslim.mutation_at(ts, node, pos)
-            if parent == tskit.NULL:
-                assert a == tskit.NULL
-            else:
-                b = pyslim.mutation_at(ts, parent, pos)
-                c = pyslim.mutation_at(ts, node, pos, ts.node(parent).time)
-                assert b == c
-                for k in np.where(node == ts.tables.mutations.node)[0]:
-                    mut = ts.mutation(k)
-                    if ts.site(mut.site).position == pos:
-                        b = mut.id
-                assert a == b
+            for _ in range(10):
+                node = rng.randint(0, ts.num_nodes - 1)
+                parent = tree.parent(node)
+                if parent != tskit.NULL:
+                    b = pyslim.mutation_at(ts, parent, pos)
+                    c = pyslim.mutation_at(ts, node, pos, ts.node(parent).time)
+                    assert b == c
+                rtime = max([ts.node(r).time for r in tree.roots])
+                ut = (
+                        ts.node(node).time +
+                        (rtime - ts.node(node).time) * rng.random()
+                )
+                for time in [None, ts.node(node).time, ut]:
+                    a = pyslim.mutation_at(ts, node, pos, time=time)
+                    b = naive_mutation_at(ts, node, pos, time=time)
+                    assert a== b
+        for _ in range(min(10, int(ts.sequence_length - ts.num_sites))):
+            pos = rng.choice(list(
+                set(range(int(ts.sequence_length)))
+                - set(ts.sites_position))
+            )
+            tree = ts.at(pos)
+            for _ in range(10):
+                node = rng.randint(0, ts.num_nodes - 1)
+                rtime = max([ts.node(r).time for r in tree.roots])
+                ut = (
+                        ts.node(node).time +
+                        (rtime - ts.node(node).time) * rng.random()
+                )
+                for time in [None, ts.node(node).time, ut]:
+                    assert naive_mutation_at(ts, node, pos, time=time) == -1
 
     def test_nucleotide_at(self, recipe):
         random.seed(42)
@@ -664,7 +715,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 assert len(ts.reference_sequence.data) == ts.sequence_length
                 for _ in range(100):
                     node = random.randint(0, ts.num_nodes - 1)
-                    pos = random.randint(0, ts.sequence_length - 1)
+                    pos = random.randint(0, int(ts.sequence_length) - 1)
                     tree = ts.at(pos)
                     parent = tree.parent(node)
                     a = pyslim.nucleotide_at(ts, node, pos)
