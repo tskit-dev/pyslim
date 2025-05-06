@@ -83,37 +83,37 @@ class TestPopulationSize(tests.PyslimTestCase):
 
     @pytest.mark.parametrize('recipe', [next(recipe_eq("everyone"))], indirect=True)
     def test_errors(self, recipe):
-        ts = recipe["ts"]
-        x_bins = [0, 1.0]
-        y_bins = [0, 1.0]
-        time_bins = [0, 10.0]
-        for stage in ['abcd', 10, []]:
-            with pytest.raises(ValueError):
-                pyslim.population_size(ts, x_bins, y_bins, time_bins, stage=stage)
-            with pytest.raises(ValueError):
-                pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage=stage)
+        for _, ts in recipe["ts"].items():
+            x_bins = [0, 1.0]
+            y_bins = [0, 1.0]
+            time_bins = [0, 10.0]
+            for stage in ['abcd', 10, []]:
+                with pytest.raises(ValueError):
+                    pyslim.population_size(ts, x_bins, y_bins, time_bins, stage=stage)
+                with pytest.raises(ValueError):
+                    pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage=stage)
 
     @pytest.mark.parametrize('recipe', [next(recipe_eq("pedigree", "WF"))], indirect=True)
     def test_mismatched_remembered_stage(self, recipe):
-        ts = recipe["ts"]
-        x_bins = [0, 1.0]
-        y_bins = [0, 1.0]
-        time_bins = [0, 10.0]
-        info = recipe["info"]
-        if "remembered_early" in recipe:
-            with pytest.warns(UserWarning):
-                pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="late")
-        else:
-            with pytest.warns(UserWarning):
-                pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="early")
+        for _, ts in recipe["ts"].items():
+            x_bins = [0, 1.0]
+            y_bins = [0, 1.0]
+            time_bins = [0, 10.0]
+            info = recipe["info"]
+            if "remembered_early" in recipe:
+                with pytest.warns(UserWarning):
+                    pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="late")
+            else:
+                with pytest.warns(UserWarning):
+                    pyslim.population_size(ts, x_bins, y_bins, time_bins, remembered_stage="early")
 
     @pytest.mark.skip("Waiting on next tskit release.")
     @pytest.mark.parametrize('recipe', recipe_eq("everyone"), indirect=True)
     def test_population_size(self, recipe):
         # compare output to the right answer
-        ts = recipe["ts"]
-        remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
-        self.verify(ts, remembered_stage=remembered_stage)
+        for _, ts in recipe["ts"].items():
+            remembered_stage = 'early' if 'remembered_early' in recipe else 'late'
+            self.verify(ts, remembered_stage=remembered_stage)
 
     def test_known_answer(self):
         # a simple example to make sure we've got the edge cases right

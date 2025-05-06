@@ -13,6 +13,9 @@ import os
 # All files are of the form `tests/test_recipes/{key}`
 recipe_specs = {
     "recipe_nonWF.slim":                       {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_X.slim":                     {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_Y.slim":                     {"nonWF": True, "pedigree": True},
+    "recipe_nonWF_H.slim":                     {"nonWF": True, "pedigree": True},
     "recipe_long_nonWF.slim":                  {"nonWF": True, "long": True},
     "recipe_old_nonWF.slim":                   {"nonWF": True, "remembered_first": True},
     "recipe_WF.slim":                          {"WF": True, "pedigree": True},
@@ -36,6 +39,10 @@ recipe_specs = {
     "recipe_retain_sometimes_nonWF_late.slim": {"nonWF": True, "pedigree": True, "retained": True},
     "recipe_retain_unary_nonWF_late.slim":     {"nonWF": True, "pedigree": True, "retained": True, "retainCoalescentOnly": False},
     "recipe_remember_and_retain.slim":         {"nonWF": True, "pedigree": True, "retained": True},
+    "recipe_all_the_chromosome_types.slim":    {"nonWF": True, "pedigree": True, "multichrom": True},
+    "recipe_chromosomes_adds_muts.slim":       {"nonWF": True, "pedigree": True, "multichrom": True, "adds_mutations": True},
+    "recipe_many_chromosomes.slim":            {"nonWF": True, "pedigree": True, "multichrom": True},
+    "recipe_H-_chromosome.slim":               {"nonWF": True, "pedigree": True, "multichrom": True},
 }
 
 for x in ("first", "early", "late"):

@@ -34,23 +34,9 @@ INDIVIDUAL_FLAG_MIGRATED = 0x01
 An individual flag indicating the individual is a migrant.
 """
 
-def _is_chrom_vacant(k, b):
-    # From the SLiM manual on is_vacant:
-    # M bytes (uint8_t): a series of bytes comprising a bitfield of is_vacant
-    # values, true (1) if this node represents a null haplosome for a given
-    # chromosome, false (0) otherwise. For chromosomes with indices 0...N−1, the
-    # chromosome with index k has its is_vacant bit in bit k%8 of byte k/8, where
-    # byte 0 is the first byte in the series of bytes provided, and bit 0 is the
-    # least-significant bit, the one with value 0x01 (hexadecimal 1). The number
-    # of bytes present, M, is equal to (N+7)/8, the minimum number of bytes
-    # necessary. The operators / and % here are integer divide (rounding down)
-    # and integer modulo, respectively.
-    assert len(b) >= (1 + k) / 8
-    b = b[int(k / 8)]
-    i = k % 8
-    return (b >> i & 1) > 0
 
 def _isvacant_num_bytes(num_chromosomes):
+    # see _is_chrom_vacant
     return int((num_chromosomes + 7)/8)
 
 
