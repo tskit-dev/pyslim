@@ -215,7 +215,7 @@ class HelperFunctions:
         else:
             os.mkdir(infile)
             for chrom, ts in in_ts.items():
-                ts.dump(os.path.join(infile, f"chromosome_{chrom}.trees"))
+                ts.dump(os.path.join(infile, f"{chrom}.trees"))
         # for happy windows filepaths       
         infile_str = infile.replace('\\', '\\\\')
         kwargs['TREES_IN'] = infile

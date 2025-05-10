@@ -462,7 +462,7 @@ class TestProvenance(tests.PyslimTestCase):
     def test_file_warnings(self):
         for ts in self.get_0_6_slim_examples():
             with pytest.warns(Warning, match="pyslim.update"):
-                with pytest.raises(KeyError, match="tick"):
+                with pytest.raises(ValueError, match="top-level metadata"):
                     _ = pyslim.recapitate(ts, ancestral_Ne=10)
             with pytest.warns(Warning, match="pyslim.update"):
                 with pytest.raises(KeyError, match="tick"):

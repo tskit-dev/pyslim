@@ -1,16 +1,25 @@
 initialize()
 {
-    setSeed(25);
-    if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
-    // as well as any bespoke TREES_FILE for output, you need to define:
-    //  TREES_IN = path to trees to initialise
+   setSeed(25);
+   if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+   // as well as any bespoke TREES_FILE for output, you need to define:
+   //  TREES_IN = path to trees to initialise
 	defineConstant("L", 1e2);
 	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
-    initializeTreeSeq();
-	initializeAncestralNucleotides(paste0(rep("A", L)));
+   initializeTreeSeq();
+   if (exists("CHROM_TYPE")) {
+     if (CHROM_TYPE == "X" | CHROM_TYPE == "Y" | CHROM_TYPE == "Z" | CHROM_TYPE == "W"
+         | CHROM_TYPE == "HF" | CHROM_TYPE == "HM") {
+        initializeSex();
+     }
+   }
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
-    initializeMutationTypeNuc("m2", 0.5, "n", 0.0, 0.1);
+   initializeMutationTypeNuc("m2", 0.5, "n", 0.0, 0.1);
 	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
+   if (exists("CHROM_TYPE")) {
+      initializeChromosome(1, L, type=CHROM_TYPE, symbol=CHROM_TYPE);
+   }
+	initializeAncestralNucleotides(paste0(rep("A", L)));
 	initializeGenomicElement(g1, 0, L-1);
 	initializeRecombinationRate(1e-2);
 	if (!exists("SUBPOP_MAP")) defineConstant("SUBPOP_MAP", NULL);

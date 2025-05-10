@@ -11,7 +11,6 @@ initialize() {
 	defineConstant("L", 100);	// genome length
 	initializeSex();
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
-	initializeMutationType("m2", 0.5, "n", 0.0, 0.1);
 	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
 	m1.convertToSubstitution = T;
 	
@@ -33,16 +32,6 @@ reproduction(NULL, "F") {
 }
 1 early() {
 	sim.addSubpop("p1", K);
-}
-1: late() {
-    // add *non-nucleotide* mutations also
-    for (chrom in sim.chromosomes) {
-        inds = p1.individuals[p1.individuals.age == 0];
-        haps = inds.haplosomesForChromosomes(chrom, includeNulls=F);
-        if (length(haps) > 0) {
-          sample(haps, 1 + asInteger(length(haps)/2)).addNewDrawnMutation(m2, rdunif(10, 0, L-1));
-        }
-    }
 }
 early() {
 	p1.fitnessScaling = K / p1.individualCount;

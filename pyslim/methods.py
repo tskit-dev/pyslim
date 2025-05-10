@@ -216,7 +216,7 @@ def restore_vacant_tables(tables):
 def recapitate(ts,
                ancestral_Ne=None,
                *,
-               restore_vacant=False,
+               keep_vacant=False,
                **kwargs
     ):
     '''
@@ -246,7 +246,7 @@ def recapitate(ts,
     provided, there will be *no* recombination.
 
     Sample flags from vacant nodes will be removed before recapitating:
-    see {meth}`.remove_vacant`. To restore these, use ``restore_vacant=True``.
+    see {meth}`.remove_vacant`. To restore these, use ``keep_vacant=True``.
     You only need to do this if some individuals are not diploid and
     you will be loading the tree sequence back into SLiM.
 
@@ -254,7 +254,7 @@ def recapitate(ts,
     :param float ancestral_Ne: If specified, then will simulate from a single
         ancestral population of this size. It is an error to specify this
         as well as ``demography``.
-    :param bool restore_vacant: Whether to restore the sample flags on any
+    :param bool keep_vacant: Whether to restore the sample flags on any
         vacant sample nodes. Default: False.
     :param dict kwargs: Any other arguments to :func:`msprime.sim_ancestry`.
     '''
@@ -323,7 +323,7 @@ def recapitate(ts,
                 initial_state = ts,
                 **kwargs)
 
-    if has_vacant and restore_vacant:
+    if has_vacant and keep_vacant:
         recap = restore_vacant(recap)
 
     return recap

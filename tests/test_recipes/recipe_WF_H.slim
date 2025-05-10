@@ -5,12 +5,11 @@ initialize()
     if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
     initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
     initializeTreeSeq();
-	 initializeSex();
 	 initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
 	 initializeMutationType("m2", 0.5, "n", 0.0, 0.1);
 	 initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(8e-2));
     defineConstant("L", 100);
-	 initializeChromosome(1, L, type="X", symbol="X");
+	 initializeChromosome(1, L, type="H", symbol="H");
     initializeGenomicElement(g1, 0, L-1);
     initializeAncestralNucleotides(randomNucleotides(L));
     initializeRecombinationRate(1e-2);

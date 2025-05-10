@@ -197,6 +197,9 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
             md = tables.metadata
             assert 'SLiM' in md
             for k in ts.metadata['SLiM']:
+                print(k)
+                if k in ("chromosomes", "this_chromosome"):
+                    continue  # TODO: see https://github.com/MesserLab/SLiM/issues/520
                 assert k in md['SLiM']
                 # slim does not write out empty descriptions
                 if k != 'description' or ts.metadata['SLiM'][k] != "":
