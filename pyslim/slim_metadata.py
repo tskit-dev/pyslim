@@ -35,7 +35,10 @@ An individual flag indicating the individual is a migrant.
 """
 
 
-def _isvacant_num_bytes(num_chromosomes):
+def is_vacant_num_bytes(num_chromosomes):
+    """
+    TODO document
+    """
     # see _is_chrom_vacant
     return int((num_chromosomes + 7)/8)
 
@@ -46,7 +49,7 @@ def _isvacant_values(vacancy):
 
     :param list vacancy: A list of booleans.
     """
-    out = [0 for _ in _isvacant_num_bytes(len(vacancy))]
+    out = [0 for _ in is_vacant_num_bytes(len(vacancy))]
     powers = [1, 2, 4, 8, 16, 32, 64, 128]
     for k, v in enumerate(vacancy):
         if v:
@@ -349,7 +352,7 @@ _raw_slim_metadata_schemas = {
        "description": "A vector of byte (uint8_t) values, with each bit representing whether the node represents a vacant position, either unused or a null haplosome (1), or a non-null haplosome (0), in the corresponding chromosome. This field encodes vacancy for all of the chromosomes in the model, not just the chromosome represented in this file (so that the node table is identical across all chromosomes for a multi-chromosome model). Each chromosome receives one bit here; there are two node table entries per individual, used for the two haplosomes of every chromosome, so only one bit is needed in each entry (making two bits total per chromosome, across the two node table entries). The least significant bit of the first byte is used first (for one haplosome of the first chromosome); the most significant bit of the last byte is used last. The number of bytes present in this field is indicated by this schema's 'binaryFormat' field, which is variable (!), and can also be deduced from the number of chromosomes in the model as given in the top-level 'chromosomes' metadata key, which should always be present if this metadata is present.",
        "index": 1,
        "type": "array",
-       "length": "%d",  # MUST BE FILLED IN
+       "length": 1,  # MAY NEED TO BE CHANGED (in SLiM code is "%d")
        "items": {
         "type": "number",
         "binaryFormat": "B"
@@ -586,7 +589,7 @@ def slim_node_metadata_schema(num_chromosomes=1):
     # of bytes present, M, is equal to (N+7)/8, the minimum number of bytes
     # necessary. The operators / and % here are integer divide (rounding down)
     # and integer modulo, respectively.
-    num_bytes = _isvacant_num_bytes(num_chromosomes)
+    num_bytes = is_vacant_num_bytes(num_chromosomes)
     schema = _raw_slim_metadata_schemas["node"]
     schema["properties"]["is_vacant"]["length"] = num_bytes
     return tskit.MetadataSchema(schema)
@@ -660,10 +663,9 @@ def default_slim_metadata(name, num_chromosomes=1):
             "nucleotide": -1,
         }
     elif name == "node":
-        # bytes(k) returns k bytes of zeros
         out = {
             "slim_id": tskit.NULL,
-            "is_vacant": [0 for _ in range(_isvacant_num_bytes(num_chromosomes))],
+            "is_vacant": [0 for _ in range(is_vacant_num_bytes(num_chromosomes))],
         }
     elif name == "individual":
         out = {

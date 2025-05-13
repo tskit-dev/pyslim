@@ -3,6 +3,7 @@ root: introduction
 parts:
 - caption: Getting started
   chapters:
+  - file: overview
   - file: installation
 - caption: Using pyslim
   chapters:

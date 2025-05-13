@@ -2,6 +2,54 @@
 UPCOMING
 ***************************
 
+***************************
+[1.1a] - 2025-05-12
+***************************
+
+Major update release to support the release of SLiM v5.0. The main update here
+is support for multiple chromosomes, which entailed a change to the
+node table metadata that records "vacancy" for chromosomes not diploid
+in a given individual. Changes are minimal if you're simulating a single,
+diploid chromosome; for more information see
+https://tskit.dev/pyslim/docs/latest/previous_versions.html
+
+**Breaking changes**:
+
+- SLiM tree sequence file version number has changed to 0.9.
+
+- This is a change in SLiM, really, but top-level SLiM metadata now requires
+    an `"this_chromosome"` entry.
+
+- Similarly, node metadata no longer has `genome_type` or `is_null`; instead
+  they have `is_vacant`, and the chromosome type is in top-level metadata,
+  under `metadata['SLiM']['this_chromosome']`.
+
+- `pyslim.slim_metadata_schemas["node"]` has an appropriate metadata schema
+    for a single-chromosome simulation (not a breaking change), but users
+    wishing to set up a multi-chromosome simulation should use instead
+    `pyslim.slim_node_metadata_schema` (which has the appropriate value in
+    `["properties"]["is_vacant"]["length"]`)
+    (:user:`petrelharp`, :pr:`367`)
+
+**New features**:
+
+- Functions `pyslim.node_is_vacant` and `pyslim.has_vacant_samples`
+    test for vacancy in the current chromosome.
+    (:user:`petrelharp`, :pr:`367`)
+
+- `pyslim.remove_vacant` and `pyslim.restore_vacant`, respectively,
+    remove and restore vacant samples nodes, necessary for recapitation
+    and other operations. Also, corresponding `pyslim.remove_vacant_tables`
+    and `pyslim.restore_vacant_tables`.
+    (:user:`petrelharp`, :pr:`367`)
+
+- `pyslim.recapitate` by default removes the sample flags on vacant nodes,
+    but this behavior is controlled by an argument, `keep_vacant`.
+    (:user:`petrelharp`, :pr:`367`)
+
+- `pyslim.set_metadata_schemas` now includes a `num_chromosomes` argument
+    (:user:`petrelharp`, :pr:`367`)
+
 
 ***************************
 [1.0.4] - 2023-08-01

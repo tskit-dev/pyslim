@@ -25,6 +25,44 @@ tables = ts.tables
 
 # Migrating from previous versions of pyslim
 
+## 1.1
+
+Release 1.1 goes along with SLiM v5, which introduces multichromosome support.
+See TODO ELSEWHERE for a description of the possibility of "vacant" nodes.
+
+1. Most importantly, if your tree sequence contains vacant nodes, these must
+be removed or (better) simply amended to be not marked as samples before certain
+operations, including computing statistics or recapitation.
+To do this, you might do
+```{code-cell}
+removed_vacant = pyslim.has_vacant_samples(ts)
+if removed_vacant:
+    ts = pyslim.remove_vacant(ts)
+```
+Note that this does not remove the vacant nodes from the tree sequence, it just
+removes them from the *sample*, which will make them invisible to most operations.
+However, if you use {func}`.recapitate` then this is unnecessary, because
+**{func}`.recapitate` does this for you.**
+
+2. If you *have* removed vacant samples and you wish to reload the tree seqeuence
+into SLiM, you'll have to reverse this, like
+```{code-cell}
+if removed_vacant:
+    ts = pyslim.restore_vacant(ts)
+```
+Note that `remove_vacant` and `restore_vacant` are harmless on tree sequences
+without vacant nodes; they're just wrapped in `if` statements to avoid the extra
+overhead if not needed.
+
+3. Replace `node.metadata["is_null"]` with `node.metadata["is_vacant"][0] > 0`.
+(Previously, `is_null` contained a boolean; now it contains a list of ints;
+for a single-chromosome simulation this will be a single int that will be
+either 0 (if vacant) or 1 (if not).
+
+4. Instead of checking `node.metadata["genome_type"]`, instead consult
+`ts.metadata["SLiM"]["this_chromosome"]["type"]`. (It was previously redundant
+to have a separate "genome type" entry for every node, anyhow.)
+
 ## 1.0
 
 The pyslim 1.0 release coincides with that of SLiM v4,
