@@ -6,11 +6,10 @@ channels:
 dependencies:
   - tskit>=0.6.3
   - msprime>=1.2.0
-  - matplotlib==3.5.0
+  - matplotlib==3.10.3
   - pandas
   - numpy
-  - flake8==3.8.4
-  - pytest==6.2.5
-  - pytest-cov==2.10.1
-  - pytest-xdist==2.5.0
+  - pytest==8.3.5
+  - pytest-cov==6.1.1
+  - pytest-xdist==3.6.1
   - filelock

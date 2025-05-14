@@ -1,6 +1,6 @@
 flake8==7.1.2
 pytest==8.3.5
-pytest-cov==6.0.0
+pytest-cov==6.1.1
 pytest-xdist==3.6.1
 numpy
 filelock
