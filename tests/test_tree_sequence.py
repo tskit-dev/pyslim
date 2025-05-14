@@ -1075,14 +1075,17 @@ class TestDeprecations(tests.PyslimTestCase):
 class TestVacancy(tests.PyslimTestCase):
 
     def vacancy_values(self, node):
-        b = node.metadata['is_vacant']
-        out = []
-        powers = [1, 2, 4, 8, 16, 32, 64, 128]
-        for bb in b:
-            x = []
-            for p in powers:
-                x.append(bb & p > 0)
-            out.extend(x)
+        if node.metadata is None:
+            out = None
+        else:
+            b = node.metadata['is_vacant']
+            out = []
+            powers = [1, 2, 4, 8, 16, 32, 64, 128]
+            for bb in b:
+                x = []
+                for p in powers:
+                    x.append(bb & p > 0)
+                out.extend(x)
         return out
 
     def get_vacant_samples(self, ts):
@@ -1090,7 +1093,8 @@ class TestVacancy(tests.PyslimTestCase):
         is_vacant = np.full(ts.num_nodes, False)
         for j, n in enumerate(ts.nodes()):
             v = self.vacancy_values(n)
-            is_vacant[j] = v[k] and n.is_sample()
+            isv = v is not None and v[k]
+            is_vacant[j] = isv and n.is_sample()
         return np.where(is_vacant)[0]
 
     def verify_remove_vacant(self, ts, rts):
@@ -1141,10 +1145,29 @@ class TestVacancy(tests.PyslimTestCase):
         ts = pyslim.remove_vacant(ts)
         tables = ts.dump_tables()
         md = tables.metadata
-        del md['pyslim']["vacant_sample_nodes"]
+        del md["pyslim"]["vacant_sample_nodes"]
         tables.metadata = md
         with pytest.raises(ValueError, match="not found in metadata"):
             pyslim.restore_vacant(tables.tree_sequence())
+
+    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
+    def test_restore_vacant_bad_nodes(self, recipe):
+        ts = list(recipe["ts"].values())[0]
+        tables = ts.dump_tables()
+        md = tables.metadata
+        md["pyslim"] = {"vacant_sample_nodes": ts.samples().tolist()}
+        tables.metadata = md
+        with pytest.raises(ValueError, match="is not vacant"):
+            _ = pyslim.restore_vacant(tables.tree_sequence())
+        k = ts.samples()[-1]
+        tables.nodes.clear()
+        for n in ts.nodes():
+            md = n.metadata
+            if n.id in ts.samples():
+                md = None
+            tables.nodes.append(n.replace(metadata=md))
+        with pytest.raises(ValueError, match="has no metadata"):
+            _ = pyslim.restore_vacant(tables.tree_sequence())
 
     @pytest.mark.parametrize('recipe', [next(recipe_eq("multichrom"))], indirect=True)
     def test_multiple_remove_vacant_warning(self, recipe):
@@ -1159,13 +1182,39 @@ class TestVacancy(tests.PyslimTestCase):
             if chrom_type != "A":
                 assert pyslim.has_vacant_samples(ts)
 
+    def test_has_vacant_msprime(self):
+        ts = msprime.sim_ancestry(
+                4,
+                sequence_length=10,
+                population_size=10,
+                random_seed=10,
+        )
+        with pytest.raises(ValueError, match="top-level metadata"):
+            _ = pyslim.has_vacant_samples(ts)
+        tables = ts.dump_tables()
+        tables.metadata_schema = tskit.MetadataSchema({'codec': 'json'})
+        tables.metadata = {}
+        with pytest.raises(ValueError, match="top-level metadata"):
+            _ = pyslim.has_vacant_samples(ts)
+        md = pyslim.default_slim_metadata("tree_sequence")
+        del md["SLiM"]["this_chromosome"]
+        tables.metadata = md
+        with pytest.raises(ValueError, match="top-level metadata"):
+            _ = pyslim.has_vacant_samples(ts)
+        tables.metadata_schema = pyslim.slim_metadata_schemas["tree_sequence"]
+        md = pyslim.default_slim_metadata("tree_sequence")
+        tables.metadata = md
+        tables.nodes.metadata_schema = pyslim.slim_metadata_schemas["node"]
+        assert not pyslim.has_vacant_samples(tables.tree_sequence())
+
     def test_node_is_vacant(self, recipe):
         num_chromosomes = len(recipe["ts"])
         for _, ts in recipe["ts"].items():
             k = ts.metadata["SLiM"]["this_chromosome"]["index"]
             for node in ts.nodes():
                 v = self.vacancy_values(node)
-                assert v[k] == pyslim.node_is_vacant(ts, node)
+                isv = v is not None and v[k]
+                assert isv == pyslim.node_is_vacant(ts, node)
                 for j in range(num_chromosomes, len(v)):
                     assert not v[j]
 
@@ -1193,6 +1242,23 @@ class TestVacancy(tests.PyslimTestCase):
             self.verify_remove_vacant(ts, rts)
             rrts = pyslim.restore_vacant(rts)
             self.verify_restore_vacant(ts, rrts)
+
+    def test_recapitate_keeps_vacant(self, recipe):
+        for chrom, ts in recipe["ts"].items():
+            before = pyslim.has_vacant_samples(ts)
+            recap_ts = self.do_recapitate(
+                        ts,
+                        recombination_rate=1e-8,
+                        ancestral_Ne=100,
+                        random_seed=875,
+                        keep_vacant=True,
+            )
+            assert before == pyslim.has_vacant_samples(recap_ts)
+            # now check we can remove and restore
+            rts = pyslim.remove_vacant(recap_ts)
+            self.verify_remove_vacant(recap_ts, rts)
+            rrts = pyslim.restore_vacant(rts)
+            self.verify_restore_vacant(recap_ts, rrts)
 
     @pytest.mark.parametrize('recipe', recipe_eq("multichrom"), indirect=True)
     def test_remove_restore_vacant_tables(self, recipe):

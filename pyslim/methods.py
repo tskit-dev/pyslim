@@ -48,7 +48,11 @@ def _chromosome_index(ts):
 
     :param tskit.TreeSequence ts: The tree sequence or table collection.
     """
-    if 'SLiM' not in ts.metadata or 'this_chromosome' not in ts.metadata['SLiM']:
+    if not (
+          isinstance(ts.metadata, dict)
+          and 'SLiM' in ts.metadata
+          and 'this_chromosome' in ts.metadata['SLiM']
+       ):
         raise ValueError("The tree sequence does not have the necessary "
                          "information in top-level metadata.")
     k = ts.metadata['SLiM']['this_chromosome']['index']

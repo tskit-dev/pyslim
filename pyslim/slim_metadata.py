@@ -43,20 +43,20 @@ def is_vacant_num_bytes(num_chromosomes):
     return int((num_chromosomes + 7)/8)
 
 
-def _isvacant_values(vacancy):
-    """
-    Returns the correct is_vacant metadata for the given vacancy pattern.
-
-    :param list vacancy: A list of booleans.
-    """
-    out = [0 for _ in is_vacant_num_bytes(len(vacancy))]
-    powers = [1, 2, 4, 8, 16, 32, 64, 128]
-    for k, v in enumerate(vacancy):
-        if v:
-            n = k % 8
-            m = int(k / 8)
-            out[m] += powers[n]
-    return out
+# def _isvacant_values(vacancy):
+#     """
+#     Returns the correct is_vacant metadata for the given vacancy pattern.
+# 
+#     :param list vacancy: A list of booleans.
+#     """
+#     out = [0 for _ in is_vacant_num_bytes(len(vacancy))]
+#     powers = [1, 2, 4, 8, 16, 32, 64, 128]
+#     for k, v in enumerate(vacancy):
+#         if v:
+#             n = k % 8
+#             m = int(k / 8)
+#             out[m] += powers[n]
+#     return out
 
 
 # These are copied from slim_globals.cpp, modified to be python not json
@@ -1284,10 +1284,11 @@ def update_tables(tables):
             tables.nodes.clear()
             if nodes.metadata_schema == tskit.MetadataSchema(None):
                 nodes.metadata_schema = old_schema
-            if "chromosomes" in tables.metadata:
-                num_chroms = len(tables.metadata["chromosomes"])
-            else:
-                num_chroms = 1
+            assert "chromosomes" not in tables.metadata
+            # if chromosomes was in metadata
+            # we should use its length to get num_chroms,
+            # but old file versions did not have this.
+            num_chroms = 1
             new_schema = slim_node_metadata_schema(num_chroms)
             tables.nodes.metadata_schema = new_schema
             not_vacant = [0]  # single chromosome
@@ -1310,25 +1311,29 @@ def update_tables(tables):
             # flags for node genome type pre-0.9:
             # confusingly and sub-optimally, these were redundant:
             # all non-null nodes in the same sim would have the same genome type
-            print("GT", gt)
             assert gt is not None
             GENOME_TYPE_AUTOSOME = 0
             GENOME_TYPE_X = 1
             GENOME_TYPE_Y = 2
             top_md = tables.metadata
             i = top_md['SLiM']['this_chromosome']['index']
+            # 'chromosomes' is not required so won't be inserted,
+            # so we won't update it also
+            assert "chromosomes" not in top_md['SLiM']['this_chromosome'], (""
+                    "This is an unexpected result: if you hit this, "
+                    "please file a bug at "
+                    "https://github.com/tskit-dev/pyslim.")
             if gt == GENOME_TYPE_X:
                 top_md['SLiM']['this_chromosome']['type'] = "X"
                 top_md['SLiM']['this_chromosome']['symbol'] = "X"
-                if "chromosomes" in tables.metadata['SLiM']:
-                    top_md['SLiM']['chromosomes'][i]['type'] = "X"
-                    top_md['SLiM']['chromosomes'][i]['symbol'] = "X"
+                # if "chromosomes" in tables.metadata['SLiM']:
+                #     top_md['SLiM']['chromosomes'][i]['type'] = "X"
+                #     top_md['SLiM']['chromosomes'][i]['symbol'] = "X"
             elif gt == GENOME_TYPE_Y:
                 top_md['SLiM']['this_chromosome']['type'] = "-Y"
                 top_md['SLiM']['this_chromosome']['symbol'] = "Y"
-                if "chromosomes" in tables.metadata['SLiM']:
-                    top_md['SLiM']['chromosomes'][i]['type'] = "-Y"
-                    top_md['SLiM']['chromosomes'][i]['symbol'] = "Y"
+                #     top_md['SLiM']['chromosomes'][i]['type'] = "Y"
+                #     top_md['SLiM']['chromosomes'][i]['symbol'] = "Y"
             else:
                 assert gt == GENOME_TYPE_AUTOSOME
             tables.metadata = top_md
