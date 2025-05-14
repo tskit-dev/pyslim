@@ -28,7 +28,7 @@ tables = ts.tables
 ## 1.1
 
 Release 1.1 goes along with SLiM v5, which introduces multichromosome support.
-See TODO ELSEWHERE for a description of the possibility of "vacant" nodes.
+See [](sec_overview_vacant_nodes) for a description of the possibility of "vacant" nodes.
 
 1. Most importantly, if your tree sequence contains vacant nodes, these must
 be removed or (better) simply amended to be not marked as samples before certain
@@ -170,7 +170,8 @@ was implemented in {ref}`tskit itself <tskit:sec_metadata>`,
 and so pyslim shifted to using the tskit-native metadata tools.
 As a result, parsed metadata is provided as a dictionary instead of an object,
 so that now ``n.metadata`` would be a dict,
-with entries ``n.metadata["slim_id"]`` and ``n.metadata["is_null"]`` and ``n.metadata["genome_type"]``.
+with entries ``n.metadata["slim_id"]`` and ``n.metadata["is_vacant"]``
+(previously, ``n.metadata["is_null"]`` and ``n.metadata["genome_type"]``).
 Annotation should be done with tskit methods (e.g., ``packset_metadata``).
 
 .. note::
@@ -234,7 +235,7 @@ to contain the (encoded) metadata in the list ``metadata``.
 Now, this could be done as follows (where now ``metadata`` is a list of metadata dicts):
 
 ```{code-cell}
-metadata = [ {'slim_id': k, 'is_null': False, 'genome_type': 0}
+metadata = [ {'slim_id': k, 'is_vacant': [0]}
             for k in range(tables.nodes.num_rows) ]
 nms = tables.nodes.metadata_schema
 tables.nodes.packset_metadata(
@@ -255,5 +256,3 @@ a list of sexes of the individuals in the IndividualTable.
    However, the legacy code will disappear at some point in the future,
    so please migrate over scripts you intend to rely on.
 :::
-=======
->>>>>>> 483184a (deprecation start)

@@ -4,7 +4,7 @@ channels:
   - anaconda
   - defaults
 dependencies:
-  - tskit>=0.5.2
+  - tskit>=0.6.3
   - msprime>=1.2.0
   - matplotlib==3.5.0
   - pandas

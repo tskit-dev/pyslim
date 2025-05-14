@@ -11,31 +11,31 @@ pedigree01.png : pedigree0.png pedigree1.png
 
 pedigree0.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
-		ts_indivs simp_indivs extra_indivs extra_pedigree pedigree nonhap_pedigree simp_pedigree \
+		ts_indivs simp_indivs extra_indivs extra_pedigree pedigree nonhap_pedigree simp_pedigree nonhap_simp_pedigree \
 		remember_pedigree chromosomes nonhap_chromosomes simplify_removes nonhap_simplify_removes extra_chromosomes label0 \
 		> $@
 
 pedigree1.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
-		time_label ts_indivs simp_indivs pedigree nonhap_pedigree simp_pedigree \
+		time_label ts_indivs simp_indivs pedigree nonhap_pedigree simp_pedigree nonhap_simp_pedigree \
 		chromosomes nonhap_chromosomes simplify_removes nonhap_simplify_removes label1 \
 		> $@
 
 pedigree2.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
-		time_label ts_indivs simp_indivs pedigree nonhap_pedigree simp_pedigree \
+		time_label ts_indivs simp_indivs pedigree nonhap_pedigree simp_pedigree nonhap_simp_pedigree \
 		chromosomes nonhap_chromosomes simplify_removes nonhap_simplify_removes sample_labels node_labels \
 		> $@
 
 pedigree_hap.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
-		time_label ts_indivs simp_indivs pedigree simp_pedigree \
+		time_label ts_indivs simp_indivs pedigree simp_pedigree nonhap_simp_pedigree \
 		chromosomes simplify_removes haploids hap_labels \
 		> $@
 
 pedigree_recapitate.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
-		tskit_time ts_indivs simp_indivs pedigree nonhap_pedigree simp_pedigree recap_pedigree \
+		tskit_time ts_indivs simp_indivs pedigree nonhap_pedigree simp_pedigree nonhap_simp_pedigree recap_pedigree \
 		chromosomes nonhap_chromosomes recap_chromosomes simplify_removes nonhap_simplify_removes recap_label \
 		> $@
 
@@ -54,7 +54,7 @@ pedigree_mutate.svg : pedigrees.ink.svg
 
 pedigree_remember.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
-		ts_indivs simp_indivs remember_indivs pedigree nonhap_pedigree simp_pedigree remember_pedigree \
+		ts_indivs simp_indivs remember_indivs pedigree nonhap_pedigree simp_pedigree nonhap_simp_pedigree remember_pedigree \
 		chromosomes nonhap_chromosomes simplify_removes nonhap_simplify_removes sample_labels remember_labels \
 		> $@
 

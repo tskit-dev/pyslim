@@ -29,7 +29,6 @@ warnings.simplefilter('ignore', msprime.TimeUnitsMismatchWarning)
 ```
 
 
-
 # Tutorial
 
 This tutorial covers the most common uses of tree sequences in SLiM/pyslim.
@@ -741,6 +740,36 @@ print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} dis
 ```
 
 
+## Vacant nodes
+
+As discussed in [the Overview](sec_overview_vacant_nodes),
+if not all individuals have two copies of the chromosome stored in the tree sequence,
+then some nodes will be *vacant*,
+which means they are merely a placeholder and don't represent actual genetic material.
+The presence of these nodes can cause problems.
+For instance, running an msprime simulation backwards from 
+a tree sequence with vacant sample nodes
+(as in {numref}`figure {number} <pedigree_hap>` of the Overview)
+would also simulate ancestry of the vacant nodes.
+For this reason, {func}`.recapitate` removes these nodes
+from the sample before running msprime,
+which makes it so their ancestry will not be simulated.
+Similarly, at present {ref}`statistics in tskit<tskit:sec_stats>`
+do not account for missing data, so will return incorrect results
+if these vacant nodes are not removed from the sample.
+
+To be clear, the vacant nodes will still be present,
+just not marked as samples (i.e., with the ``tskit.NODE_IS_SAMPLE``
+flag removed from their node flags).
+Once they are not part of the sample,
+they are essentially invisible to most operations.
+However, it is helpful to know that they are there.
+Why not remove them entirely, e.g., with ``simplify()``?
+Two reasons: first, if you wish to read the tree sequence back into SLiM
+then you'll need them there,
+and can put them back in the sample with {func}`.restore_vacant`.
+
+
 ## Historical individuals
 
 As we've seen, a basic tree sequence output by SLiM only contains the currently alive
@@ -762,7 +791,9 @@ scale: 40%
 align: right
 name: pedigree_remember
 ---
-CAPTION TODO
+Individuals not alive in the last generation may still be present in the tree sequence
+if they are either remembered permanently (purple),
+or simply retained with ``permanent=F`` (dotted circle).
 ```
 
 

@@ -6,7 +6,7 @@
    version="1.1"
    id="svg8"
    inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
-   sodipodi:docname="output.pKRK4hcjX.svg"
+   sodipodi:docname="output.0PsSEBE3S.svg"
    inkscape:export-filename="/tmp/pedigree_remember.png"
    inkscape:export-xdpi="299.84"
    inkscape:export-ydpi="299.84"
@@ -426,11 +426,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.1371864"
-     inkscape:cx="205.17631"
-     inkscape:cy="277.93552"
+     inkscape:zoom="5.0080051"
+     inkscape:cx="196.48542"
+     inkscape:cy="342.25205"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer16"
+     inkscape:current-layer="layer29"
      showgrid="false"
      inkscape:window-width="2256"
      inkscape:window-height="1435"
@@ -582,22 +582,6 @@
        d="M 68.649927,77.320211 68.45264,58.523434"
        style="fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        sodipodi:nodetypes="cc"
-       inkscape:export-xdpi="299.84"
-       inkscape:export-ydpi="299.84" />
-  </g>
-  <g
-     inkscape:groupmode="layer"
-     id="layer17"
-     inkscape:label="simp_pedigree"
-     style="display:inline"
-     transform="translate(-3.1293869e-7,31.38454)">
-    <path
-       transform="translate(-49.269235,-53.027503)"
-       sodipodi:nodetypes="cc"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 68.649927,131.8244 52.491445,117.03608"
-       id="path1514"
-       inkscape:connector-curvature="0"
        inkscape:export-xdpi="299.84"
        inkscape:export-ydpi="299.84" />
   </g>
@@ -779,15 +763,6 @@
        inkscape:connector-curvature="0"
        transform="translate(-14.608277,-16.118332)" />
     <path
-       transform="translate(-14.608277,-16.118333)"
-       inkscape:connector-curvature="0"
-       id="path1516"
-       d="M 68.649924,131.8244 56.507438,115.42968"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       sodipodi:nodetypes="cc"
-       inkscape:export-xdpi="299.84"
-       inkscape:export-ydpi="299.84" />
-    <path
        sodipodi:nodetypes="cc"
        style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="M 68.825028,114.65195 72.836013,96.389129"
@@ -796,15 +771,6 @@
        inkscape:export-xdpi="299.84"
        inkscape:export-ydpi="299.84"
        transform="translate(-14.608277,-16.118332)" />
-    <path
-       transform="translate(-14.608277,-16.118333)"
-       inkscape:connector-curvature="0"
-       id="path1556"
-       d="M 69.574269,116.42004 68.867262,99.22395"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       sodipodi:nodetypes="cc"
-       inkscape:export-xdpi="299.84"
-       inkscape:export-ydpi="299.84" />
     <path
        inkscape:connector-curvature="0"
        id="path1510"
@@ -841,6 +807,38 @@
        inkscape:export-xdpi="299.84"
        inkscape:export-ydpi="299.84"
        transform="translate(-14.608277,-16.118332)" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer17"
+     inkscape:label="simp_pedigree"
+     style="display:inline"
+     transform="translate(-3.1293869e-7,31.38454)">
+    <path
+       transform="translate(-49.269235,-53.027503)"
+       sodipodi:nodetypes="cc"
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 68.649927,131.8244 52.491445,117.03608"
+       id="path1514"
+       inkscape:connector-curvature="0"
+       inkscape:export-xdpi="299.84"
+       inkscape:export-ydpi="299.84" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer29"
+     inkscape:label="nonhap_simp_pedigree"
+     style="display:inline"
+     transform="translate(-34.660958,-5.52463)">
+    <path
+       transform="translate(-14.608277,-16.118333)"
+       inkscape:connector-curvature="0"
+       id="path1556"
+       d="M 69.574269,116.42004 68.867262,99.22395"
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       sodipodi:nodetypes="cc"
+       inkscape:export-xdpi="299.84"
+       inkscape:export-ydpi="299.84" />
     <path
        transform="translate(-14.608277,-16.118333)"
        inkscape:connector-curvature="0"
@@ -857,6 +855,15 @@
        d="M 72.883257,131.8244 72.694269,115.94939"
        id="path1520"
        inkscape:connector-curvature="0"
+       inkscape:export-xdpi="299.84"
+       inkscape:export-ydpi="299.84" />
+    <path
+       transform="translate(-14.608277,-16.118333)"
+       inkscape:connector-curvature="0"
+       id="path1516"
+       d="M 68.649924,131.8244 56.507438,115.42968"
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       sodipodi:nodetypes="cc"
        inkscape:export-xdpi="299.84"
        inkscape:export-ydpi="299.84" />
   </g>

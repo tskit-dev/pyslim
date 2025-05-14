@@ -1,9 +1,5 @@
 ***************************
-UPCOMING
-***************************
-
-***************************
-[1.1a] - 2025-05-12
+UPCOMING: [1.1a]
 ***************************
 
 Major update release to support the release of SLiM v5.0. The main update here
