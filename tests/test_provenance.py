@@ -459,6 +459,12 @@ class TestProvenance(tests.PyslimTestCase):
                 if t.parent(u) != tskit.NULL:
                     assert t.branch_length(u) == pt.branch_length(u)
 
+    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
+    def test_current_format(self, recipe):
+        for _, ts in recipe["ts"].items():
+            uts  = pyslim.update(ts)
+            ts.tables.assert_equals(uts.tables)
+
     def test_file_warnings(self):
         for ts in self.get_0_6_slim_examples():
             with pytest.warns(Warning, match="pyslim.update"):
