@@ -1,5 +1,5 @@
 ***************************
-UPCOMING: [1.1a]
+UPCOMING: [1.1]
 ***************************
 
 Major update release to support the release of SLiM v5.0. The main update here
