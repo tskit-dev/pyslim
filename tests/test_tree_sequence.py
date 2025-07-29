@@ -1279,3 +1279,29 @@ class TestVacancy(tests.PyslimTestCase):
             self.verify_restore_vacant(ts, r_rts)
             rr_rts = pyslim.restore_vacant(r_rts)
             self.verify_restore_vacant(ts, rr_rts)
+
+
+class TestFlags(tests.PyslimTestCase):
+
+    def test_flags_types(self):
+        # they should be unsigned so this should be true
+        assert ~pyslim.INDIVIDUAL_ALIVE > 0
+        assert ~pyslim.INDIVIDUAL_REMEMBERED > 0
+        assert ~pyslim.INDIVIDUAL_RETAINED > 0
+
+    @pytest.mark.parametrize('recipe', [next(recipe_eq("multichrom"))], indirect=True)
+    def test_alive_not_alive(self, recipe):
+        for flag in (pyslim.INDIVIDUAL_ALIVE, pyslim.INDIVIDUAL_REMEMBERED, pyslim.INDIVIDUAL_RETAINED):
+            yes = None
+            no = None
+            for _, ts in recipe["ts"].items():
+                this_yes, = np.where(ts.individuals_flags & flag > 0)
+                this_no,  = np.where(ts.individuals_flags & ~flag > 0)
+                if yes is None:
+                    yes = this_yes
+                else:
+                    assert np.all(yes == this_yes)
+                if no is None:
+                    no = this_no
+                else:
+                    assert np.all(no == this_no)

@@ -10,17 +10,17 @@ from .provenance import *
 from .util import *
 from .slim_metadata import _old_metadata_schema
 
-INDIVIDUAL_ALIVE = 2**16
+INDIVIDUAL_ALIVE = np.uint32(2**16)
 """
 Used in ``individual.flags`` to denote the individual is alive
 when the tree sequence was written out.
 """
-INDIVIDUAL_REMEMBERED = 2**17
+INDIVIDUAL_REMEMBERED = np.uint32(2**17)
 """
 Used in ``individual.flags`` to denote the individual was
 marked as "remembered".
 """
-INDIVIDUAL_RETAINED = 2**18
+INDIVIDUAL_RETAINED = np.uint32(2**18)
 """
 Used in ``individual.flags`` to denote the individual was
 marked as "retained".
