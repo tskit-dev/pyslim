@@ -47,6 +47,15 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
     (:user:`petrelharp`, :pr:`367`)
 
 
+**Bugfixes**:
+
+- The individual flags `INDIVIDUAL_ALIVE`, `INDIVIDUAL_REMEMBERED`,
+    and `INDIVIDUAL_RETAINED` were signed integers, but the flags in the
+    individual table they apply to are unsigned, so using the
+    bitwise negation operator `~` could result in an error. Now,
+    they are np.uint32 values. (:user:`petrelharp`, :pr:`378`)
+
+
 ***************************
 [1.0.4] - 2023-08-01
 ***************************
