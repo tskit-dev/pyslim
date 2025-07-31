@@ -14,7 +14,7 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
 - SLiM tree sequence file version number has changed to 0.9.
 
 - This is a change in SLiM, really, but top-level SLiM metadata now requires
-    an `"this_chromosome"` entry.
+    a `"this_chromosome"` entry.
 
 - Similarly, node metadata no longer has `genome_type` or `is_null`; instead
   they have `is_vacant`, and the chromosome type is in top-level metadata,
@@ -54,6 +54,14 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
     individual table they apply to are unsigned, so using the
     bitwise negation operator `~` could result in an error. Now,
     they are np.uint32 values. (:user:`petrelharp`, :pr:`378`)
+
+- Recapitation on tree sequences with null genomes would attempt to simulate
+    the history of those null genomes; this would in all but exceptional cases
+    fail with an error ("not all roots are at the time expected"). Now, null
+    genomes are "vacant" (see above) and `recapitate` removes their
+    sample flags before recapitating (and optionally puts them back)
+    as described above (:user: `petrelharp`, :pr:`367`)
+    
 
 
 ***************************
