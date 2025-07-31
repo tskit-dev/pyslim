@@ -291,7 +291,7 @@ def recapitate(ts,
                 "Not all roots of the provided tree sequence are at the time expected "
                 "by recapitate(). This could happen if you've simplified in "
                 "python before recapitating (fix: don't simplify first). "
-                "If could also happen in other situations, e.g., "
+                "It could also happen in other situations, e.g., "
                 "you added new individuals without parents in SLiM "
                 "during the course of the simulation with sim.addSubPop(), "
                 "in which case you will probably need to recapitate with "
