@@ -29,7 +29,7 @@ pedigree2.svg : pedigrees.ink.svg
 
 pedigree_hap.svg : pedigrees.ink.svg
 	./export-layers-svg.sh $< \
-		time_label ts_indivs simp_indivs pedigree simp_pedigree nonhap_simp_pedigree \
+		time_label ts_indivs simp_indivs pedigree simp_pedigree \
 		chromosomes simplify_removes haploids hap_labels \
 		> $@
 
