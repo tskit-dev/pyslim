@@ -121,7 +121,10 @@ def _record_vacant_tables(tables):
 
     :param tskit.TableCollection tables: The table collection.
     """
+    print("HELLO")
+    print(tables.nodes.flags & NODE_IS_VACANT_SAMPLE > 0)
     if np.any(tables.nodes.flags & NODE_IS_VACANT_SAMPLE):
+        print("WARNING WARNING")
         warnings.warn("Some nodes are already flagged as vacant samples, and these "
                       "flags are being overwritten; this may mean you've already run "
                       "remove_vacant and so don't need to run it again.")

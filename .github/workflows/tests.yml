@@ -11,10 +11,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: [3.9, 3.12]
-        os: [macos-latest, ubuntu-24.04, windows-latest]
-        sys: [mingw64, ucrt64]
-        env: [x86_64, ucrt-x86_64]
+        python: [3.9]
+        os: [windows-latest]
+        sys: [mingw64]
+        env: [x86_64]
         exclude:
           - os: macos-latest
             sys: ucrt64
@@ -111,7 +111,7 @@ jobs:
             --cov-branch \
             --cov-report=term-missing \
             --cov-report=xml \
-            tests
+            tests/test_tree_sequence.py::TestVacancy::test_multiple_remove_vacant_warning[recipe_all_the_chromosome_types.slim]
 
 
       - name: upload coverage report to codecov
