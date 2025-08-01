@@ -1099,11 +1099,9 @@ class TestVacancy(tests.PyslimTestCase):
 
     def verify_remove_vacant(self, ts, rts):
         vacant_samples = self.get_vacant_samples(ts)
-        assert np.all(
-                vacant_samples == rts.metadata["pyslim"]["vacant_sample_nodes"]
-        )
         for node in rts.nodes():
             assert not (pyslim.node_is_vacant(rts, node) and (node.is_sample() == 1))
+            assert (node.id in vacant_samples) == (node.flags & pyslim.NODE_IS_VACANT_SAMPLE > 0)
 
     def verify_restore_vacant(self, ts, rrts):
         vacant_samples = self.get_vacant_samples(ts)
@@ -1134,36 +1132,22 @@ class TestVacancy(tests.PyslimTestCase):
         with pytest.raises(ValueError, match="in top-level metadata"):
             pyslim.remove_vacant(tables.tree_sequence())
 
-    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
-    def test_restore_vacant_errors(self, recipe):
-        ts = list(recipe["ts"].values())[0]
-        # no pyslim key
-        assert 'pyslim' not in ts.metadata
-        with pytest.raises(ValueError, match="not found in metadata"):
-            pyslim.restore_vacant(ts)
-        # no pyslim > vacant_sample_nodes key
-        ts = pyslim.remove_vacant(ts)
-        tables = ts.dump_tables()
-        md = tables.metadata
-        del md["pyslim"]["vacant_sample_nodes"]
-        tables.metadata = md
-        with pytest.raises(ValueError, match="not found in metadata"):
-            pyslim.restore_vacant(tables.tree_sequence())
-
-    @pytest.mark.parametrize('recipe', [next(recipe_eq())], indirect=True)
+    @pytest.mark.parametrize('recipe', [next(recipe_eq("Y"))], indirect=True)
     def test_restore_vacant_bad_nodes(self, recipe):
-        ts = list(recipe["ts"].values())[0]
+        ts = pyslim.remove_vacant(list(recipe["ts"].values())[0])
         tables = ts.dump_tables()
-        md = tables.metadata
-        md["pyslim"] = {"vacant_sample_nodes": ts.samples().tolist()}
-        tables.metadata = md
+        tables.nodes.clear()
+        for n in ts.nodes():
+            flags = n.flags
+            if n.id in ts.samples():
+                flags |= pyslim.NODE_IS_VACANT_SAMPLE
+            tables.nodes.append(n.replace(flags=flags))
         with pytest.raises(ValueError, match="is not vacant"):
             _ = pyslim.restore_vacant(tables.tree_sequence())
-        k = ts.samples()[-1]
         tables.nodes.clear()
         for n in ts.nodes():
             md = n.metadata
-            if n.id in ts.samples():
+            if n.flags & pyslim.NODE_IS_VACANT_SAMPLE > 0:
                 md = None
             tables.nodes.append(n.replace(metadata=md))
         with pytest.raises(ValueError, match="has no metadata"):
@@ -1173,7 +1157,7 @@ class TestVacancy(tests.PyslimTestCase):
     def test_multiple_remove_vacant_warning(self, recipe):
         ts = list(recipe["ts"].values())[0]
         rts = pyslim.remove_vacant(ts)
-        with pytest.warns(UserWarning, match="already exists"):
+        with pytest.warns(UserWarning, match="already run remove_vacant"):
             _ = pyslim.remove_vacant(rts)
 
     def test_has_vacant_samples(self, recipe):
@@ -1217,24 +1201,6 @@ class TestVacancy(tests.PyslimTestCase):
                 assert isv == pyslim.node_is_vacant(ts, node)
                 for j in range(num_chromosomes, len(v)):
                     assert not v[j]
-
-    def verify_remove_vacant(self, ts, rts):
-        vacant_samples = self.get_vacant_samples(ts)
-        assert np.all(
-                vacant_samples == rts.metadata["pyslim"]["vacant_sample_nodes"]
-        )
-        for node in rts.nodes():
-            assert not (pyslim.node_is_vacant(rts, node) and (node.is_sample() == 1))
-
-    def verify_restore_vacant(self, ts, rrts):
-        vacant_samples = self.get_vacant_samples(ts)
-        rr_vacant_samples = self.get_vacant_samples(rrts)
-        assert np.all(vacant_samples == rr_vacant_samples)
-        ts.tables.assert_equals(
-                rrts.tables,
-                ignore_ts_metadata=True,
-                ignore_provenance=True,
-        )
 
     def test_remove_restore_vacant(self, recipe):
         for _, ts in recipe["ts"].items():
