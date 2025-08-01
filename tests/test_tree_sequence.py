@@ -1157,7 +1157,7 @@ class TestVacancy(tests.PyslimTestCase):
     def test_multiple_remove_vacant_warning(self, recipe):
         ts = list(recipe["ts"].values())[0]
         rts = pyslim.remove_vacant(ts)
-        with pytest.warns(UserWarning, match="already run remove_vacant"):
+        with pytest.warns(UserWarning, match="flags are being overwritten"):
             _ = pyslim.remove_vacant(rts)
 
     def test_has_vacant_samples(self, recipe):
