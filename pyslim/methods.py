@@ -116,31 +116,41 @@ def node_is_vacant(ts, node):
 
 def _record_vacant_tables(tables):
     """
-    Records the list of node IDs of vacant, sample nodes in top-level
-    metdata, in ``tables.metadata['pyslim']['vacant_sample_nodes']``.
+    Sets the NODE_IS_VACANT_SAMPLE flag for all vacant, sample nodes.
     See {meth}`.remove_vacant`.
 
     :param tskit.TableCollection tables: The table collection.
     """
-    if "pyslim" in tables.metadata and "vacant_sample_nodes" in tables.metadata["pyslim"]:
-        warnings.warn("vacant_sample_nodes already exists in top-level metadata, and "
-                      "is being overwritten; this may mean you've already run "
+    if np.any(tables.nodes.flags & NODE_IS_VACANT_SAMPLE):
+        warnings.warn("Some nodes are already flagged as vacant samples, and these "
+                      "flags are being overwritten; this may mean you've already run "
                       "remove_vacant and so don't need to run it again.")
     k = _chromosome_index(tables)
-    is_vacant = np.full(tables.nodes.num_rows, False)
-    for j, n in enumerate(tables.nodes):
-        if n.metadata is not None:
-            is_vacant[j] = (
+    nodes = tables.nodes.copy()
+    tables.nodes.clear()
+    for n in nodes:
+        f = n.flags
+        if ((n.metadata is not None) and
+            (
                     _is_chrom_vacant(k, n.metadata['is_vacant'])
                     and
-                    (n.flags & tskit.NODE_IS_SAMPLE)
-            )
-    md = tables.metadata
-    py_md = {"vacant_sample_nodes" : np.where(is_vacant)[0].tolist()}
-    if "pyslim" not in md:
-        md["pyslim"] = {}
-    md["pyslim"].update(py_md)
-    tables.metadata = md
+                    (f & tskit.NODE_IS_SAMPLE)
+                    )):
+            f |= NODE_IS_VACANT_SAMPLE
+        else:
+            f &= ~NODE_IS_VACANT_SAMPLE
+        tables.nodes.append(n.replace(flags=f))
+
+
+def _remove_vacant_sample_flags(tables):
+    """
+    Set all NODE_IS_VACANT_SAMPLE flags off.
+    """
+    nodes = tables.nodes.copy()
+    tables.nodes.clear()
+    for n in nodes:
+        f = n.flags
+        tables.nodes.append(n.replace(flags=f & ~NODE_IS_VACANT_SAMPLE))
 
 
 def remove_vacant(ts):
@@ -154,12 +164,11 @@ def remove_vacant(ts):
 
     This method returns a copy of the tree sequence for which all vacant nodes
     have the sample flag removed; these nodes will thus not affect
-    {meth}`.recapitate`, tree sequence statistics, etcetera. It also stores
-    the node IDs of any such vacant sample nodes in top-level metadata,
-    under ``ts.metadata['pyslim']['vacant_sample_nodes']``, so they can be
-    restored with {meth}`.restore_vacant`. You probably don't want to run this
-    method again on the output, since this metadata will be overwritten
-    and {meth}`.restore_vacant` will no longer work as expected.
+    {meth}`.recapitate`, tree sequence statistics, etcetera. This also sets
+    the {data}`.NODE_IS_VACANT_SAMPLE` flag on these nodes,
+    so they can be restored with {meth}`.restore_vacant`.  You probably don't
+    want to run this method again on the output, since these flags will be
+    overwritten and {meth}`.restore_vacant` will no longer work as expected.
 
     :param tskit.TreeSequence ts: The tree sequence.
     """
@@ -175,18 +184,16 @@ def remove_vacant_tables(tables):
     :param tskit.TableCollection tables: The tables underlying a tree sequence.
     """
     _record_vacant_tables(tables)
-    is_vacant = tables.metadata["pyslim"]["vacant_sample_nodes"]
+    is_vacant = np.where(tables.nodes.flags & NODE_IS_VACANT_SAMPLE > 0)[0]
     _mark_not_samples(tables, is_vacant)
 
 
 def restore_vacant(ts):
     """
     This method returns a copy of the tree sequence for which all nodes
-    whose IDs are stored in
-    ``ts.metadata['pyslim']['vacant_sample_nodes']``,
-    have their sample flags set. If these nodes are not vacant, an error will
-    be raised.  This is intended to be an inverse of
-    {meth}`.remove_vacant`.
+    with the {data}`.NODE_IS_VACANT_SAMPLE` flag set have their sample flags
+    set also. If these nodes are not vacant, an error will be raised.  This is
+    intended to be an inverse of {meth}`.remove_vacant`.
 
     :param tskit.TreeSequence ts: The tree sequence.
     """
@@ -201,19 +208,17 @@ def restore_vacant_tables(tables):
 
     :param tskit.TableCollection tables: The tables underlying a tree sequence.
     """
-    if ("pyslim" not in tables.metadata
-        or "vacant_sample_nodes" not in tables.metadata["pyslim"]):
-        raise ValueError("'vacant_sample_nodes' not found in metadata.")
-    is_vacant = tables.metadata["pyslim"]["vacant_sample_nodes"]
+    is_vacant = np.where(tables.nodes.flags & NODE_IS_VACANT_SAMPLE > 0)[0]
     k = _chromosome_index(tables)
     for j in is_vacant:
         n = tables.nodes[j]
         if n.metadata is None:
-            raise ValueError("Something is wrong: node in "
-                             "vacant_sample_nodes has no metadata.")
+            raise ValueError("Something is wrong: node that is flagged as "
+                             "a vacant sample node has no metadata.")
         if not _is_chrom_vacant(k, n.metadata['is_vacant']):
-            raise ValueError("Something is wrong: node in "
-                             "vacant_sample_nodes is not vacant.")
+            raise ValueError("Something is wrong: node that is flagged as "
+                             "a vacant sample node is not vacant.")
+    _remove_vacant_sample_flags(tables)
     _mark_samples(tables, is_vacant)
 
 
