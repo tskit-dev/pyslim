@@ -6,7 +6,7 @@
    version="1.1"
    id="svg8"
    inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
-   sodipodi:docname="output.iM8NSjl2e.svg"
+   sodipodi:docname="output.tPZ4jvP6J.svg"
    inkscape:export-filename="/tmp/pedigree_remember.png"
    inkscape:export-xdpi="299.84"
    inkscape:export-ydpi="299.84"
@@ -598,49 +598,6 @@
        d="M 68.649927,131.8244 52.491445,117.03608"
        id="path1514"
        inkscape:connector-curvature="0"
-       inkscape:export-xdpi="299.84"
-       inkscape:export-ydpi="299.84" />
-  </g>
-  <g
-     inkscape:groupmode="layer"
-     id="layer29"
-     inkscape:label="nonhap_simp_pedigree"
-     style="display:inline"
-     transform="translate(-34.660958,-29.361696)">
-    <path
-       transform="translate(-14.608277,-16.118333)"
-       inkscape:connector-curvature="0"
-       id="path1556"
-       d="M 69.574269,116.42004 68.867262,99.22395"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       sodipodi:nodetypes="cc"
-       inkscape:export-xdpi="299.84"
-       inkscape:export-ydpi="299.84" />
-    <path
-       transform="translate(-14.608277,-16.118333)"
-       inkscape:connector-curvature="0"
-       id="path1518"
-       d="M 72.88326,131.8244 69.574269,116.42004"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       sodipodi:nodetypes="cc"
-       inkscape:export-xdpi="299.84"
-       inkscape:export-ydpi="299.84" />
-    <path
-       transform="translate(-14.608277,-16.118333)"
-       sodipodi:nodetypes="cc"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 72.883257,131.8244 72.694269,115.94939"
-       id="path1520"
-       inkscape:connector-curvature="0"
-       inkscape:export-xdpi="299.84"
-       inkscape:export-ydpi="299.84" />
-    <path
-       transform="translate(-14.608277,-16.118333)"
-       inkscape:connector-curvature="0"
-       id="path1516"
-       d="M 68.649924,131.8244 56.507438,115.42968"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#a7a7a7;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       sodipodi:nodetypes="cc"
        inkscape:export-xdpi="299.84"
        inkscape:export-ydpi="299.84" />
   </g>
