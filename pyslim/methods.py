@@ -122,6 +122,9 @@ def _record_vacant_tables(tables):
     :param tskit.TableCollection tables: The table collection.
     """
     print("HELLO")
+    print("NODE_IS_VACANT_SAMPLE", NODE_IS_VACANT_SAMPLE)
+    print("~NODE_IS_VACANT_SAMPLE", ~NODE_IS_VACANT_SAMPLE)
+    print("tables.nodes.flags & NODE_IS_VACANT_SAMPLE > 0")
     print(tables.nodes.flags & NODE_IS_VACANT_SAMPLE > 0)
     if np.any(tables.nodes.flags & NODE_IS_VACANT_SAMPLE):
         print("WARNING WARNING")
