@@ -46,7 +46,7 @@ recipe_specs = {
     "recipe_retain_sometimes_nonWF_late.slim": {"nonWF": True, "pedigree": True, "retained": True},
     "recipe_retain_unary_nonWF_late.slim":     {"nonWF": True, "pedigree": True, "retained": True, "retainCoalescentOnly": False},
     "recipe_remember_and_retain.slim":         {"nonWF": True, "pedigree": True, "retained": True},
-    "recipe_all_the_chromosome_types.slim":    {"nonWF": True, "pedigree": True, "multichrom": True, "nucleotides": True},
+    "recipe_all_the_chromosome_types.slim":    {"nonWF": True, "pedigree": True, "multichrom": True, "nucleotides": True, "X": True, "Y": True, "H": True, "Z": True, "W": True, "HF": True, "FL": True, "HM": True, "ML": True, "Y-": True},
     "recipe_chromosomes_adds_muts.slim":       {"WF": True, "pedigree": True, "multichrom": True, "adds_mutations": True, "nucleotides": True, "non-nucleotides": True},
     "recipe_many_chromosomes.slim":            {"nonWF": True, "pedigree": True, "multichrom": True},
     "recipe_H-_chromosome.slim":               {"nonWF": True, "pedigree": True, "multichrom": True, "H-": True},

@@ -1153,12 +1153,18 @@ class TestVacancy(tests.PyslimTestCase):
         with pytest.raises(ValueError, match="has no metadata"):
             _ = pyslim.restore_vacant(tables.tree_sequence())
 
-    @pytest.mark.parametrize('recipe', [next(recipe_eq("multichrom"))], indirect=True)
+    @pytest.mark.parametrize('recipe', [next(recipe_eq("multichrom", "X", "Y"))], indirect=True)
     def test_multiple_remove_vacant_warning(self, recipe):
-        ts = list(recipe["ts"].values())[0]
-        rts = pyslim.remove_vacant(ts)
-        with pytest.warns(UserWarning, match="flags are being overwritten"):
-            _ = pyslim.remove_vacant(rts)
+        done = 0
+        for ts in recipe["ts"].values():
+            rts = pyslim.remove_vacant(ts)
+            if pyslim.has_vacant_samples(ts):
+                with pytest.warns(UserWarning, match="flags are being overwritten"):
+                    _ = pyslim.remove_vacant(rts)
+                done += 1
+            else:
+                ts.tables.assert_equals(rts.tables)
+        assert done > 0
 
     def test_has_vacant_samples(self, recipe):
         for _, ts in recipe["ts"].items():
