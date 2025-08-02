@@ -6,7 +6,7 @@ initialize() {
     if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
 	defineConstant("L", 1e2);
 	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
-    initializeTreeSeq();
+    initializeTreeSeq(timeUnit="generations");
 	initializeAncestralNucleotides(randomNucleotides(L));
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
 	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));

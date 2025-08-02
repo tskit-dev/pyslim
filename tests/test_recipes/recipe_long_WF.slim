@@ -2,7 +2,7 @@ initialize()
 {
     setSeed(23);
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
-    initializeTreeSeq();
+    initializeTreeSeq(timeUnit="generations");
     initializeMutationRate(1e-2);
     initializeMutationType("m1", 0.5, "f", -0.1);
     initializeGenomicElementType("g1", m1, 1.0);

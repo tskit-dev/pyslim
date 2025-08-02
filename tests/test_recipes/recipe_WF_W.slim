@@ -4,7 +4,7 @@ initialize()
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     if (!exists("PEDIGREE_FILE")) defineGlobal("PEDIGREE_FILE", "out.pedigree"); 
     initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
-    initializeTreeSeq();
+    initializeTreeSeq(timeUnit="generations");
 	 initializeSex();
 	 initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
 	 initializeMutationType("m2", 0.5, "n", 0.0, 0.1);

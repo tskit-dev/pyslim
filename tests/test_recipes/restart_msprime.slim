@@ -12,7 +12,7 @@ initialize()
     } else {
       initializeSLiMModelType("nonWF");
     }
-    initializeTreeSeq();
+    initializeTreeSeq(timeUnit=WF ? "generations" else "ticks");
     initializeMutationRate(1/L);
     initializeMutationType("m0", 0.5, "f", 0.0);
     initializeMutationType("m1", 0.5, "f", -0.1);

@@ -41,11 +41,22 @@ ts.time_units
 In general this mean it can be conceptually tricky to make sure that time units
 are consistent across different stages of simulation.
 
-(Note: it *is* possible to set the time units to whatever you want,
-using the ``timeUnit`` parameter to ``initializeTreeSeq( )``,
-but this only affects this label in metadata (i.e., the output of
+## That warning from recapitate about time units
+
+If you recapitate a tree sequence then you've probably seen the warning
+```
+TimeUnitsMismatchWarning: The initial_state has time_units=ticks but time is measured
+in generations in msprime. This may lead to significant discrepancies between the timescales. 
+```
+This is a handy reminder to think about the issue, because it is important.
+However, if you're running a single-species WF simulation,
+then the time units *are* in generations (unless you're doing something very creative).
+If so, you can avoid this warning by setting the time units to "generations",
+using the ``timeUnit`` parameter to ``initializeTreeSeq( )``.
+However, this *only* affects the *label* in metadata (i.e., the output of
 ``ts.time_units``, and does not actually change how times are recorded
-in the tree sequence.)
+in the tree sequence, so please only do this if you are running a WF simulation
+(and, keep reading).
 
 
 ## Mutation rates with msprime
@@ -336,10 +347,10 @@ are always in sync; but in a WF model they are not (during *first* and *early*).
 The extra wrinkle this introduces is that the correspondence between "tskit time ago"
 and "SLiM time" depends on *which phase the tree sequence was recorded in*.
 
-When the tree sequence is written out, SLiM records the value of its current tick
-and the current stage,
+When the tree sequence is written out, SLiM records the value of its current tick,
+cycle, and stage,
 which can be found in the metadata: ``ts.metadata['SLiM']['tick']``,
-and ``ts.metadata['SLiM']['stage']``.
+``ts.metadata['SLiM']['cycle']``, and ``ts.metadata['SLiM']['stage']``.
 The "SLiM time" referred to by a ``time`` in the tree sequence
 (i.e., the value that would be reported by ``community.tick``
 within SLiM at the point in time thus referenced)
