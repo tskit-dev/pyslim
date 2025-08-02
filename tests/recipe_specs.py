@@ -34,6 +34,7 @@ recipe_specs = {
     "recipe_long_nucleotides.slim":            {"WF": True, "nucleotides": True, "long": True, "nucleotides": True},
     "recipe_mutation_spectrum.slim":           {"WF": True, "nucleotides": True, "mutation_spectrum": True, "nucleotides": True},
     "recipe_roots.slim":                       {"WF": True, "pedigree": True, "long": True},
+    "recipe_starts_later.slim":                {"nonWF": True, "starts_later": True},
     "recipe_nonWF_selfing.slim":               {"nonWF": True, "pedigree": True},
     "recipe_nonWF_nonstacked.slim":            {"nonWF": True, "nonstacked": True},
     "recipe_init_mutated_WF.slim":             {"WF": True, "init_mutated": True},

@@ -196,6 +196,7 @@ class TestRecapitate(tests.PyslimTestCase):
             assert p1.metadata == p2.metadata
         # find ancestral pop in which recapitation happens
         tables = ts.tables
+        # note: this next one assumes the tick hasn't been set to something other than 1
         anc_nodes = np.where(tables.nodes.time > ts.metadata['SLiM']['tick'])[0]
         if len(anc_nodes) > 0:
             for pop in ts.populations():
@@ -218,11 +219,12 @@ class TestRecapitate(tests.PyslimTestCase):
             )
 
     def test_root_mismatch_error(self):
-        ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12)
+        ts = msprime.sim_ancestry(4, sequence_length=10, random_seed=12, recombination_rate=0.1)
+        assert ts.num_trees > 1
         recap_time = 100
-        ts = pyslim.annotate(ts, model_type="nonWF", tick=recap_time)
         assert ts.node(ts.first().roots[0]).time < recap_time
-        with pytest.raises(ValueError, match="at the time expected by recapitate"):
+        ts = pyslim.annotate(ts, model_type="nonWF", tick=recap_time)
+        with pytest.raises(ValueError, match="Not all roots"):
             rts = self.do_recapitate(ts, ancestral_Ne=10)
 
     def test_unique_names(self):
@@ -293,7 +295,7 @@ class TestRecapitate(tests.PyslimTestCase):
                     extra_metadata={"slim_id": ts.num_populations},
             )
             demography.add_population_split(
-                    time=ts.metadata["SLiM"]["tick"] + 20.0,
+                    time=ts.metadata["SLiM"]["tick"] + 20.0, # assumes tick hasn't been changed
                     derived=[p.name for p in demography.populations if p.name != "ancestral"],
                     ancestral="ancestral",
             )
@@ -305,11 +307,11 @@ class TestRecapitate(tests.PyslimTestCase):
             )
             self.check_recap_consistency(ts, recap, with_ancestral_Ne=False)
 
-    @pytest.mark.parametrize('recipe', recipe_eq(exclude="long"), indirect=True)
+    @pytest.mark.parametrize('recipe', recipe_eq(exclude=["long", "starts_later"]), indirect=True)
     def test_first_gen_nodes(self, recipe):
         # check that all the roots of the trees are present
         # (note this will fail if some populations were started at different
-        # times than others)
+        # times than others or if the tick has been changed)
         for _, ts in recipe["ts"].items():
             root_time = ts.metadata['SLiM']['tick']
             is_wf = (ts.metadata['SLiM']['model_type'] == 'WF')
@@ -515,9 +517,6 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         assert np.array_equal(right_parents, parents)
 
     def get_first_gen(self, ts):
-        # root_time = ts.metadata["SLiM"]["tick"]
-        # if ts.metadata['SLiM']['model_type'] != 'WF' or ts.metadata['SLiM']['stage'] != 'late':
-        #     root_time -= 1
         nodes = ts.tables.nodes
         root_time = np.max(nodes.time)
         first_gen = set(nodes.individual[nodes.time == root_time])
@@ -556,6 +555,7 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             rng = np.random.default_rng(seed=3)
             individual_times = ts.individuals_time
             keep_indivs = rng.choice(
+                    # assumes tick hasn't been changed
                     np.where(individual_times < ts.metadata['SLiM']['tick'] - 1)[0],
                     size=30,
                     replace=False
