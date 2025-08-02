@@ -7,7 +7,7 @@ initialize()
 	defineConstant("L", 1e2);
 	initializeSLiMOptions(keepPedigrees=T, nucleotideBased=T);
     initializeSex();
-    initializeTreeSeq();
+    initializeTreeSeq(timeUnit="generations");
 	initializeMutationTypeNuc("m1", 0.5, "f", 0.0);
 	initializeMutationType("m2", 0.5, "n", 0.0, 0.1);
 	initializeGenomicElementType("g1", m1, 1.0, mmJukesCantor(4e-2));
