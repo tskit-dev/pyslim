@@ -1155,10 +1155,15 @@ class TestVacancy(tests.PyslimTestCase):
 
     @pytest.mark.parametrize('recipe', [next(recipe_eq("multichrom"))], indirect=True)
     def test_multiple_remove_vacant_warning(self, recipe):
-        ts = list(recipe["ts"].values())[0]
-        rts = pyslim.remove_vacant(ts)
-        with pytest.warns(UserWarning, match="flags are being overwritten"):
-            _ = pyslim.remove_vacant(rts)
+        for ts in recipe["ts"].values():
+            rts = pyslim.remove_vacant(ts)
+            if pyslim.has_vacant_samples(ts):
+                print("A ========")
+                with pytest.warns(UserWarning, match="flags are being overwritten"):
+                    _ = pyslim.remove_vacant(rts)
+            else:
+                print("B ========")
+                ts.tables.assert_equals(rts.tables)
 
     def test_has_vacant_samples(self, recipe):
         for _, ts in recipe["ts"].items():
