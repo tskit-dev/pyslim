@@ -279,32 +279,33 @@ def recapitate(ts,
     if ancestral_Ne is not None:
         if "demography" in kwargs:
             raise ValueError("You cannot specify both `demography` and `ancestral_Ne`.")
-        recap_time = ts.metadata['SLiM']['tick']
-        # In various circumstances depending on the stage in which the simulation was
-        # started and when the tree sequence was written out, the time of the roots
-        # might be one or even two less than the "tick" value. We have access
-        # to the stage the tree sequence was written out, but not the time it
-        # was *started*. So, we'll just check if we need to subtract one or two.
-        # Consistency checking this requires looping over all the trees, unfortunately,
-        # but it avoids some common errors.
-        root_times = list(set([ts.node(n).time for t in ts.trees() for n in t.roots]))
-        for adj in (1, 2):
-            if np.abs(recap_time - root_times[0] - adj) < 1e-8:
-                recap_time -= adj
-        if len(root_times) > 1 or not np.abs(root_times[0] - recap_time) < 1e-8:
+        # Since the tick can be set manually, the tick value in metadata has no
+        # relationship to the time of the roots. Even in the case where the simulation
+        # starts at tick=1, in various circumstances depending on the stage in
+        # which the simulation was started and when the tree sequence was
+        # written out, the time of the roots might be one or even two less than
+        # the "tick" value. We have access to the stage the tree sequence was
+        # written out, but not the time it was *started*. So, we'll just check
+        # if we need to subtract one or two.  Consistency checking this
+        # requires looping over all the trees, unfortunately, but it avoids
+        # some common errors.
+        root_times = set([ts.node(n).time for t in ts.trees() for n in t.roots])
+        if len(root_times) > 1:
             message = (
                 "Not all roots of the provided tree sequence are at the time expected "
                 "by recapitate(). This could happen if you've simplified in "
-                "python before recapitating (fix: don't simplify first). "
+                "python before recapitating (fix: don't simplify first, or "
+                "pass keep_input_roots=True to simplify). "
                 "It could also happen in other situations, e.g., "
                 "you added new individuals without parents in SLiM "
-                "during the course of the simulation with sim.addSubPop(), "
+                "during the course of the simulation with sim.addSubpop(), "
                 "in which case you will probably need to recapitate with "
                 "msprime.sim_ancestry(initial_state=ts, ...). "
-                f"(Expected root time: {recap_time}; "
-                f"Observed root times: {root_times})"
+                f"(Observed root times: {', '.join(map(str, list(root_times)[:5]))}"
+                f"{', ...' if len(root_times) > 5 else ''})"
             )
             raise ValueError(message)
+        recap_time = root_times.pop()
         demography = msprime.Demography.from_tree_sequence(ts)
         # must set pop sizes to >0 even though we merge immediately
         for pop in demography.populations:
