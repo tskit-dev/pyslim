@@ -27,6 +27,13 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
     `["properties"]["is_vacant"]["length"]`)
     (:user:`petrelharp`, :pr:`367`)
 
+**Notable changes**:
+
+- `pyslim.individual_parents` and `pyslim.has_individual_parents` are no
+    longer needed, as this information can be more reliably extracted from
+    the `parents` column/attribute of individuals, so they are now deprecated
+    and will be removed in the future.
+
 **New features**:
 
 - Functions `pyslim.node_is_vacant` and `pyslim.has_vacant_samples`
@@ -62,6 +69,10 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
     sample flags before recapitating (and optionally puts them back)
     as described above (:user: `petrelharp`, :pr:`367`)
     
+- Previously, recapitation would require the roots of all trees to be
+    at the same time (roughly) as the 'tick' stored in the top-level metadata;
+    however, this would not be the case if the first population was added
+    later than the first tick. (:user: `petrelharp`, :pr:`382`)
 
 
 ***************************

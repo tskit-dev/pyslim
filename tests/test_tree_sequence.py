@@ -510,9 +510,11 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             if right_answer[j]:
                 for pp in p:
                     right_parents.append([pp, j])
-        has_parents = pyslim.has_individual_parents(ts)
+        with pytest.warns(FutureWarning):
+            has_parents = pyslim.has_individual_parents(ts)
         right_parents = np.sort(np.array(right_parents), axis=0)
-        parents = np.sort(pyslim.individual_parents(ts), axis=0)
+        with pytest.warns(FutureWarning):
+            parents = np.sort(pyslim.individual_parents(ts), axis=0)
         assert np.array_equal(right_answer, has_parents)
         assert np.array_equal(right_parents, parents)
 
@@ -532,7 +534,8 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             first_gen = self.get_first_gen(ts)
             assert len(first_gen) > 0
             right_answer[first_gen] = False
-            has_parents = pyslim.has_individual_parents(ts)
+            with pytest.warns(FutureWarning):
+                has_parents = pyslim.has_individual_parents(ts)
             assert np.array_equal(right_answer, has_parents)
             self.verify_has_parents(ts)
 
@@ -545,7 +548,8 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             right_answer[first_gen] = False
             assert(ts.num_populations <= 2)
             ts = self.do_recapitate(ts, recombination_rate=0.01, ancestral_Ne=10, random_seed=11)
-            has_parents = pyslim.has_individual_parents(ts)
+            with pytest.warns(FutureWarning):
+                has_parents = pyslim.has_individual_parents(ts)
             assert np.array_equal(right_answer, has_parents)
             self.verify_has_parents(ts)
 
@@ -566,7 +570,8 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             ts = ts.simplify(samples=keep_nodes, filter_individuals=True, keep_input_roots=True)
             assert(ts.num_populations <= 2)
             ts = self.do_recapitate(ts, recombination_rate=0.01, ancestral_Ne=10)
-            has_parents = pyslim.has_individual_parents(ts)
+            with pytest.warns(FutureWarning):
+                has_parents = pyslim.has_individual_parents(ts)
             assert sum(has_parents) > 0
             self.verify_has_parents(ts)
 
@@ -580,8 +585,10 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         # and so the parentage would not be reported by `individual_parents()`.
         for _, ts in recipe["ts"].items():
             info = recipe["info"]
-            has_parents = pyslim.has_individual_parents(ts)
-            parents = pyslim.individual_parents(ts)
+            with pytest.warns(FutureWarning):
+                has_parents = pyslim.has_individual_parents(ts)
+            with pytest.warns(FutureWarning):
+                parents = pyslim.individual_parents(ts)
             slim_map = {}
             for ind in ts.individuals():
                 slim_map[ind.metadata["pedigree_id"]] = ind.id
@@ -612,8 +619,10 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         # or REMEMBERED individuals (not RETAINED), and the same for parental genomes.
         info = recipe["info"]
         for _, ts in recipe["ts"].items():
-            has_parents = pyslim.has_individual_parents(ts)
-            parents = pyslim.individual_parents(ts)
+            with pytest.warns(FutureWarning):
+                has_parents = pyslim.has_individual_parents(ts)
+            with pytest.warns(FutureWarning):
+                parents = pyslim.individual_parents(ts)
             slim_map = {}
             for ind in ts.individuals():
                 slim_map[ind.metadata["pedigree_id"]] = ind.id
