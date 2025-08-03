@@ -712,6 +712,14 @@ def slim_time(ts, time, stage="late"):
 
 
 def _do_individual_parents_stuff(ts, return_parents=False):
+    warnings.warn(
+            "The individual_parents( ) and has_individual_parents( ) methods are "
+            "no longer needed and will be removed in a future version of pyslim: "
+            "obtain this information from the `parents' property of individuals "
+            "instead.",
+            FutureWarning,
+    )
+
     # Helper for has_individual_parents and individual_parents,
     # which share a lot of machinery.
     tables = ts.tables
@@ -764,6 +772,9 @@ def _do_individual_parents_stuff(ts, return_parents=False):
 
 def individual_parents(ts):
     '''
+    **DEPRECATED:** now SLiM records `parents` directly in the individual
+    table (see for instance `ind.parents`).
+
     Finds all parent-child relationships in the tree sequence (as far as we
     can tell). The output will be a two-column array with row [i,j]
     indicating that individual i is a parent of individual j.  See
@@ -781,6 +792,9 @@ def individual_parents(ts):
 
 def has_individual_parents(ts):
     '''
+    **DEPRECATED:** now SLiM records `parents` directly in the individual
+    table (see for instance `ind.parents`).
+
     Finds which individuals have both their parent individuals also present
     in the tree sequence, as far as we can tell. To do this, we return a
     boolean array with True for those individuals for which:
