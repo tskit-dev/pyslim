@@ -1,6 +1,5 @@
 initialize()
 {
-    setSeed(23);
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     // as well as any bespoke TREES_FILE for output, you need to define:
     //  TREES_IN = path to trees to initialise
@@ -11,27 +10,27 @@ initialize()
     initializeGenomicElementType("g1", m1, 1.0);
     initializeGenomicElement(g1, 0, 99);
     initializeRecombinationRate(1e-2);
-    if (!exists("SUBPOP_MAP")) defineConstant("SUBPOP_MAP", NULL);
 }
 
-// output immediately! Nothing should have changed.
+// output immediately, and record state
 1 early() { 
   if (STAGE == "early") {
-    md = treeSeqMetadata(TREES_IN, userData=F).getValue("SLiM").getValue("user_metadata");
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
-    sim.treeSeqOutput(TREES_FILE, simplify=F, metadata=md);
+    sim.treeSeqOutput(TREES_FILE, simplify=F,
+        metadata=Dictionary(
+            "tick", community.tick,
+            "individuals", sim.subpopulations.individuals.pedigreeID
+        ));
   }
 }
 
 1 late() { 
   if (STAGE == "late") {
-    md = treeSeqMetadata(TREES_IN, userData=F).getValue("SLiM").getValue("user_metadata");
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
-    sim.treeSeqOutput(TREES_FILE, simplify=F, metadata=md);
+    sim.treeSeqOutput(TREES_FILE, simplify=F,
+        metadata=Dictionary(
+            "tick", community.tick,
+            "individuals", sim.subpopulations.individuals.pedigreeID
+        ));
   }
-}
-
-20 early() {
-    catn("Done.");
-    sim.simulationFinished();
 }

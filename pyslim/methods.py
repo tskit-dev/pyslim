@@ -688,9 +688,9 @@ def slim_time(ts, time, stage="late"):
     be reported by community.tick within SLiM at the point in time thus
     referenced) can be obtained by subtracting that time ago from
     ``ts.metadata['SLiM']['tick']``. However, in WF models, birth
-    happens between the “early()” and “late()” stages, so if the tree
-    sequence was written out using sim.treeSeqOutput() during “early()” in
-    a WF model, the tree sequence’s times measure time before the last set
+    happens between the "early()" and "late()" stages, so if the tree
+    sequence was written out using sim.treeSeqOutput() during "early()" in
+    a WF model, the tree sequence's times measure time before the last set
     of individuals are born, i.e., before SLiM time step
     ``ts.metadata['SLiM']['tick'] - 1``. The same thing applies to
     the "first" stage for both WF and nonWF models.
@@ -711,6 +711,69 @@ def slim_time(ts, time, stage="late"):
     y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
     slim_time = ts.metadata['SLiM']['tick'] - time + x + y - 1
     return slim_time
+
+
+def _shift_times(ts, dt):
+    """
+    Add `dt` to the times ago of all nodes, and mutations.
+    (Note: migrations not currently supported by simplify,
+    so not used here.)
+    """
+    tables = ts.dump_tables()
+    if dt != 0:
+        tables.nodes.clear()
+        tables.mutations.clear()
+        tables.migrations.clear()
+        for node in ts.nodes():
+            tables.nodes.append(node.replace(time=node.time + dt))
+        for mutation in ts.mutations():
+            tables.mutations.append(mutation.replace(time=mutation.time + dt))
+        # for mig in ts.migrations():
+        #     tables.migrations.append(mig.replace(time=mig.time + dt))
+    return tables
+
+
+def set_slim_state(ts, time=0, individuals=None):
+    """
+    Changes the information stored in metadata so that when loaded into SLiM,
+    the current time will be ``time`` units ago (i.e., at tskit time ``time``)
+    and the alive individuals will be ``individuals``. The time in SLiM
+    (i.e., the value of the tick counter) will also be ``time`` units earlier.
+
+    Appropriate individuals might be found, for instance, with
+    ``pyslim.individuals_alive_at(ts, time)``.
+
+    To do this, the "tick" in top-level metadata is changed; individual flags
+    are reset so that only ``individuals`` have the {data}`.INDIVIDUAL_ALIVE`
+    flag set; and tskit times have ``time`` subtracted from them (so they measure
+    time ago relative to the new tick).  (As a result, some individuals in the
+    tree sequence may have negative times, i.e., have lived "in the future".)
+
+    This also subtracts ``time`` from the value of "cycle" in top-level
+    metadata; if this is not desired (or the value in "tick" needs to be
+    adjusted), change the metadata directly.
+
+    :param tskit.TreeSequence ts: A SLiM-compatible TreeSequence.
+    :param int time: The number of time units (ticks) into the past to shift
+        times.  (Default: zero.)
+    :param np.ndarray individuals: An array of the tskit IDs of the individuals
+        that should be marked as alive (all others will be not alive).
+        (Default: leave unchanged.)
+    """
+    tables = _shift_times(ts, -time)
+    if time != 0:
+        md = tables.metadata
+        md['SLiM']['tick'] -= time
+        md['SLiM']['cycle'] -= time
+        tables.metadata = md
+    if individuals is not None:
+        flags = tables.individuals.flags
+        flags &= ~INDIVIDUAL_ALIVE
+        flags[individuals] |= INDIVIDUAL_ALIVE
+        tables.individuals.clear()
+        for f, ind in zip(flags, ts.individuals()):
+            tables.individuals.append(ind.replace(flags=f))
+    return tables.tree_sequence()
 
 
 def _do_individual_parents_stuff(ts, return_parents=False):

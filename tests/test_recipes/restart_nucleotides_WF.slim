@@ -27,8 +27,9 @@ initialize()
 
 1 late() { 
     // output immediately! Nothing should have changed.
+    md = treeSeqMetadata(TREES_IN, userData=F).getValue("SLiM").getValue("user_metadata");
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
-    sim.treeSeqOutput(TREES_FILE, simplify=F);
+    sim.treeSeqOutput(TREES_FILE, simplify=F, metadata=md);
 }
 
 2 early() {

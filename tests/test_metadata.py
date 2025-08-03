@@ -204,7 +204,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                 if k != 'description' or ts.metadata['SLiM'][k] != "":
                     assert ts.metadata['SLiM'][k] == md['SLiM'][k]
 
-    @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)
+    @pytest.mark.parametrize('recipe', recipe_eq("recipe_with_metadata.slim"), indirect=True)
     def test_user_metadata(self, recipe):
         for _, ts in recipe["ts"].items():
             md = ts.metadata["SLiM"]
@@ -214,7 +214,7 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
                     "pi" : [3, 1, 4, 1, 5, 9]
                     }
 
-    @pytest.mark.parametrize('recipe', recipe_eq("user_metadata"), indirect=True)
+    @pytest.mark.parametrize('recipe', recipe_eq("recipe_with_metadata.slim"), indirect=True)
     def test_population_names(self, recipe):
         for _, ts in recipe["ts"].items():
             md = ts.metadata["SLiM"]

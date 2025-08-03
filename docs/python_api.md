@@ -42,12 +42,15 @@ Here is a quick reference to some of the methods:
   individuals_alive_at
   individual_ages
   individual_ages_at
-  individual_parents
-  has_individual_parents
+  remove_vacant
+  restore_vacant
+  has_vacant_samples
+  node_is_vacant
   slim_time
   convert_alleles
   generate_nucleotides
   population_size
+  set_slim_state
   default_slim_metadata
   update
 ```
@@ -72,6 +75,18 @@ Here is a quick reference to some of the methods:
 
 ```{eval-rst}
 .. autofunction::  update
+```
+
+```{eval-rst}
+.. autofunction::  remove_vacant
+```
+
+```{eval-rst}
+.. autofunction::  restore_vacant
+```
+
+```{eval-rst}
+.. autofunction::  set_slim_state
 ```
 
 ## Summarizing tree sequences
@@ -112,6 +127,14 @@ Additionally, ``pyslim`` contains the following methods:
 .. autofunction::  next_slim_mutation_id
 ```
 
+```{eval-rst}
+.. autofunction::  has_vacant_samples
+```
+
+```{eval-rst}
+.. autofunction::  node_is_vacant
+```
+
 
 ## Metadata
 
@@ -149,14 +172,10 @@ underlying tables), which can then be modified and loaded into SLiM.
 .. autodata:: NUCLEOTIDES
 ```
 
-These flags are the possible values for ``node.metadata["genome_type"]``:
+This is a flag used in `node.flags` (see {meth}`.remove_vacant`):
 
 ```{eval-rst}
-.. autodata:: GENOME_TYPE_AUTOSOME
-
-.. autodata:: GENOME_TYPE_X
-
-.. autodata:: GENOME_TYPE_Y
+.. autodata:: NODE_IS_VACANT_SAMPLE
 ```
 
 
@@ -171,6 +190,7 @@ These flags are the possible values for ``individual.metadata["sex"]``:
 ```
 
 This is a flag used in ``individual.metadata["flags"]``:
+
 ```{eval-rst}
 .. data:: INDIVIDUAL_FLAG_MIGRATED == 0x01
 ```
