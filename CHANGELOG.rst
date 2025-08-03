@@ -36,6 +36,11 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
 
 **New features**:
 
+- `pyslim.set_slim_state` will adjust times and "alive" flags so
+    that when the tree sequence is loaded into SLiM it will have
+    a specified set of individuals alive.
+    (:user:`petrelharp`, :pr:`384`)
+
 - Functions `pyslim.node_is_vacant` and `pyslim.has_vacant_samples`
     test for vacancy in the current chromosome.
     (:user:`petrelharp`, :pr:`367`)

@@ -28,7 +28,11 @@ initialize()
 1 late() { 
     // output immediately! Nothing should have changed.
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
-    sim.treeSeqOutput(TREES_FILE, simplify=F);
+    sim.treeSeqOutput(TREES_FILE, simplify=F,
+        metadata=Dictionary(
+            "tick", community.tick,
+            "individuals", sim.subpopulations.individuals.pedigreeID
+        ));
 }
 
 2 early() {

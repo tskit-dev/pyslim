@@ -13,7 +13,7 @@ import pyslim
 
 import tests
 
-from .recipe_specs import recipe_eq
+from .recipe_specs import recipe_eq, restarted_recipe_eq
 
 
 def mutations_above(ts, node, pos):
@@ -1286,3 +1286,89 @@ class TestFlags(tests.PyslimTestCase):
                     no = this_no
                 else:
                     assert np.all(no == this_no)
+
+class TestSetInitialState(tests.PyslimTestCase):
+
+    def verify_reset(self, its, ots, time=0, individuals=None):
+        # we're writing out the tree sequences unchanged
+        if individuals is None:
+            individuals = [ind.id for ind in its.individuals()
+                           if ind.flags & pyslim.INDIVIDUAL_ALIVE > 0]
+        slim_ids = [
+            its.individual(k).metadata["pedigree_id"]
+            for k in individuals
+        ]
+        for ind in ots.individuals():
+            sid = ind.metadata["pedigree_id"]
+            if sid in slim_ids:
+                assert ind.flags & pyslim.INDIVIDUAL_ALIVE > 0
+            else:
+                assert ind.flags & pyslim.INDIVIDUAL_ALIVE == 0
+        assert its.metadata['SLiM']['tick']  == ots.metadata['SLiM']['tick'] + time
+        assert np.allclose(
+            its.mutations_time,
+            ots.mutations_time + time,
+        )
+        assert np.allclose(
+            its.nodes_time,
+            ots.nodes_time + time,
+        )
+        assert np.allclose(
+            its.migrations_time,
+            ots.migrations_time + time,
+        )
+
+    @pytest.mark.parametrize(
+        'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
+    def test_no_change(self, restart_name, recipe, helper_functions, tmp_path):
+        in_ts = {}
+        for chrom, ts in recipe["ts"].items():
+            in_ts[chrom] = pyslim.set_slim_state(ts)
+        # put it through SLiM (which just reads in and writes out)
+        out_ts = helper_functions.run_slim_restart(
+                in_ts,
+                restart_name,
+                tmp_path,
+                "multichrom" in recipe,
+                WF="WF" in recipe,
+        )
+        for chrom, ts in recipe["ts"].items():
+            self.verify_reset(ts, out_ts[chrom])
+
+    @pytest.mark.parametrize(
+        'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
+    def test_shift_time(self, restart_name, recipe, helper_functions, tmp_path):
+        in_ts = {}
+        time = 3
+        for chrom, ts in recipe["ts"].items():
+            in_ts[chrom] = pyslim.set_slim_state(ts, time=time)
+        out_ts = helper_functions.run_slim_restart(
+                in_ts,
+                restart_name,
+                tmp_path,
+                "multichrom" in recipe,
+                WF="WF" in recipe,
+        )
+        for chrom, ts in recipe["ts"].items():
+            self.verify_reset(ts, out_ts[chrom], time=time)
+
+    @pytest.mark.parametrize(
+        'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
+    def test_set_individuals(self, restart_name, recipe, helper_functions, tmp_path):
+        in_ts = {}
+        time = 5
+        ts = list(recipe["ts"].values())[0]
+        individuals = pyslim.individuals_alive_at(ts, time)
+        print(individuals)
+        for chrom, ts in recipe["ts"].items():
+            in_ts[chrom] = pyslim.set_slim_state(ts, time=time, individuals=individuals)
+        out_ts = helper_functions.run_slim_restart(
+                in_ts,
+                restart_name,
+                tmp_path,
+                "multichrom" in recipe,
+                WF="WF" in recipe,
+        )
+        for chrom, ts in recipe["ts"].items():
+            self.verify_reset(ts, out_ts[chrom], time=time, individuals=individuals)
+
