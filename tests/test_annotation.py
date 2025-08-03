@@ -955,10 +955,8 @@ class TestReload(tests.PyslimTestCase):
         n = None
         for chrom, ts in in_ts.items():
             if n is None:
-                n = set(ts.samples()[:4])
-                for k in n:
-                    n |= set(ts.individual(ts.node(k).individual).nodes)
-                n = list(n)
+                inds = np.where(ts.individuals_flags & pyslim.INDIVIDUAL_ALIVE > 0)[0][:2]
+                n = [u for i in inds for u in ts.individual(i).nodes]
                 n.sort()
             py_ts[chrom] = ts.simplify(n, filter_populations=False)
         out_ts = helper_functions.run_slim_restart(
