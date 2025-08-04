@@ -497,7 +497,9 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
                     max_time = md["slim_time"]
             states[mut.id] = this_da
             tables.mutations.append(mut.replace(metadata=ml))
-
+    md = tables.metadata
+    md['SLiM']['nucleotide_based'] = True
+    tables.metadata = md
     return tables.tree_sequence()
 
 

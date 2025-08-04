@@ -67,12 +67,16 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
     fail with an error ("not all roots are at the time expected"). Now, null
     genomes are "vacant" (see above) and `recapitate` removes their
     sample flags before recapitating (and optionally puts them back)
-    as described above (:user: `petrelharp`, :pr:`367`)
+    as described above (:user:`petrelharp`, :pr:`367`)
     
 - Previously, recapitation would require the roots of all trees to be
     at the same time (roughly) as the 'tick' stored in the top-level metadata;
     however, this would not be the case if the first population was added
-    later than the first tick. (:user: `petrelharp`, :pr:`382`)
+    later than the first tick. (:user:`petrelharp`, :pr:`382`)
+
+- The `generated_nucleotides` method now sets the `nucleotide_based` entry
+    in top-level metadata to True.
+    (:user:`petrelharp`, :pr:`385`)
 
 
 ***************************
