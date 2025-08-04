@@ -969,6 +969,7 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         # if check_transitions is True, verify that derived states differ
         # from parental states - which we try to do but is not guaranteed,
         # for instance, if keep=True or in other weird situations.
+        assert ts.metadata['SLiM']['nucleotide_based']
         assert len(ts.reference_sequence.data) == ts.sequence_length
         muts = {}
         ts_muts = {
