@@ -115,9 +115,13 @@ class TestNextMutationID(tests.PyslimTestCase):
         for chrom, ts in rrts.items():
             # nothing should change
             assert chrom in recipe["ts"]
-            assert ts.metadata == recipe["ts"][chrom].metadata
             assert pyslim.next_slim_mutation_id(mts) == pyslim.next_slim_mutation_id(ts)
             assert ts.num_mutations == recapped[chrom].num_mutations
+            a = ts.metadata
+            a['SLiM'].pop("user_metadata", None)
+            b = recipe["ts"][chrom].metadata
+            b['SLiM'].pop("user_metadata", None)
+            assert a == b
 
     def test_invalid_derived_state(self):
         ts = msprime.sim_ancestry(
@@ -1287,6 +1291,7 @@ class TestFlags(tests.PyslimTestCase):
                 else:
                     assert np.all(no == this_no)
 
+
 class TestSetInitialState(tests.PyslimTestCase):
 
     def verify_reset(self, its, ots, time=0, individuals=None):
@@ -1353,13 +1358,20 @@ class TestSetInitialState(tests.PyslimTestCase):
             self.verify_reset(ts, out_ts[chrom], time=time)
 
     @pytest.mark.parametrize(
-        'restart_name, recipe', restarted_recipe_eq("no_op"), indirect=["recipe"])
-    def test_set_individuals(self, restart_name, recipe, helper_functions, tmp_path):
+        'restart_name, recipe', restarted_recipe_eq("no_op", 'resettable'), indirect=["recipe"])
+    @pytest.mark.parametrize('num_indivs', [2, 100])
+    @pytest.mark.parametrize('time', [0, None])
+    def test_set_individuals(self, restart_name, recipe, num_indivs, time, helper_functions, tmp_path):
         in_ts = {}
-        time = 5
         ts = list(recipe["ts"].values())[0]
-        individuals = pyslim.individuals_alive_at(ts, time)
-        print(individuals)
+        assert ('user_metadata' in ts.metadata['SLiM'] and
+                'reset_tick' in ts.metadata['SLiM']['user_metadata']), "Simulation not set up for this test."
+        reset_tick = ts.metadata['SLiM']['user_metadata']['reset_tick'][0]
+        if time is None:
+            for time in range(ts.metadata['SLiM']['tick'] + 1):
+                if pyslim.slim_time(ts, time) == reset_tick:
+                    break
+        individuals = pyslim.individuals_alive_at(ts, time)[:num_indivs]
         for chrom, ts in recipe["ts"].items():
             in_ts[chrom] = pyslim.set_slim_state(ts, time=time, individuals=individuals)
         out_ts = helper_functions.run_slim_restart(

@@ -18,11 +18,11 @@ initialize()
 3 late() {
     sim.treeSeqRememberIndividuals(sample(p1.individuals, 7));
     defineGlobal("METADATA", Dictionary());
-    METADATA.setValue("reset_time", community.tick);
+    METADATA.setValue("reset_tick", community.tick);
 }
 
 10 late() {
-    sim.treeSeqOutput(TREES_FILE);
+    sim.treeSeqOutput(TREES_FILE, metadata=METADATA);
     catn("Done.");
     sim.simulationFinished();
 }
