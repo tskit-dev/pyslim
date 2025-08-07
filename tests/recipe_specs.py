@@ -40,6 +40,8 @@ recipe_specs = {
     "recipe_init_mutated_WF.slim":             {"WF": True, "init_mutated": True},
     "recipe_init_mutated_nonWF.slim":          {"nonWF": True, "init_mutated": True},
     "recipe_with_metadata.slim":               {"user_metadata": True},
+    "recipe_resettable_WF.slim":               {"WF": True, "resettable": True},
+    "recipe_resettable_nonWF.slim":            {"nonWF": True, "resettable": True},
     "recipe_retain_everyone_WF_late.slim":     {"WF": True, "pedigree": True, "retained": True},
     "recipe_retain_sometimes_WF_late.slim":    {"WF": True, "pedigree": True, "retained": True},
     "recipe_retain_unary_WF_late.slim":        {"WF": True, "pedigree": True, "retained": True, "retainCoalescentOnly": False},
@@ -92,16 +94,31 @@ def recipe_eq(*keys, exclude=None):
 # These SLiM scripts read in an existing trees file; the "input" gives a key in the
 # recipe_specs array that will produce a "ts" file suitable for input
 restarted_recipe_specs = {
-    "restart_nucleotides_WF.slim":   {"WF": True, "nucleotides": True, "no_op": True, "input": "recipe_nucleotides_WF.slim"},
-    "restart_nucleotides_nonWF.slim":   {"nonWF": True, "nucleotides": True, "no_op": True, "input": "recipe_nucleotides_nonWF.slim"},
-    "restart_and_run_WF.slim":    {"WF": True, "input": "recipe_init_mutated_WF.slim"},
-    "restart_and_run_nonWF.slim": {"nonWF": True, "input": "recipe_init_mutated_nonWF.slim"},
-    "restart_and_remove_subpop_nonWF.slim":    {"nonWF": True, "input": "recipe_init_mutated_nonWF.slim", "remove_subpop": True},
-}
-for t in ("WF", "nonWF"):
+    "restart_nucleotides_WF.slim":   {
+        "recipe_nucleotides_WF.slim": {"WF": True, "nucleotides": True, "no_op": True},
+    },
+    "restart_nucleotides_nonWF.slim":   {
+        "recipe_nucleotides_nonWF.slim": {"nonWF": True, "nucleotides": True, "no_op": True},
+    },
+    "restart_and_run_WF.slim":    {
+        "recipe_init_mutated_WF.slim": {"WF": True}, 
+    },
+    "restart_and_run_nonWF.slim": {
+        "recipe_init_mutated_nonWF.slim": {"nonWF": True},
+    },
+    "restart_and_remove_subpop_nonWF.slim":    {
+        "recipe_init_mutated_nonWF.slim": {"nonWF": True, "remove_subpop": True},
+    },
     # recipes that read in and write out immediately ("no_op")
-    value = {t: True, "no_op": True, "input": f"recipe_{t}.slim"}
-    restarted_recipe_specs[f'restart_{t}.slim'] = value
+    "restart_WF.slim": {
+        "recipe_WF.slim": {"WF": True, "no_op": True},
+        "recipe_resettable_WF.slim": {"WF": True, "no_op": True, "resettable": True},
+    },
+    "restart_nonWF.slim": {
+        "recipe_nonWF.slim": {"nonWF": True, "no_op": True},
+        "recipe_resettable_nonWF.slim": {"nonWF": True, "no_op": True, "resettable": True},
+    },
+}
 
 def restarted_recipe_eq(*keys):
     """
@@ -110,7 +127,9 @@ def restarted_recipe_eq(*keys):
     If key is empty, return all of them.
     """
     for k, v in restarted_recipe_specs.items():
-        if all(kk in v for kk in keys):
-            assert v["input"] in recipe_specs  # we need a valid input recipe
-            yield (k, v["input"])
+        for ik, iv in v.items():
+            if all(kk in iv for kk in keys):
+                print(k, ik)
+                assert ik in recipe_specs  # we need a valid input recipe
+                yield (k, ik)
 
