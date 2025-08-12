@@ -141,11 +141,14 @@ Additionally, ``pyslim`` contains the following methods:
 SLiM-specific metadata is made visible to the user by ``.metadata`` properties.
 For instance:
 ```{code-cell}
-ts.node(4).metadata
+ts.individual(4).metadata
 ```
-shows that the fifth node in the tree sequence was given pedigree ID ``982740`` by SLiM,
-is *not* a null genome, and has ``genome_type`` zero, which corresponds to an autosome 
-(see below).
+shows that the fifth individual in the tree sequence was given pedigree ID ``495999`` by SLiM,
+had parents with pedigree IDs ``493739`` and ``494784``,
+was age 10 at the time that they died (or the simulation ended),
+lived in subpopulation 1,
+was female (because ``sex`` matches ``pyslim.INDIVIDUAL_TYPE_FEMALE``, below),
+and has no additional metadata flags.
 
 
 ### Annotation
@@ -167,7 +170,6 @@ underlying tables), which can then be modified and loaded into SLiM.
 
 ## Constants and flags
 
-
 ```{eval-rst}
 .. autodata:: NUCLEOTIDES
 ```
@@ -179,7 +181,7 @@ This is a flag used in `node.flags` (see {meth}`.remove_vacant`):
 ```
 
 
-These flags are the possible values for ``individual.metadata["sex"]``:
+These are the possible values for ``individual.metadata["sex"]``:
 
 ```{eval-rst}
 .. autodata:: INDIVIDUAL_TYPE_HERMAPHRODITE
@@ -189,7 +191,8 @@ These flags are the possible values for ``individual.metadata["sex"]``:
 .. autodata:: INDIVIDUAL_TYPE_MALE
 ```
 
-This is a flag used in ``individual.metadata["flags"]``:
+This is a flag used in ``individual.metadata["flags"]``
+(*note*: this is *not* used in `individual.flags`, which is different!):
 
 ```{eval-rst}
 .. data:: INDIVIDUAL_FLAG_MIGRATED == 0x01

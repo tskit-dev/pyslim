@@ -4,44 +4,12 @@ import warnings
 import numpy as np
 
 from ._version import *
-from .provenance import *
+from .provenance import slim_provenance_version, get_environment
 
-GENOME_TYPE_AUTOSOME = 0
-"""
-A value used in node metadata ("genome_type") to indicate the node is an autosome.
-**DEPRECATED.**
-"""
-GENOME_TYPE_X = 1
-"""
-A value used in node metadata ("genome_type") to indicate the node is an X chromosome.
-**DEPRECATED.**
-"""
-GENOME_TYPE_Y = 2
-"""
-A value used in node metadata ("genome_type") to indicate the node is a Y chromosome.
-**DEPRECATED.**
-"""
-INDIVIDUAL_TYPE_HERMAPHRODITE = -1
-"""
-A value used in individual metadata ("sex") to indicate the individual is a hermaphrodite.
-"""
-INDIVIDUAL_TYPE_FEMALE = 0
-"""
-A value used in individual metadata ("sex") to indicate the individual is a male.
-"""
-INDIVIDUAL_TYPE_MALE = 1
-"""
-A value used in individual metadata ("sex") to indicate the individual is a female.
-"""
-INDIVIDUAL_FLAG_MIGRATED = np.uint32(1 << 1)
-"""
-An individual flag indicating the individual is a migrant.
-"""
-NODE_IS_VACANT_SAMPLE = np.uint32(1 << 16)
-"""
-A node flag indicating the node was a vacant sample but has been marked as not a sample.
-"""
-
+from pyslim import INDIVIDUAL_ALIVE
+from pyslim import GENOME_TYPE_AUTOSOME
+from pyslim import GENOME_TYPE_X
+from pyslim import GENOME_TYPE_Y
 
 def is_vacant_num_bytes(num_chromosomes):
     """

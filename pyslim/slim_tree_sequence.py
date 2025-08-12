@@ -5,37 +5,8 @@ import warnings
 import numpy as np
 
 from ._version import *
-from .slim_metadata import *
-from .provenance import *
-from .util import *
 from .slim_metadata import _old_metadata_schema
-
-INDIVIDUAL_ALIVE = np.uint32(2**16)
-"""
-Used in ``individual.flags`` to denote the individual is alive
-when the tree sequence was written out.
-"""
-INDIVIDUAL_REMEMBERED = np.uint32(2**17)
-"""
-Used in ``individual.flags`` to denote the individual was
-marked as "remembered".
-"""
-INDIVIDUAL_RETAINED = np.uint32(2**18)
-"""
-Used in ``individual.flags`` to denote the individual was
-marked as "retained".
-"""
-# deprecated but keep it around for backwards compatibility
-# (also, it means effectively the same thing as RETAINED)
-INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
-
-NUCLEOTIDES = ['A', 'C', 'G', 'T']
-"""
-Mutation metadata records the nucleotide as an integer,
-translated to ACGT by indexing this array,
-so a nucleotide value of ``k`` actually means NUCLEOTIDES[k].
-"""
-
+from pyslim import NUCLEOTIDES
 
 def load(*args, **kwargs):
     raise RuntimeError("This method has been removed: use tskit.load( ) instead.")
