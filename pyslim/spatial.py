@@ -3,7 +3,7 @@ import tskit
 import warnings
 import numpy as np
 
-from .methods import *
+from .methods import individual_ages, individuals_alive_at
 
 
 def _in_location_bin(locations, x0, x1, y0, y1):

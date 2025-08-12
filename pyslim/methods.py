@@ -3,11 +3,13 @@ import tskit
 import warnings
 import numpy as np
 
-from .slim_tree_sequence import *
-from .slim_metadata import *
-from .provenance import *
-from .util import *
+from .util import unique_labels_by_group
+from .slim_metadata import default_slim_metadata, is_current_version
+from .slim_metadata import set_metadata_schemas, set_tree_sequence_metadata
 
+from pyslim import NUCLEOTIDES
+from pyslim import NODE_IS_VACANT_SAMPLE
+from pyslim import INDIVIDUAL_ALIVE
 
 def _mark_samples(tables, nodes):
     # Modifies tables in place.
@@ -1010,6 +1012,9 @@ def _annotate_nodes_individuals(tables, age):
         else:
             md = n.metadata
         node_metadata.append(md)
+        print("....")
+        print(md)
+        print(tables.nodes.metadata_schema.validate_and_encode_row(md))
 
     nms = tables.nodes.metadata_schema
     tables.nodes.packset_metadata([
