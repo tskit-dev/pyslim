@@ -1009,6 +1009,16 @@ def _annotate_nodes_individuals(tables, age):
     If you have other situations, like non-alive "remembered" individuals, you
     will need to edit the tables by hand, afterwards.
     '''
+    if len(tables.nodes.metadata) > 0:
+        warnings.warn(
+                "The provided tree sequence already has some nodes with "
+                "metadata; this metadata will be overwritten."
+        )
+    if len(tables.individuals.metadata) > 0:
+        warnings.warn(
+                "The provided tree sequence already has some individuals with "
+                "metadata; this metadata will be overwritten."
+        )
     ind_population = np.full(tables.individuals.num_rows, -1, dtype="int")
     ind_slim_id = np.full(tables.individuals.num_rows, 0, dtype='int')
     nid = 0
@@ -1025,12 +1035,8 @@ def _annotate_nodes_individuals(tables, age):
             md["slim_id"] = nid
             nid += 1
         else:
-            md = n.metadata
+            md = None
         node_metadata.append(md)
-        print("....")
-        print(md)
-        print(tables.nodes.metadata_schema.validate_and_encode_row(md))
-
     nms = tables.nodes.metadata_schema
     tables.nodes.packset_metadata([
         nms.validate_and_encode_row(x)
@@ -1053,7 +1059,7 @@ def _annotate_nodes_individuals(tables, age):
             # so no big deal
             ind_flags[j] |= INDIVIDUAL_ALIVE
         else:
-            md = ind.metadata
+            md = None
         ind_metadata.append(md)
     tables.individuals.set_columns(
         flags=ind_flags,

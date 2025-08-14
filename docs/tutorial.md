@@ -258,7 +258,8 @@ align: right
 name: pedigree_simplify
 ---
 The result of simplifying the tree sequence
-in figure {numref}`figure {number} <pedigree_recapitate>`.
+in figure {numref}`figure {number} <pedigree_recapitate>`
+to only two of the three samples.
 ```
 
 Probably, your simulations have produced many more fictitious genomes
