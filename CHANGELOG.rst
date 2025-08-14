@@ -14,7 +14,7 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
 - SLiM tree sequence file version number has changed to 0.9.
 
 - This is a change in SLiM, really, but top-level SLiM metadata now requires
-    a `"this_chromosome"` entry.
+  a `"this_chromosome"` entry.
 
 - Similarly, node metadata no longer has `genome_type` or `is_null`; instead
   they have `is_vacant`, and the chromosome type is in top-level metadata,
@@ -25,7 +25,13 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
     wishing to set up a multi-chromosome simulation should use instead
     `pyslim.slim_node_metadata_schema` (which has the appropriate value in
     `["properties"]["is_vacant"]["length"]`)
-    (:user:`petrelharp`, :pr:`367`)
+    (:user:`petrelharp`, :pr:`367`).
+
+- Previously, `pyslim.annotate` would leave existing node and individual
+    metadata, even if this metadata came from a different schema. This
+    could silently create garbage metadata. Now, `annotate` removes
+    any existing metadata, and warns if this occurs
+    (:user:`petrelharp`, :pr:`390`).
 
 **Notable changes**:
 
@@ -38,7 +44,7 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
 
 - `pyslim.set_slim_state` will adjust times and "alive" flags so
     that when the tree sequence is loaded into SLiM it will have
-    a specified set of individuals alive.
+    a specified set of individuals alive at a particular time.
     (:user:`petrelharp`, :pr:`384`)
 
 - Functions `pyslim.node_is_vacant` and `pyslim.has_vacant_samples`
@@ -61,27 +67,27 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
 
 **Bugfixes**:
 
-- The individual flags `INDIVIDUAL_ALIVE`, `INDIVIDUAL_REMEMBERED`,
-    and `INDIVIDUAL_RETAINED` were signed integers, but the flags in the
-    individual table they apply to are unsigned, so using the
-    bitwise negation operator `~` could result in an error. Now,
-    they are np.uint32 values. (:user:`petrelharp`, :pr:`378`)
-
 - Recapitation on tree sequences with null genomes would attempt to simulate
     the history of those null genomes; this would in all but exceptional cases
     fail with an error ("not all roots are at the time expected"). Now, null
     genomes are "vacant" (see above) and `recapitate` removes their
     sample flags before recapitating (and optionally puts them back)
-    as described above (:user:`petrelharp`, :pr:`367`)
-    
+    as described in `pyslim.remove_vacant` (:user:`petrelharp`, :pr:`367`).
+
 - Previously, recapitation would require the roots of all trees to be
     at the same time (roughly) as the 'tick' stored in the top-level metadata;
     however, this would not be the case if the first population was added
-    later than the first tick. (:user:`petrelharp`, :pr:`382`)
+    later than the first tick. The requirement has therefore been removed.
+    (:user:`petrelharp`, :pr:`382`)
 
 - The `generated_nucleotides` method now sets the `nucleotide_based` entry
-    in top-level metadata to True.
-    (:user:`petrelharp`, :pr:`385`)
+    in top-level metadata to True. (:user:`petrelharp`, :pr:`385`)
+
+- The individual flags `INDIVIDUAL_ALIVE`, `INDIVIDUAL_REMEMBERED`,
+    and `INDIVIDUAL_RETAINED` were signed integers, but the flags in the
+    individual table they apply to are unsigned, so using the
+    bitwise negation operator `~` could result in an error. Now,
+    they are np.uint32 values. (:user:`petrelharp`, :pr:`378`)
 
 
 ***************************

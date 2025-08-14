@@ -263,6 +263,42 @@ class TestAnnotate(tests.PyslimTestCase):
         with pytest.warns(Warning, match="already has.*metadata"):
             slim_ts = pyslim.annotate(ts, model_type="WF", tick=1) 
 
+    def test_warns_and_overwrites_node_metadata(self, helper_functions):
+        ts = msprime.sim_ancestry(
+                4,
+                population_size=10,
+                sequence_length=10,
+                recombination_rate=0.01,
+                random_seed=100,
+        )
+        tables = ts.dump_tables()
+        tables.nodes.clear()
+        for n in ts.nodes():
+            tables.nodes.append(n.replace(metadata=b'abc'))
+        ts = tables.tree_sequence()
+        with pytest.warns(Warning, match="already has.*metadata"):
+            slim_ts = pyslim.annotate(ts, model_type="WF", tick=1) 
+            for n in slim_ts.nodes():
+                assert n.is_sample() or n.metadata is None
+
+    def test_warns_and_overwrites_individual_metadata(self, helper_functions):
+        ts = msprime.sim_ancestry(
+                4,
+                population_size=10,
+                sequence_length=10,
+                recombination_rate=0.01,
+                random_seed=100,
+        )
+        tables = ts.dump_tables()
+        tables.individuals.clear()
+        for n in ts.individuals():
+            tables.individuals.append(n.replace(metadata=b'abc'))
+        ts = tables.tree_sequence()
+        with pytest.warns(Warning, match="already has.*metadata"):
+            slim_ts = pyslim.annotate(ts, model_type="WF", tick=1) 
+            for ind in slim_ts.individuals():
+                assert slim_ts.node(ind.nodes[0]).is_sample() or ind.metadata is None
+
     def test_just_simulate(self, helper_functions, tmp_path):
         ts = msprime.sim_ancestry(
                 4,
