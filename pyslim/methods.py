@@ -85,7 +85,7 @@ def _is_chrom_vacant(k, b):
 def has_vacant_samples(ts):
     """
     Returns whether the tree sequence has vacant sample nodes.
-    See {meth}`.remove_vacant`.
+    See :meth:`remove_vacant`.
 
     :param tskit.TreeSequence ts: The tree sequence.
     """
@@ -106,7 +106,7 @@ def node_is_vacant(ts, node):
     recorded by SLiM. A vacant node represents a blank placeholder in SLiM:
     either a "null haplosome" (used as placeholders for sex chromosomes and other
     chromosome types not of consistent ploidy in all individuals) or simply an
-    unused node for haploid chromosome types. See {meth}`.remove_vacant`.
+    unused node for haploid chromosome types. See :meth:`remove_vacant`.
 
     :param tskit.TreeSequence ts: The tree sequence.
     :param tskit.Node node: The node object.
@@ -119,7 +119,7 @@ def node_is_vacant(ts, node):
 def _record_vacant_tables(tables):
     """
     Sets the NODE_IS_VACANT_SAMPLE flag for all vacant, sample nodes.
-    See {meth}`.remove_vacant`.
+    See :meth:`remove_vacant`.
 
     :param tskit.TableCollection tables: The table collection.
     """
@@ -157,20 +157,22 @@ def _remove_vacant_sample_flags(tables):
 
 def remove_vacant(ts):
     """
+    Remove sample flags from all vacant nodes.
+
     In SLiM's internal state, there are two nodes per individual, even on
     chromosomes for which the individual is not diploid.  Thus, some sample
     nodes may be placeholders, not actually representing physical haplosomes,
     and are called "vacant" nodes. In the tree sequence these nodes have no
-    ancestry, and are thus have 'missing' data; however, their presence can
+    ancestry, and thus have 'missing' data; however, their presence can
     cause problems with methods not designed for missing data.
 
     This method returns a copy of the tree sequence for which all vacant nodes
     have the sample flag removed; these nodes will thus not affect
-    {meth}`.recapitate`, tree sequence statistics, etcetera. This also sets
-    the {data}`.NODE_IS_VACANT_SAMPLE` flag on these nodes,
-    so they can be restored with {meth}`.restore_vacant`.  You probably don't
+    :meth:`recapitate`, tree sequence statistics, etc. This also sets
+    the :data:`NODE_IS_VACANT_SAMPLE` flag on these nodes,
+    so they can be restored with :meth:`restore_vacant`.  You probably don't
     want to run this method again on the output, since these flags will be
-    overwritten and {meth}`.restore_vacant` will no longer work as expected.
+    overwritten and :meth:`restore_vacant` will no longer work as expected.
 
     :param tskit.TreeSequence ts: The tree sequence.
     """
@@ -181,7 +183,7 @@ def remove_vacant(ts):
 
 def remove_vacant_tables(tables):
     """
-    Does the work of {meth}`.remove_vacant`, modifying ``tables`` in place.
+    Does the work of :meth:`remove_vacant`, modifying ``tables`` in place.
 
     :param tskit.TableCollection tables: The tables underlying a tree sequence.
     """
@@ -192,10 +194,12 @@ def remove_vacant_tables(tables):
 
 def restore_vacant(ts):
     """
+    The inverse of :meth:`remove_vacant`.
+
     This method returns a copy of the tree sequence for which all nodes
-    with the {data}`.NODE_IS_VACANT_SAMPLE` flag set have their sample flags
+    with the :data:`NODE_IS_VACANT_SAMPLE` flag set have their sample flags
     set also. If these nodes are not vacant, an error will be raised.  This is
-    intended to be an inverse of {meth}`.remove_vacant`.
+    intended to be an inverse of :meth:`remove_vacant`.
 
     :param tskit.TreeSequence ts: The tree sequence.
     """
@@ -206,7 +210,7 @@ def restore_vacant(ts):
 
 def restore_vacant_tables(tables):
     """
-    Does the work of {meth}`.restore_vacant`, modifying ``tables`` in place.
+    Does the work of :meth:`restore_vacant`, modifying ``tables`` in place.
 
     :param tskit.TableCollection tables: The tables underlying a tree sequence.
     """
@@ -257,7 +261,7 @@ def recapitate(ts,
     provided, there will be *no* recombination.
 
     Sample flags from vacant nodes will be removed before recapitating:
-    see {meth}`.remove_vacant`. To restore these, use ``keep_vacant=True``.
+    see :meth:`remove_vacant`. To restore these, use ``keep_vacant=True``.
     You only need to do this if some individuals are not diploid and
     you will be loading the tree sequence back into SLiM.
 
@@ -527,7 +531,7 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     alive at the given time ago.  This is determined using their birth time
     ago (given by their `time` attribute) and, for nonWF models,
     their `age` attribute (which is equal to their age at the last time
-    they were Remembered). See also {func}`.individual_ages_at`.
+    they were Remembered). See also :func:`individual_ages_at`.
 
     In WF models, birth occurs after "early()", so that individuals are only
     alive during "late()" for the time step when they have age zero,
@@ -650,9 +654,9 @@ def individual_ages_at(ts, time, stage="late", remembered_stage="late"):
     will be zero.
 
     In a WF model, this method does not provide any more information than
-    does {func}`.individuals_alive_at`, but for consistency, non-nan ages
+    does :func:`individuals_alive_at`, but for consistency, non-nan ages
     will be 0 in "late" and 1 in "first" and "early".
-    See {func}`.individuals_alive_at` for further discussion.
+    See :func:`individuals_alive_at` for further discussion.
 
     :param tskit.TreeSequence ts: A tree sequence.
     :param float time: The reference time ago.
@@ -746,10 +750,21 @@ def set_slim_state(ts, time=0, individuals=None):
     ``pyslim.individuals_alive_at(ts, time)``.
 
     To do this, the "tick" in top-level metadata is changed; individual flags
-    are reset so that only ``individuals`` have the {data}`.INDIVIDUAL_ALIVE`
+    are reset so that only ``individuals`` have the :data:`INDIVIDUAL_ALIVE`
     flag set; and tskit times have ``time`` subtracted from them (so they measure
-    time ago relative to the new tick).  (As a result, some individuals in the
-    tree sequence may have negative times, i.e., have lived "in the future".)
+    time ago relative to the new tick).
+
+    As a result, some individuals in the tree sequence may have negative times,
+    i.e., have lived "in the future".  Since these individuals will not be
+    "alive", they will be ignored by SLiM, even when their birth times arrive,
+    so that any future history will also be present, unchanged, in the tree
+    sequence that results from additional simulation. If additional simulation
+    is performed then contradictions may arise: for instance, if one of the
+    ``individuals`` had offspring for an additional ten ticks past ``time`` in
+    the original simulation, but in the new simulation they die immediately,
+    then the resulting tree sequence will still be valid but the history as
+    recorded by SLiM in metadata will not make sense. To avoid such issues, one
+    can Remember and then kill the individuals to be later used in this way.
 
     This also subtracts ``time`` from the value of "cycle" in top-level
     metadata; if this is not desired (or the value in "tick" needs to be
@@ -757,7 +772,7 @@ def set_slim_state(ts, time=0, individuals=None):
 
     :param tskit.TreeSequence ts: A SLiM-compatible TreeSequence.
     :param int time: The number of time units (ticks) into the past to shift
-        times.  (Default: zero.)
+        times.  (Default: zero; can be positive or negative.)
     :param np.ndarray individuals: An array of the tskit IDs of the individuals
         that should be marked as alive (all others will be not alive).
         (Default: leave unchanged.)
@@ -845,9 +860,9 @@ def individual_parents(ts):
     Finds all parent-child relationships in the tree sequence (as far as we
     can tell). The output will be a two-column array with row [i,j]
     indicating that individual i is a parent of individual j.  See
-    {func}`.has_individual_parents` for exactly which parents are returned.
+    :func:`has_individual_parents` for exactly which parents are returned.
 
-    See {func}`.individuals_alive_at` for further discussion about how
+    See :func:`individuals_alive_at` for further discussion about how
     this is determined based on when the individuals were Remembered.
 
     :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
@@ -875,7 +890,7 @@ def has_individual_parents(ts):
     these are true. Note in particular that individuals with only *one*
     recorded parent are *not* counted as "having parents".
 
-    See {func}`.individuals_alive_at` for further discussion about how
+    See :func:`individuals_alive_at` for further discussion about how
     this is determined based on when the individuals were Remembered.
 
     :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
