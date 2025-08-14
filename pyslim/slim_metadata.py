@@ -1180,7 +1180,7 @@ def is_current_version(ts, _warn=False):
 
 def update(ts):
     """
-    Update a tree sequence produced by a previous verion of SLiM
+    Update a tree sequence produced by a previous version of SLiM
     to the current file version.
 
     :return TreeSequence: The updated tree sequence.
@@ -1192,7 +1192,7 @@ def update(ts):
 
 def update_tables(tables):
     """
-    Update tables produced by a previous verion of SLiM to the current file version.
+    Update tables produced by a previous version of SLiM to the current file version.
     Modifies the tables in place.
     """
     # First we ensure we can find the file format version number

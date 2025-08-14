@@ -195,7 +195,7 @@ This is a flag used in ``individual.metadata["flags"]``
 (*note*: this is *not* used in `individual.flags`, which is different!):
 
 ```{eval-rst}
-.. data:: INDIVIDUAL_FLAG_MIGRATED == 0x01
+.. autodata:: INDIVIDUAL_FLAG_MIGRATED
 ```
 
 Finally, these are used in ``individual.flags``:
