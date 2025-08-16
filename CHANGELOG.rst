@@ -1,6 +1,11 @@
-***************************
+******************
+UPCOMING - [1.1.1]
+******************
+
+
+********************
 [1.1.0] - 2025-08-16
-***************************
+********************
 
 Major update release to support the release of SLiM v5.0. The main update here
 is support for multiple chromosomes, which entailed a change to the
