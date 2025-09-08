@@ -36,7 +36,7 @@ jobs:
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: conda-v${{ env.CACHE_NUM }}-${{ hashFiles('requirements/CI-docs/requirements.txt') }}
+          key: conda-v${{ env.CACHE_NUM }}-${{ hashFiles('pyproject.toml') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v3.1.1
@@ -54,11 +54,14 @@ jobs:
         run: |
           conda install --yes slim
 
-      - name: Install pip deps
+      - name: Install uv and pip deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
         run: |
-          pip install -r requirements/CI-docs/requirements.txt
+          pip install uv
+          uv pip install --system -r pyproject.toml --extra docs
+          # Install current pyslim as editable to ensure we get the latest version
+          uv pip install --system -e .
 
       # # Retaining commented block for next devel cycle
       # - name: Build SLiM

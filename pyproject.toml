@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyslim"
+dynamic = ["version"]
+description = "Manipulate tree sequences produced by SLiM."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Peter Ralph", email = "petrel.harp@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+keywords = ["tree sequences", "tskit"]
+requires-python = ">=3.9"
+dependencies = [
+    "msprime>=1.0.1",
+    "tskit",
+    "numpy",
+]
+
+[project.urls]
+homepage = "https://github.com/tskit-dev/pyslim"
+repository = "https://github.com/tskit-dev/pyslim"
+"Bug Reports" = "https://github.com/tskit-dev/pyslim/issues"
+
+[tool.setuptools]
+packages = ["pyslim"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "pyslim._version.pyslim_version"}
+
+[project.optional-dependencies]
+test = [
+    "flake8==7.1.2",
+    "pytest==8.3.5", 
+    "pytest-cov==6.1.1",
+    "pytest-xdist==3.6.1",
+    "filelock==3.19.1",
+    "tskit==0.6.4",
+    "msprime>=1.2.0",
+    "matplotlib==3.9.4",
+    "pandas==2.3.2",
+]
+
+docs = [
+    "jupyter-book==1.0.4.post1",
+    "matplotlib==3.10.3",
+    "msprime==1.3.4",
+    "pandas==2.2.3",
+    "PyGithub==2.6.1",
+    "setuptools-scm==8.2.1",
+    "sphinx-argparse==0.5.2",
+    "sphinx-issues==5.0.0",
+    "tskit==0.6.3",
+]
+
+dev = [
+    "flake8>=7.0",
+    "pytest>=8.0", 
+    "pytest-cov>=6.0",
+    "pytest-xdist>=3.0",
+    "numpy",
+    "filelock",
+    "tskit>=0.6.3",
+    "msprime>=1.2.0",
+    "matplotlib>=3.0",
+    "pandas>=2.0",
+    "jupyter-book>=1.0",
+    "setuptools-scm>=8.0",
+    "sphinx-argparse>=0.5",
+    "sphinx-issues>=5.0",
+]
