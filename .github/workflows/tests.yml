@@ -50,7 +50,6 @@ jobs:
         uses: mamba-org/setup-micromamba@v2.0.4
         with:
           environment-name: anaconda-client-env
-          environment-file: requirements/CI-conda/ci-environment.yml
           cache-environment: true
           create-args: |
             python=${{ matrix.python }}
@@ -91,6 +90,12 @@ jobs:
           cd Release
           cmake -G"MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release ..
           make -j 2
+
+      - name: Install uv and dependencies
+        shell: bash -l {0}
+        run: |
+          pip install uv
+          uv pip install --system -r pyproject.toml --extra test
 
       - name: Install SLiM macos / linux
         if: (matrix.os == 'macos-latest' || matrix.os == 'ubuntu-24.04')

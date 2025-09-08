@@ -21,7 +21,7 @@ To install a particular version of ``pyslim`` from source, e.g., to obtain a rec
 ```bash
 git clone https://github.com/tskit-dev/pyslim.git
 cd pyslim
-python setup.py install --user
+python -m pip install -e ".[dev]"
 ```
 
 
@@ -48,7 +48,7 @@ git clone git@github.com:YOUR_GITHUB/pyslim.git
 ```
 
 - Install the development requirements using
-  ``python3 -m pip install -r requirements/development.txt``.
+  ``python3 -m pip install -e ".[dev]"``.
 - Run the tests to ensure everything has worked: ``python3 -m pytest tests``. These should
   all pass.
 - Make your changes in a local branch, and open a pull request on GitHub when you
