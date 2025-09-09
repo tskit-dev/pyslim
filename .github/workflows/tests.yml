@@ -3,10 +3,13 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, test]
   merge_group:
 
 jobs:
+  pre-commit:
+    name: Lint
+    uses: tskit-dev/.github/.github/workflows/lint.yml@v1
   test:
     name: Python
     runs-on: ${{ matrix.os }}
