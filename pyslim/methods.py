@@ -128,31 +128,24 @@ def _record_vacant_tables(tables):
                       "flags are being overwritten; this may mean you've already run "
                       "remove_vacant and so don't need to run it again.")
     k = _chromosome_index(tables)
-    nodes = tables.nodes.copy()
-    tables.nodes.clear()
-    for n in nodes:
-        f = n.flags
-        if ((n.metadata is not None) and
-            (
-                    _is_chrom_vacant(k, n.metadata['is_vacant'])
-                    and
-                    (f & tskit.NODE_IS_SAMPLE)
-                    )):
-            f |= NODE_IS_VACANT_SAMPLE
-        else:
-            f &= ~NODE_IS_VACANT_SAMPLE
-        tables.nodes.append(n.replace(flags=f))
+
+    dn = tables.nodes.asdict()
+    dn['flags'] &= ~NODE_IS_VACANT_SAMPLE
+    samples = np.where(tables.nodes.flags & tskit.NODE_IS_SAMPLE > 0)[0]
+    for s in samples:
+        n = tables.nodes[s]
+        if _is_chrom_vacant(k, n.metadata['is_vacant']):
+            dn['flags'][s] |= NODE_IS_VACANT_SAMPLE
+    tables.nodes.set_columns(**dn)
 
 
 def _remove_vacant_sample_flags(tables):
     """
     Set all NODE_IS_VACANT_SAMPLE flags off.
     """
-    nodes = tables.nodes.copy()
-    tables.nodes.clear()
-    for n in nodes:
-        f = n.flags
-        tables.nodes.append(n.replace(flags=f & ~NODE_IS_VACANT_SAMPLE))
+    dn = tables.nodes.asdict()
+    dn['flags'] &= ~NODE_IS_VACANT_SAMPLE
+    tables.nodes.set_columns(**dn)
 
 
 def remove_vacant(ts):
