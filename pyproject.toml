@@ -55,7 +55,7 @@ test = [
     "pytest-cov==6.1.1",
     "pytest-xdist==3.6.1",
     "filelock==3.19.1",
-    "tskit==0.6.4",
+    "tskit==1.0.0b3",
     "msprime>=1.2.0",
     "matplotlib==3.9.4",
     "pandas==2.3.2",
@@ -70,7 +70,7 @@ docs = [
     "setuptools-scm==8.2.1",
     "sphinx-argparse==0.5.2",
     "sphinx-issues==5.0.0",
-    "tskit==0.6.3",
+    "tskit==1.0.0b3",
 ]
 
 dev = [
