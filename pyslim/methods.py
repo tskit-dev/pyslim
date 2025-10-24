@@ -714,21 +714,18 @@ def slim_time(ts, time, stage="late"):
 
 def _shift_times(ts, dt):
     """
-    Add `dt` to the times ago of all nodes, and mutations.
+    Add `dt` to the times ago of all nodes and mutations.
     (Note: migrations not currently supported by simplify,
     so not used here.)
     """
     tables = ts.dump_tables()
     if dt != 0:
-        tables.nodes.clear()
-        tables.mutations.clear()
-        tables.migrations.clear()
-        for node in ts.nodes():
-            tables.nodes.append(node.replace(time=node.time + dt))
-        for mutation in ts.mutations():
-            tables.mutations.append(mutation.replace(time=mutation.time + dt))
-        # for mig in ts.migrations():
-        #     tables.migrations.append(mig.replace(time=mig.time + dt))
+        d = tables.nodes.asdict()
+        d['time'] += dt
+        tables.nodes.set_columns(**d)
+        d = tables.mutations.asdict()
+        d['time'] += dt
+        tables.mutations.set_columns(**d)
     return tables
 
 
@@ -777,12 +774,10 @@ def set_slim_state(ts, time=0, individuals=None):
         md['SLiM']['cycle'] -= time
         tables.metadata = md
     if individuals is not None:
-        flags = tables.individuals.flags
-        flags &= ~INDIVIDUAL_ALIVE
-        flags[individuals] |= INDIVIDUAL_ALIVE
-        tables.individuals.clear()
-        for f, ind in zip(flags, ts.individuals()):
-            tables.individuals.append(ind.replace(flags=f))
+        d = tables.individuals.asdict()
+        d['flags'] &= ~INDIVIDUAL_ALIVE
+        d['flags'][individuals] |= INDIVIDUAL_ALIVE
+        tables.individuals.set_columns(**d)
     return tables.tree_sequence()
 
 
