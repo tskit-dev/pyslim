@@ -35,12 +35,12 @@ python -m pytest tests
 
 If you would like to add some features to ``pyslim``, please read the
 following. If you think there is anything missing,
-please open an [issue](http://github.com/tskit-dev/pyslim/issues>) or
-[pull request](http://github.com/tskit-dev/pyslim/pulls>) on GitHub!
+please open an [issue](http://github.com/tskit-dev/pyslim/issues) or
+[pull request](http://github.com/tskit-dev/pyslim/pulls) on GitHub!
 
 ## Quickstart
 
-- Make your own fork of the pyslim repo on [GitHub](http://github.com/tskit-dev/pyslim>)
+- Make your own fork of the pyslim repo on [GitHub](http://github.com/tskit-dev/pyslim)
 - Clone your fork into a local directory:
 
 ```bash
