@@ -766,9 +766,12 @@ Once they are not part of the sample,
 they are essentially invisible to most operations.
 However, it is helpful to know that they are there.
 Why not remove them entirely, e.g., with ``simplify()``?
-Two reasons: first, if you wish to read the tree sequence back into SLiM
-then you'll need them there,
-and can put them back in the sample with {func}`.restore_vacant`.
+They are kept because if you wish to read the tree sequence back into SLiM
+then you'll need them;
+they can put them back in the sample after being removed
+with {func}`.restore_vacant`.
+If you would like to remove the vacant nodes from the sample for
+other reasons, you can use {func}`.remove_vacant`.
 
 
 ## Historical individuals
