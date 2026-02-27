@@ -21,7 +21,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -29,7 +28,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 keywords = ["tree sequences", "tskit"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "msprime>=1.0.1",
     "tskit",
@@ -48,10 +47,9 @@ include-package-data = true
 [tool.setuptools.dynamic]
 version = {attr = "pyslim._version.pyslim_version"}
 
-[project.optional-dependencies]
+[dependency-groups]
 test = [
-    "flake8==7.1.2",
-    "pytest==8.3.5", 
+    "pytest==8.3.5",
     "pytest-cov==6.1.1",
     "pytest-xdist==3.6.1",
     "filelock==3.19.1",
@@ -73,19 +71,26 @@ docs = [
     "tskit==0.6.3",
 ]
 
-dev = [
-    "flake8>=7.0",
-    "pytest>=8.0", 
-    "pytest-cov>=6.0",
-    "pytest-xdist>=3.0",
-    "numpy",
-    "filelock",
-    "tskit>=0.6.3",
-    "msprime>=1.2.0",
-    "matplotlib>=3.0",
-    "pandas>=2.0",
-    "jupyter-book>=1.0",
-    "setuptools-scm>=8.0",
-    "sphinx-argparse>=0.5",
-    "sphinx-issues>=5.0",
+lint = [
+    "ruff==0.15.1",
+    "prek==0.3.3",
 ]
+
+packaging = [
+    "twine",
+    "validate-pyproject[all]",
+]
+
+dev = [
+    {include-group = "docs"},
+    {include-group = "lint"},
+    {include-group = "test"},
+    {include-group = "packaging"},
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 89
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "W", "I", "N", "UP", "A", "PT"]
