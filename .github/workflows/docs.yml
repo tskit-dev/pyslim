@@ -43,7 +43,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         with:
           activate-environment: anaconda-client-env
-          python-version: "3.10"
+          python-version: "3.11"
           channels: conda-forge
           channel-priority: strict
           auto-update-conda: true
@@ -59,19 +59,9 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install uv
-          uv pip install --system -r pyproject.toml --extra docs
+          uv sync --locked --group docs --no-default-groups
           # Install current pyslim as editable to ensure we get the latest version
           uv pip install --system -e .
-
-      # # Retaining commented block for next devel cycle
-      # - name: Build SLiM
-      #   run: |
-      #     git clone https://github.com/messerlab/SLiM.git
-      #     cd SLiM
-      #     mkdir -p Release
-      #     cd Release
-      #     cmake -D CMAKE_BUILD_TYPE=Release ..
-      #     make -j 2
 
       - name: Build docs
         run: |
@@ -81,6 +71,3 @@ jobs:
           slim -v
           pip list
           cd docs && make
-
-
-

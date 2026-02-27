@@ -1,0 +1,11 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+jobs:
+  Lint:
+    uses: tskit-dev/.github/.github/workflows/lint.yml@main
