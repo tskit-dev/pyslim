@@ -22,15 +22,20 @@ jobs:
 
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v2.0.4
-        with:
-          environment-name: slim-env
-          cache-environment: true
 
       - name: Install SLiM
-        run: micromamba install -y slim
+        run: micromamba install -n base -y slim
 
-      - name: Add SLiM to PATH
-        run: echo "$MAMBA_ROOT_PREFIX/envs/slim-env/bin" >> $GITHUB_PATH
+      - name: Debug SLiM install
+        run: |
+          echo "PATH=$PATH"
+          echo "MAMBA_ROOT_PREFIX=$MAMBA_ROOT_PREFIX"
+          echo "micromamba env list:"
+          micromamba env list
+          echo "find slim binary:"
+          find "$MAMBA_ROOT_PREFIX" -name slim -type f 2>/dev/null || echo "not found"
+          echo "which slim:"
+          which slim || echo "slim not in PATH"
 
       - name: Verify SLiM
         run: slim -v
