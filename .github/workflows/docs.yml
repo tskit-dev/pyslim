@@ -20,12 +20,17 @@ jobs:
           submodules: true
           fetch-depth: 0
 
-      - name: Install SLiM
+      - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v2.0.4
         with:
           environment-name: slim-env
           cache-environment: true
-          create-args: slim
+
+      - name: Install SLiM
+        run: micromamba install -y slim
+
+      - name: Verify SLiM
+        run: slim -v
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
