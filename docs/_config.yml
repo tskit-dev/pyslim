@@ -42,7 +42,7 @@ sphinx:
         logo:
           text: |
             pyslim<br/>
-            version __PYSLIM_VERSION__
+            version __PKG_VERSION__
       issues_github_path: tskit-dev/pyslim
       todo_include_todos: true
       intersphinx_mapping:
