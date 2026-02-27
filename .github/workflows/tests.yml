@@ -7,12 +7,16 @@ on:
   merge_group:
 
 jobs:
+  packaging:
+    name: Python packaging
+    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@main
+
   test:
     name: Python
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: ["3.10", 3.13]
+        python: ["3.11", "3.13"]
         os: [macos-latest, ubuntu-24.04, windows-latest]
         sys: [mingw64, ucrt64]
         env: [x86_64, ucrt-x86_64]
@@ -33,7 +37,6 @@ jobs:
           - os: windows-latest
             sys: mingw64
             env: ucrt-x86_64
-
     defaults:
       run:
         shell: bash -l {0}
@@ -78,8 +81,8 @@ jobs:
           path: D:\a\pyslim\pyslim\SLiM
           key: ${{runner.os}}-${{matrix.sys}}-${{matrix.env}}-key
 
-      - name: Build SLiM windows
-        if: ( matrix.os == 'windows-latest'  && steps.cache-slim.outputs.cache-hit != 'true' )
+      - name: Build SLiM (Windows)
+        if: matrix.os == 'windows-latest' && steps.cache-slim.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
           git clone https://github.com/messerlab/SLiM.git
@@ -92,37 +95,29 @@ jobs:
           make -j 2
 
       - name: Install uv and dependencies
-        shell: bash -l {0}
         run: |
           pip install uv
-          uv pip install --system -r pyproject.toml --extra test
+          uv sync --locked --group test --no-default-groups
 
-      - name: Install SLiM macos / linux
-        if: (matrix.os == 'macos-latest' || matrix.os == 'ubuntu-24.04')
-        run: |
-          micromamba install slim -y
+      - name: Install SLiM (macOS / Linux)
+        if: matrix.os == 'macos-latest' || matrix.os == 'ubuntu-24.04'
+        run: micromamba install slim -y
 
       - name: Run tests
-        shell: bash -l {0}
         run: |
-          micromamba info
-          micromamba list
-          export PATH=$PWD/SLiM/Release:$PATH 
-          which slim
-          slim -v
-          python -m pytest \
-            -n 0 \
-            -v \
-            --cov=pyslim \
-            --cov-branch \
-            --cov-report=term-missing \
+          export PATH=$PWD/SLiM/Release:$PATH
+          uv run --no-default-groups python -m pytest \
+            -n 0 -v \
+            --cov=pyslim --cov-branch \
             --cov-report=xml \
             tests
 
-
-      - name: upload coverage report to codecov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
         with:
-          fail_ci_if_error: true
-          env_vars: OS,PYTHON
           token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          flags: python-tests
+          files: coverage.xml
+          disable_search: true
+          verbose: true
