@@ -100,7 +100,22 @@ ignore = [
     "B905", #Don't add strict=False to zips (B905)
     "N806", "N802", "N803", # Various nags about uppercase vars
     "UP032", # Don't upgrade to f strings
-    # "PT012", # pytest.raises() block should contain a single simple statement
+    "PT011", # pytest.raises(ValueError)` is too broad 
+    "PT030", # `pytest.warns(Warning)` is too broad, set the `match`
+    "E722", # Do not use bare `except`
+    "PT006", # Wrong type passed to first argument of `pytest.mark.parametrize`
+    "PT031", # `pytest.warns()` block should contain a single 
+    "F841", # Local variable is assigned to but never used 
+    "B007", # Loop control variable `j` not used within loop body  
+    "B028", # No explicit `stacklevel` keyword argument found  
+    "B904", # Within an `except` clause, raise exceptions with `raise 
+    "E712", # Avoid equality comparisons to `False`; 
+    "PT018",  # Assertion should be broken down into multiple parts
+    "E501", # Line too long
+    "F821", # Undefined name
+	"F401", # unused import
+    "F405", # `slim_file_version` may be undefined, or defined from star imports
+    "E721", # Use `is` and `is not` for type comparisons, or `isinstance()`
 ]
 
 fixable = ["ALL"]

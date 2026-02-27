@@ -1,14 +1,14 @@
 """
 Test cases for utility functions.
 """
-import pytest
-import warnings
+
 import numpy as np
+import pytest
 
 import pyslim
 
-class TestUniqueLabelsByGroup():
 
+class TestUniqueLabelsByGroup:
     def verify_unique_labels_by_group(self, group, label, minlength):
         with pytest.warns(FutureWarning):
             x = pyslim.util.unique_labels_by_group(group, label, minlength)
@@ -63,16 +63,19 @@ class TestUniqueLabelsByGroup():
                         label = minl + np.random.choice(np.arange(nl), size=n)
                         self.verify_unique_labels_by_group(group, label, ng)
                         # int32 labels
-                        self.verify_unique_labels_by_group(group, label.astype("int32"), ng)
+                        self.verify_unique_labels_by_group(
+                            group, label.astype("int32"), ng
+                        )
                         # and float labels
-                        label = minl + np.random.choice(np.random.uniform(0, 1, nl), size=n)
+                        label = minl + np.random.choice(
+                            np.random.uniform(0, 1, nl), size=n
+                        )
                         self.verify_unique_labels_by_group(group, label, ng)
 
     def test_unused_labels(self):
         with pytest.warns(FutureWarning):
             x = pyslim.unique_labels_by_group(
-                group=np.array([1, 1, 4], dtype='int'),
-                label=np.array([2, 2, 2], dtype='int')
+                group=np.array([1, 1, 4], dtype="int"),
+                label=np.array([2, 2, 2], dtype="int"),
             )
         assert np.all(x)
-

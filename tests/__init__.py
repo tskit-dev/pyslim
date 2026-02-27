@@ -1,33 +1,33 @@
 """
 Common code for the pyslim test cases.
 """
-import os
+
 import json
+import os
 import random
 import warnings
 
-import pyslim
-import tskit
 import msprime
-import pytest
 import numpy as np
+import pytest
+import tskit
+
+import pyslim
 
 
 class PyslimTestCase:
-    '''
+    """
     Base class for test cases in pyslim.
-    '''
+    """
 
     def verify_haplotype_equality(self, ts, slim_ts):
         assert ts.num_sites == slim_ts.num_sites
-        for j, v1, v2 in zip(range(ts.num_sites), ts.variants(),
-                             slim_ts.variants()):
+        for j, v1, v2 in zip(range(ts.num_sites), ts.variants(), slim_ts.variants()):
             g1 = [v1.alleles[x] for x in v1.genotypes]
             g2 = [v2.alleles[x] for x in v2.genotypes]
             assert np.array_equal(g1, g2)
 
-
-    def assertTablesEqual(self, t1, t2, label=''):
+    def assertTablesEqual(self, t1, t2, label=""):
         # make it easy to see what's wrong
         if hasattr(t1, "metadata_schema"):
             if t1.metadata_schema != t2.metadata_schema:
@@ -70,11 +70,11 @@ class PyslimTestCase:
         map1 = {}
         for j, n in enumerate(ts1.nodes()):
             if n.metadata is not None:
-                map1[n.metadata['slim_id']] = j
+                map1[n.metadata["slim_id"]] = j
         map2 = {}
         for j, n in enumerate(ts2.nodes()):
             if n.metadata is not None:
-                map2[n.metadata['slim_id']] = j
+                map2[n.metadata["slim_id"]] = j
         assert set(map1.keys()) == set(map2.keys())
         print(ts1)
         print(map1)
@@ -100,22 +100,35 @@ class PyslimTestCase:
                 a, b = random.choices(sids, k=2)
                 print(a, b, map1[a], map1[b], map2[a], map2[b])
                 print(t1)
-                print('a', t1.time(map1[a]))
-                print('b', t1.time(map1[b]))
-                print('1', t1.tmrca(map1[a], map1[b]))
-                print('2', t2.tmrca(map2[a], map2[b]))
+                print("a", t1.time(map1[a]))
+                print("b", t1.time(map1[b]))
+                print("1", t1.tmrca(map1[a], map1[b]))
+                print("2", t2.tmrca(map2[a], map2[b]))
                 assert t1.tmrca(map1[a], map1[b]) == t2.tmrca(map2[a], map2[b])
 
-    def assertTableCollectionsEqual(self, t1, t2,
-            skip_provenance=False, check_metadata_schema=True,
-            reordered_individuals=False):
+    def assertTableCollectionsEqual(
+        self,
+        t1,
+        t2,
+        skip_provenance=False,
+        check_metadata_schema=True,
+        reordered_individuals=False,
+    ):
         if isinstance(t1, tskit.TreeSequence):
             t1 = t1.dump_tables()
         if isinstance(t2, tskit.TreeSequence):
             t2 = t2.dump_tables()
-        t1_samples = [(n.metadata['slim_id'], j) for j, n in enumerate(t1.nodes) if (n.flags & tskit.NODE_IS_SAMPLE)]
+        t1_samples = [
+            (n.metadata["slim_id"], j)
+            for j, n in enumerate(t1.nodes)
+            if (n.flags & tskit.NODE_IS_SAMPLE)
+        ]
         t1_samples.sort()
-        t2_samples = [(n.metadata['slim_id'], j) for j, n in enumerate(t2.nodes) if (n.flags & tskit.NODE_IS_SAMPLE)]
+        t2_samples = [
+            (n.metadata["slim_id"], j)
+            for j, n in enumerate(t2.nodes)
+            if (n.flags & tskit.NODE_IS_SAMPLE)
+        ]
         t2_samples.sort()
         t1.simplify([j for (_, j) in t1_samples], record_provenance=False)
         t2.simplify([j for (_, j) in t2_samples], record_provenance=False)
@@ -129,13 +142,25 @@ class PyslimTestCase:
         if check_metadata_schema:
             # this is redundant now, but will help diagnose if things go wrong
             assert t1.metadata_schema.schema == t2.metadata_schema.schema
-            assert t1.populations.metadata_schema.schema == t2.populations.metadata_schema.schema
-            assert t1.individuals.metadata_schema.schema == t2.individuals.metadata_schema.schema
+            assert (
+                t1.populations.metadata_schema.schema
+                == t2.populations.metadata_schema.schema
+            )
+            assert (
+                t1.individuals.metadata_schema.schema
+                == t2.individuals.metadata_schema.schema
+            )
             assert t1.nodes.metadata_schema.schema == t2.nodes.metadata_schema.schema
             assert t1.edges.metadata_schema.schema == t2.edges.metadata_schema.schema
             assert t1.sites.metadata_schema.schema == t2.sites.metadata_schema.schema
-            assert t1.mutations.metadata_schema.schema == t2.mutations.metadata_schema.schema
-            assert t1.migrations.metadata_schema.schema == t2.migrations.metadata_schema.schema
+            assert (
+                t1.mutations.metadata_schema.schema
+                == t2.mutations.metadata_schema.schema
+            )
+            assert (
+                t1.migrations.metadata_schema.schema
+                == t2.migrations.metadata_schema.schema
+            )
         if not check_metadata_schema:
             # need to pull out metadata to compare as dicts before zeroing the schema
             m1 = t1.metadata
@@ -150,14 +175,14 @@ class PyslimTestCase:
                 t.sites.metadata_schema = ms
                 t.mutations.metadata_schema = ms
                 t.migrations.metadata_schema = ms
-            t1.metadata = b''
-            t2.metadata = b''
+            t1.metadata = b""
+            t2.metadata = b""
             assert m1 == m2
         if reordered_individuals:
-            ind1 = {i.metadata['pedigree_id']: j for j, i in enumerate(t1.individuals)}
-            ind2 = {i.metadata['pedigree_id']: j for j, i in enumerate(t2.individuals)}
+            ind1 = {i.metadata["pedigree_id"]: j for j, i in enumerate(t1.individuals)}
+            ind2 = {i.metadata["pedigree_id"]: j for j, i in enumerate(t2.individuals)}
             for pid in ind1:
-                if not pid in ind2:
+                if pid not in ind2:
                     print("not in t2:", ind1[pid])
                 assert pid in ind2
                 if t1.individuals[ind1[pid]] != t2.individuals[ind2[pid]]:
@@ -165,7 +190,7 @@ class PyslimTestCase:
                     print("t2:", t2.individuals[ind2[pid]])
                 assert t1.individuals[ind1[pid]] == t2.individuals[ind2[pid]]
             for pid in ind2:
-                if not pid in ind1:
+                if pid not in ind1:
                     print("not in t1:", ind2[pid])
                 assert pid in ind1
             t1.individuals.clear()
@@ -192,7 +217,6 @@ class PyslimTestCase:
 
     def do_recapitate(self, ts, *args, **kwargs):
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', msprime.TimeUnitsMismatchWarning)
+            warnings.simplefilter("ignore", msprime.TimeUnitsMismatchWarning)
             recap = pyslim.recapitate(ts, *args, **kwargs)
         return recap
-

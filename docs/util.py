@@ -1,10 +1,10 @@
 def pp(x):
-    '''
+    """
     Hacky way to pretty-print nested dict __repr__'s
-    '''
+    """
     if not isinstance(x, str):
         x = x.__repr__()
-    delims = {"'" : "'", '"' : '"', "(" : ")", "[" : "]"}
+    delims = {"'": "'", '"': '"', "(": ")", "[": "]"}
     out = []
     indent = [0]
     inside = []
@@ -20,7 +20,7 @@ def pp(x):
         else:
             prefix += 1
         out.append(a)
-        if a == '{':
+        if a == "{":
             indent.append(min(prefix, 4))
             prefix = 0
             out.append("\n" + " " * sum(indent))
@@ -32,10 +32,10 @@ def pp(x):
             if a in delims:
                 inside.append(a)
             if name:
-                if a == ':':
+                if a == ":":
                     name = False
             else:
-                if a == ',':
+                if a == ",":
                     name = True
                     prefix = 0
                     out.append("\n" + " " * sum(indent))

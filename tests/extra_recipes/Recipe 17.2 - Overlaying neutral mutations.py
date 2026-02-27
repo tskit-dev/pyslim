@@ -2,7 +2,8 @@
 
 # This is a Python recipe, to be run after the section 17.1 recipe
 
-import tskit, msprime
+import msprime
+import tskit
 
 ts = tskit.load("./recipe_17.1.trees")
 ts = ts.simplify()
@@ -11,7 +12,9 @@ ts = ts.simplify()
 asserted = False
 try:
     for t in ts.trees():
-        assert t.num_roots == 1, "not coalesced! on segment {} to {}".format(t.interval[0], t.interval[1])
+        assert t.num_roots == 1, "not coalesced! on segment {} to {}".format(
+            t.interval[0], t.interval[1]
+        )
 except AssertionError:
     asserted = True
 

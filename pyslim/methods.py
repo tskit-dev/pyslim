@@ -1,15 +1,19 @@
-import msprime
-import tskit
 import warnings
+
+import msprime
 import numpy as np
+import tskit
 
+from pyslim import INDIVIDUAL_ALIVE, NODE_IS_VACANT_SAMPLE, NUCLEOTIDES
+
+from .slim_metadata import (
+    default_slim_metadata,
+    is_current_version,
+    set_metadata_schemas,
+    set_tree_sequence_metadata,
+)
 from .util import unique_labels_by_group
-from .slim_metadata import default_slim_metadata, is_current_version
-from .slim_metadata import set_metadata_schemas, set_tree_sequence_metadata
 
-from pyslim import NUCLEOTIDES
-from pyslim import NODE_IS_VACANT_SAMPLE
-from pyslim import INDIVIDUAL_ALIVE
 
 def _mark_samples(tables, nodes):
     # Modifies tables in place.
@@ -51,13 +55,15 @@ def _chromosome_index(ts):
     :param tskit.TreeSequence ts: The tree sequence or table collection.
     """
     if not (
-          isinstance(ts.metadata, dict)
-          and 'SLiM' in ts.metadata
-          and 'this_chromosome' in ts.metadata['SLiM']
-       ):
-        raise ValueError("The tree sequence does not have the necessary "
-                         "information in top-level metadata.")
-    k = ts.metadata['SLiM']['this_chromosome']['index']
+        isinstance(ts.metadata, dict)
+        and "SLiM" in ts.metadata
+        and "this_chromosome" in ts.metadata["SLiM"]
+    ):
+        raise ValueError(
+            "The tree sequence does not have the necessary "
+            "information in top-level metadata."
+        )
+    k = ts.metadata["SLiM"]["this_chromosome"]["index"]
     return k
 
 
@@ -94,7 +100,7 @@ def has_vacant_samples(ts):
     for n in ts.samples():
         md = ts.node(n).metadata
         if md is not None:
-            if _is_chrom_vacant(k, md['is_vacant']):
+            if _is_chrom_vacant(k, md["is_vacant"]):
                 out = True
                 break
     return out
@@ -112,8 +118,8 @@ def node_is_vacant(ts, node):
     :param tskit.Node node: The node object.
     """
     # not using chrom_index here because we expect people to call this on lots of nodes
-    k = ts.metadata['SLiM']['this_chromosome']['index']
-    return node.metadata is not None and _is_chrom_vacant(k, node.metadata['is_vacant'])
+    k = ts.metadata["SLiM"]["this_chromosome"]["index"]
+    return node.metadata is not None and _is_chrom_vacant(k, node.metadata["is_vacant"])
 
 
 def _record_vacant_tables(tables):
@@ -124,18 +130,20 @@ def _record_vacant_tables(tables):
     :param tskit.TableCollection tables: The table collection.
     """
     if np.any(tables.nodes.flags & NODE_IS_VACANT_SAMPLE):
-        warnings.warn("Some nodes are already flagged as vacant samples, and these "
-                      "flags are being overwritten; this may mean you've already run "
-                      "remove_vacant and so don't need to run it again.")
+        warnings.warn(
+            "Some nodes are already flagged as vacant samples, and these "
+            "flags are being overwritten; this may mean you've already run "
+            "remove_vacant and so don't need to run it again."
+        )
     k = _chromosome_index(tables)
 
     dn = tables.nodes.asdict()
-    dn['flags'] &= ~NODE_IS_VACANT_SAMPLE
+    dn["flags"] &= ~NODE_IS_VACANT_SAMPLE
     samples = np.where(tables.nodes.flags & tskit.NODE_IS_SAMPLE > 0)[0]
     for s in samples:
         n = tables.nodes[s]
-        if _is_chrom_vacant(k, n.metadata['is_vacant']):
-            dn['flags'][s] |= NODE_IS_VACANT_SAMPLE
+        if _is_chrom_vacant(k, n.metadata["is_vacant"]):
+            dn["flags"][s] |= NODE_IS_VACANT_SAMPLE
     tables.nodes.set_columns(**dn)
 
 
@@ -144,7 +152,7 @@ def _remove_vacant_sample_flags(tables):
     Set all NODE_IS_VACANT_SAMPLE flags off.
     """
     dn = tables.nodes.asdict()
-    dn['flags'] &= ~NODE_IS_VACANT_SAMPLE
+    dn["flags"] &= ~NODE_IS_VACANT_SAMPLE
     tables.nodes.set_columns(**dn)
 
 
@@ -212,22 +220,21 @@ def restore_vacant_tables(tables):
     for j in is_vacant:
         n = tables.nodes[j]
         if n.metadata is None:
-            raise ValueError("Something is wrong: node that is flagged as "
-                             "a vacant sample node has no metadata.")
-        if not _is_chrom_vacant(k, n.metadata['is_vacant']):
-            raise ValueError("Something is wrong: node that is flagged as "
-                             "a vacant sample node is not vacant.")
+            raise ValueError(
+                "Something is wrong: node that is flagged as "
+                "a vacant sample node has no metadata."
+            )
+        if not _is_chrom_vacant(k, n.metadata["is_vacant"]):
+            raise ValueError(
+                "Something is wrong: node that is flagged as "
+                "a vacant sample node is not vacant."
+            )
     _remove_vacant_sample_flags(tables)
     _mark_samples(tables, is_vacant)
 
 
-def recapitate(ts,
-               ancestral_Ne=None,
-               *,
-               keep_vacant=False,
-               **kwargs
-    ):
-    '''
+def recapitate(ts, ancestral_Ne=None, *, keep_vacant=False, **kwargs):
+    """
     Returns a "recapitated" tree sequence, by using msprime to run a
     coalescent simulation from the "top" of this tree sequence, i.e.,
     allowing any uncoalesced lineages to coalesce.
@@ -247,7 +254,7 @@ def recapitate(ts,
 
     You may control the ancestral demography by passing in a ``demography``
     argument: see :func:`msprime.sim_ancestry`.
-    
+
     In general, all defaults are whatever the defaults of
     :func:`msprime.sim_ancestry` are; this includes recombination rate, so
     that if neither ``recombination_rate`` or a ``recombination_map`` are
@@ -265,7 +272,7 @@ def recapitate(ts,
     :param bool keep_vacant: Whether to restore the sample flags on any
         vacant sample nodes. Default: False.
     :param dict kwargs: Any other arguments to :func:`msprime.sim_ancestry`.
-    '''
+    """
     is_current_version(ts, _warn=True)
 
     # we need to ask msprime to *not* simulate from any 'vacant' haplosomes;
@@ -308,29 +315,27 @@ def recapitate(ts,
         demography = msprime.Demography.from_tree_sequence(ts)
         # must set pop sizes to >0 even though we merge immediately
         for pop in demography.populations:
-            pop.initial_size=1.0
+            pop.initial_size = 1.0
         ancestral_name = "ancestral"
         derived_names = [pop.name for pop in demography.populations]
         while ancestral_name in derived_names:
-            ancestral_name = (ancestral_name + "_ancestral")
+            ancestral_name = ancestral_name + "_ancestral"
         demography.add_population(
-                name=ancestral_name,
-                description="ancestral population simulated by msprime",
-                initial_size=ancestral_Ne,
+            name=ancestral_name,
+            description="ancestral population simulated by msprime",
+            initial_size=ancestral_Ne,
         )
         # the split has to come slightly longer ago than slim's tick
         # since that's when all the linages are at, and otherwise the event
         # won't apply to them
         demography.add_population_split(
-                np.nextafter( recap_time, 2 * recap_time),
-                derived=derived_names,
-                ancestral=ancestral_name,
+            np.nextafter(recap_time, 2 * recap_time),
+            derived=derived_names,
+            ancestral=ancestral_name,
         )
         kwargs["demography"] = demography
 
-    recap = msprime.sim_ancestry(
-                initial_state = ts,
-                **kwargs)
+    recap = msprime.sim_ancestry(initial_state=ts, **kwargs)
 
     if has_vacant and keep_vacant:
         recap = restore_vacant(recap)
@@ -366,10 +371,7 @@ def convert_alleles(ts):
     :param tskit.TreeSequence ts: The tree sequence to transform.
     """
     tables = ts.dump_tables()
-    has_refseq = (
-            ts.has_reference_sequence()
-            and len(ts.reference_sequence.data) > 0
-    )
+    has_refseq = ts.has_reference_sequence() and len(ts.reference_sequence.data) > 0
     if not has_refseq:
         raise ValueError("Tree sequence must have a valid reference sequence.")
     # unfortunately, nucleotide mutations may be stacked (e.g., substitutions
@@ -377,8 +379,10 @@ def convert_alleles(ts):
     # so we must guess which is the most recent, by choosing the one that
     # has the largest SLiM time, doesn't appear in the parent list, or has
     # the lagest SLiM ID.
-    nuc_inds = tables.mutations.metadata_vector(['mutation_list', 0, 'nucleotide'], dtype='int')
-    num_stacked = np.array([len(m.metadata['mutation_list']) for m in ts.mutations()])
+    nuc_inds = tables.mutations.metadata_vector(
+        ["mutation_list", 0, "nucleotide"], dtype="int"
+    )
+    num_stacked = np.array([len(m.metadata["mutation_list"]) for m in ts.mutations()])
     for k in np.where(num_stacked > 1)[0]:
         mut = ts.mutation(k)
         if mut.parent == tskit.NULL:
@@ -386,26 +390,21 @@ def convert_alleles(ts):
         else:
             pids = ts.mutation(mut.parent).derived_state.split(",")
         x = [
-            (
-                md['slim_time'],
-                i not in pids,
-                int(i),
-                j
-            ) for j, (i, md) in
-            enumerate(
-                zip(mut.derived_state.split(","), mut.metadata['mutation_list'])
+            (md["slim_time"], i not in pids, int(i), j)
+            for j, (i, md) in enumerate(
+                zip(mut.derived_state.split(","), mut.metadata["mutation_list"])
             )
         ]
         x.sort()
         j = x[-1][3]
-        nuc_inds[k] = mut.metadata['mutation_list'][j]['nucleotide']
+        nuc_inds[k] = mut.metadata["mutation_list"][j]["nucleotide"]
     if np.any(nuc_inds == -1):
         raise ValueError("All mutations must be nucleotide mutations.")
     da = np.array(NUCLEOTIDES)[nuc_inds]
     tables.mutations.packset_derived_state(da)
-    k = tables.sites.position.astype('int')
-    aa = np.frombuffer(ts.reference_sequence.data.encode('utf-8'), dtype='S1')[k]
-    tables.sites.packset_ancestral_state(aa.tobytes().decode('utf-8'))
+    k = tables.sites.position.astype("int")
+    aa = np.frombuffer(ts.reference_sequence.data.encode("utf-8"), dtype="S1")[k]
+    tables.sites.packset_ancestral_state(aa.tobytes().decode("utf-8"))
 
     return tables.tree_sequence()
 
@@ -426,7 +425,7 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     each mutation and picking a random nucleotide uniformly out of the three
     possible nucleotides that differ from the parental state (i.e., the derived
     state of the parental mutation, or the ancestral state if the mutation has
-    no parent). If ``keep=True`` (the default), the mutations that already have a 
+    no parent). If ``keep=True`` (the default), the mutations that already have a
     nucleotide (i.e., an integer 0-3 in metadata) will not be modified.
 
     Technical note: in the case of stacked mutations, the SLiM mutation that
@@ -444,16 +443,24 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     rng = np.random.default_rng(seed=seed)
     if reference_sequence is None:
         if not ts.has_reference_sequence():
-            reference_sequence = rng.choice(
+            reference_sequence = (
+                rng.choice(
                     np.array([65, 67, 71, 84], dtype=np.int8),
                     int(ts.sequence_length),
                     replace=True,
-            ).tobytes().decode('ascii')
+                )
+                .tobytes()
+                .decode("ascii")
+            )
     else:
         if len(reference_sequence) != ts.sequence_length:
-            raise ValueError("Reference sequence must have length equal to sequence_length.")
+            raise ValueError(
+                "Reference sequence must have length equal to sequence_length."
+            )
         if len([x for x in reference_sequence if x not in NUCLEOTIDES]) > 0:
-            raise ValueError("Reference sequence must be a string of A, C, G, and T only.")
+            raise ValueError(
+                "Reference sequence must be a string of A, C, G, and T only."
+            )
 
     tables = ts.dump_tables()
     if reference_sequence is not None:
@@ -461,10 +468,10 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     tables.mutations.clear()
     sets = [[k for k in range(4) if k != i] for i in range(4)]
     states = np.full((ts.num_mutations,), -1)
-    k = tables.sites.position.astype('int')
+    k = tables.sites.position.astype("int")
     aa_list = np.searchsorted(
-            NUCLEOTIDES,
-            np.frombuffer(tables.reference_sequence.data.encode('utf-8'), dtype='S1')[k],
+        NUCLEOTIDES,
+        np.frombuffer(tables.reference_sequence.data.encode("utf-8"), dtype="S1")[k],
     )
     for site in ts.sites():
         aa = aa_list[site.id]
@@ -479,14 +486,14 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
             this_da = pa
             ml = mut.metadata
             max_time = -np.inf
-            for i, md in zip(mut.derived_state.split(","), ml['mutation_list']):
-                da = md['nucleotide']
+            for i, md in zip(mut.derived_state.split(","), ml["mutation_list"]):
+                da = md["nucleotide"]
                 if da == -1 or not keep:
                     if i in muts:
                         da = muts[i]
                     else:
                         da = sets[pa][rng.integers(3)]
-                    md['nucleotide'] = da
+                    md["nucleotide"] = da
                 muts[i] = da
                 # the official nucleotide state is from the SLiM mutation with
                 # the largest slim_time attribute that was not present in the parent
@@ -497,7 +504,7 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
             states[mut.id] = this_da
             tables.mutations.append(mut.replace(metadata=ml))
     md = tables.metadata
-    md['SLiM']['nucleotide_based'] = True
+    md["SLiM"]["nucleotide_based"] = True
     tables.metadata = md
     return tables.tree_sequence()
 
@@ -510,15 +517,16 @@ def individual_ages(ts):
 
     :return: An array of ages of individuals.
     """
-    if ts.metadata['SLiM']['model_type'] != "WF":
+    if ts.metadata["SLiM"]["model_type"] != "WF":
         ages = ts.tables.individuals.metadata_vector("age")
     else:
-        ages = np.zeros(ts.num_individuals, dtype='int')
+        ages = np.zeros(ts.num_individuals, dtype="int")
     return ages
 
 
-def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
-                         population=None, samples_only=False):
+def individuals_alive_at(
+    ts, time, stage="late", remembered_stage=None, population=None, samples_only=False
+):
     """
     Returns an array giving the IDs of all individuals that are known to be
     alive at the given time ago.  This is determined using their birth time
@@ -530,7 +538,7 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     alive during "late()" for the time step when they have age zero,
     while in nonWF models, birth occurs before "early()", so they are alive
     for both stages.
-    
+
     In both WF and nonWF models, mortality occurs between
     "early()" and "late()", so that individuals are last alive during the
     "early()" stage of the time step of their final age, and if individuals
@@ -571,21 +579,26 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     """
     is_current_version(ts, _warn=True)
     if stage not in ("late", "early", "first"):
-        raise ValueError(f"Unknown stage '{stage}': "
-                          "should be either 'first', 'early' or 'late'.")
+        raise ValueError(
+            f"Unknown stage '{stage}': should be either 'first', 'early' or 'late'."
+        )
 
     if remembered_stage is None:
-        remembered_stage = ts.metadata['SLiM']['stage']
+        remembered_stage = ts.metadata["SLiM"]["stage"]
 
     if remembered_stage not in ("late", "early", "first"):
-        raise ValueError(f"Unknown remembered_stage '{remembered_stage}': "
-                          "should be either 'first', 'early' or 'late'.")
-    if remembered_stage != ts.metadata['SLiM']['stage']:
-        warnings.warn(f"Provided remembered_stage '{remembered_stage}' does not"
-                      " match the stage at which the tree sequence was saved"
-                      f" ('{ts.metadata['SLiM']['stage']}'). This is not necessarily"
-                      " an error, but mismatched stages will lead to inconsistencies:"
-                      " make sure you know what you're doing.")
+        raise ValueError(
+            f"Unknown remembered_stage '{remembered_stage}': "
+            "should be either 'first', 'early' or 'late'."
+        )
+    if remembered_stage != ts.metadata["SLiM"]["stage"]:
+        warnings.warn(
+            f"Provided remembered_stage '{remembered_stage}' does not"
+            " match the stage at which the tree sequence was saved"
+            f" ('{ts.metadata['SLiM']['stage']}'). This is not necessarily"
+            " an error, but mismatched stages will lead to inconsistencies:"
+            " make sure you know what you're doing."
+        )
 
     # An individual's tskit time is the tskit counter at the time of their birth.
     # The tskit counter clicks once at the start of each reproduction bout.
@@ -602,31 +615,30 @@ def individuals_alive_at(ts, time, stage='late', remembered_stage=None,
     # let x = 1 if the stage is 'first' or (is 'early' and WF)
     # and y = 1 if remembered stage is 'late' or (is 'early' and nonWF);
     # then t = time + x + y - 1 .
-    is_wf = (ts.metadata['SLiM']['model_type'] == "WF")
-    x = (stage == "first" or (stage == "early" and is_wf))
-    y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
+    is_wf = ts.metadata["SLiM"]["model_type"] == "WF"
+    x = stage == "first" or (stage == "early" and is_wf)
+    y = remembered_stage == "late" or (remembered_stage == "early" and not is_wf)
     t = time + x + y - 1
     birth_times = ts.individuals_time
     ages = individual_ages(ts)
     if is_wf:
-        alive_bool = (birth_times == t)
+        alive_bool = birth_times == t
     else:
         age_offset = (stage == "early") + (remembered_stage == "late")
         alive_bool = np.logical_and(
-                birth_times >= t,
-                birth_times - ages < t + age_offset
+            birth_times >= t, birth_times - ages < t + age_offset
         )
     if population is not None:
-        alive_bool &= np.isin(
-                ts.individuals_population,
-                population
-        )
+        alive_bool &= np.isin(ts.individuals_population, population)
     if samples_only:
         nodes = ts.tables.nodes
         alive_bool &= (
-                0 < np.bincount(1 + nodes.individual,
-                                nodes.flags & tskit.NODE_IS_SAMPLE,
-                                minlength=1 + ts.num_individuals)[1:]
+            0
+            < np.bincount(
+                1 + nodes.individual,
+                nodes.flags & tskit.NODE_IS_SAMPLE,
+                minlength=1 + ts.num_individuals,
+            )[1:]
         )
     return np.where(alive_bool)[0]
 
@@ -660,14 +672,11 @@ def individual_ages_at(ts, time, stage="late", remembered_stage="late"):
     """
     ages = np.repeat(np.nan, ts.num_individuals)
     alive = individuals_alive_at(
-            ts,
-            time,
-            stage=stage,
-            remembered_stage=remembered_stage
+        ts, time, stage=stage, remembered_stage=remembered_stage
     )
     # to convert individuals_time to number of ticks ago we subtract (y - 1), so
-    is_wf = (ts.metadata['SLiM']['model_type'] == "WF")
-    y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
+    is_wf = ts.metadata["SLiM"]["model_type"] == "WF"
+    y = remembered_stage == "late" or (remembered_stage == "early" and not is_wf)
     t = time + y - 1
     ages[alive] = ts.individuals_time[alive] - t
     return ages
@@ -704,11 +713,11 @@ def slim_time(ts, time, stage="late"):
         should be computed for.
     """
     is_current_version(ts, _warn=True)
-    is_wf = (ts.metadata['SLiM']['model_type'] == "WF")
-    remembered_stage = ts.metadata['SLiM']['stage']
-    x = (stage == "first" or (stage == "early" and is_wf))
-    y = (remembered_stage == "late" or (remembered_stage == "early" and not is_wf))
-    slim_time = ts.metadata['SLiM']['tick'] - time + x + y - 1
+    is_wf = ts.metadata["SLiM"]["model_type"] == "WF"
+    remembered_stage = ts.metadata["SLiM"]["stage"]
+    x = stage == "first" or (stage == "early" and is_wf)
+    y = remembered_stage == "late" or (remembered_stage == "early" and not is_wf)
+    slim_time = ts.metadata["SLiM"]["tick"] - time + x + y - 1
     return slim_time
 
 
@@ -721,10 +730,10 @@ def _shift_times(ts, dt):
     tables = ts.dump_tables()
     if dt != 0:
         d = tables.nodes.asdict()
-        d['time'] += dt
+        d["time"] += dt
         tables.nodes.set_columns(**d)
         d = tables.mutations.asdict()
-        d['time'] += dt
+        d["time"] += dt
         tables.mutations.set_columns(**d)
     return tables
 
@@ -770,24 +779,24 @@ def set_slim_state(ts, time=0, individuals=None):
     tables = _shift_times(ts, -time)
     if time != 0:
         md = tables.metadata
-        md['SLiM']['tick'] -= time
-        md['SLiM']['cycle'] -= time
+        md["SLiM"]["tick"] -= time
+        md["SLiM"]["cycle"] -= time
         tables.metadata = md
     if individuals is not None:
         d = tables.individuals.asdict()
-        d['flags'] &= ~INDIVIDUAL_ALIVE
-        d['flags'][individuals] |= INDIVIDUAL_ALIVE
+        d["flags"] &= ~INDIVIDUAL_ALIVE
+        d["flags"][individuals] |= INDIVIDUAL_ALIVE
         tables.individuals.set_columns(**d)
     return tables.tree_sequence()
 
 
 def _do_individual_parents_stuff(ts, return_parents=False):
     warnings.warn(
-            "The individual_parents( ) and has_individual_parents( ) methods are "
-            "no longer needed and will be removed in a future version of pyslim: "
-            "obtain this information from the `parents' property of individuals "
-            "instead.",
-            FutureWarning,
+        "The individual_parents( ) and has_individual_parents( ) methods are "
+        "no longer needed and will be removed in a future version of pyslim: "
+        "obtain this information from the `parents' property of individuals "
+        "instead.",
+        FutureWarning,
     )
 
     # Helper for has_individual_parents and individual_parents,
@@ -799,15 +808,14 @@ def _do_individual_parents_stuff(ts, return_parents=False):
     edge_child_indiv = nodes.individual[edges.child]
     # nodes whose parent nodes are all in the same individual
     unique_parent_nodes = unique_labels_by_group(
-            edges.child,
-            edge_parent_indiv,
-            minlength=nodes.num_rows)
+        edges.child, edge_parent_indiv, minlength=nodes.num_rows
+    )
     unique_parent_edges = unique_parent_nodes[edges.child]
     # edges describing relationships between individuals
     indiv_edges = np.logical_and(
-            np.logical_and(edge_parent_indiv != tskit.NULL,
-                                 edge_child_indiv != tskit.NULL),
-            unique_parent_edges)
+        np.logical_and(edge_parent_indiv != tskit.NULL, edge_child_indiv != tskit.NULL),
+        unique_parent_edges,
+    )
     # individual edges where the parent was alive during "late"
     # of the time step before the child is born
     ind_times = ts.individuals_time
@@ -815,33 +823,41 @@ def _do_individual_parents_stuff(ts, return_parents=False):
     child_births = ind_times[edge_child_indiv[indiv_edges]]
     parent_births = ind_times[edge_parent_indiv[indiv_edges]]
     alive_edges = indiv_edges.copy()
-    if ts.metadata['SLiM']['model_type'] == "WF":
-        alive_edges[indiv_edges] = (child_births + 1 == parent_births)
+    if ts.metadata["SLiM"]["model_type"] == "WF":
+        alive_edges[indiv_edges] = child_births + 1 == parent_births
     else:
         parent_deaths = parent_births - ind_ages[edge_parent_indiv[indiv_edges]]
-        alive_edges[indiv_edges] = (child_births + 1 >= parent_deaths)
+        alive_edges[indiv_edges] = child_births + 1 >= parent_deaths
     edge_spans = edges.right - edges.left
-    parental_span = np.bincount(edge_child_indiv[alive_edges],
-            weights=edge_spans[alive_edges], minlength=ts.num_individuals)
+    parental_span = np.bincount(
+        edge_child_indiv[alive_edges],
+        weights=edge_spans[alive_edges],
+        minlength=ts.num_individuals,
+    )
     # we could also check for edges without individual parents terminating
     # in this individual, but this is unnecessary as the entire genome is
     # accounted for
-    has_all_parents = (parental_span == 2 * ts.sequence_length)
+    has_all_parents = parental_span == 2 * ts.sequence_length
     if return_parents:
         full_parent_edges = np.logical_and(
-                alive_edges,
-                has_all_parents[edge_child_indiv])
-        parents = np.unique(np.column_stack(
-                        [edge_parent_indiv[full_parent_edges],
-                         edge_child_indiv[full_parent_edges]]
-                        ), axis=0)
+            alive_edges, has_all_parents[edge_child_indiv]
+        )
+        parents = np.unique(
+            np.column_stack(
+                [
+                    edge_parent_indiv[full_parent_edges],
+                    edge_child_indiv[full_parent_edges],
+                ]
+            ),
+            axis=0,
+        )
         return parents
     else:
         return has_all_parents
 
 
 def individual_parents(ts):
-    '''
+    """
     **DEPRECATED:** now SLiM records `parents` directly in the individual
     table (see for instance `ind.parents`).
 
@@ -856,12 +872,12 @@ def individual_parents(ts):
     :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
     :return: An array of individual IDs, with row [i, j] if individual i is
         a parent of individual j.
-    '''
+    """
     return _do_individual_parents_stuff(ts, return_parents=True)
 
 
 def has_individual_parents(ts):
-    '''
+    """
     **DEPRECATED:** now SLiM records `parents` directly in the individual
     table (see for instance `ind.parents`).
 
@@ -883,12 +899,12 @@ def has_individual_parents(ts):
 
     :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
     :return: A boolean array of length equal to ``targets``.
-    '''
+    """
     return _do_individual_parents_stuff(ts, return_parents=False)
 
 
 def annotate(ts, **kwargs):
-    '''
+    """
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
     mostly default values. Returns a :class:`tskit.TreeSequence`.
@@ -905,19 +921,26 @@ def annotate(ts, **kwargs):
         equal to ts.sequence_length.
     :param bool annotate_mutations: Whether to replace mutation metadata
         with defaults. (If False, the mutation table is unchanged.)
-    '''
+    """
     tables = ts.dump_tables()
     annotate_tables(tables, **kwargs)
     return tables.tree_sequence()
 
 
-def annotate_tables(tables, model_type, tick, cycle=None, stage="early", reference_sequence=None,
-        annotate_mutations=True):
-    '''
+def annotate_tables(
+    tables,
+    model_type,
+    tick,
+    cycle=None,
+    stage="early",
+    reference_sequence=None,
+    annotate_mutations=True,
+):
+    """
     Does the work of :func:`annotate`, but modifies the tables in place: so,
     takes tables as produced by ``msprime``, and makes them look like the
     tables as output by SLiM. See :func:`annotate` for details.
-    '''
+    """
     if stage not in ("early", "late"):
         raise ValueError(f"stage must be 'early' or 'late' (provided {stage})")
     if (type(tick) is not int) or (tick < 1):
@@ -933,15 +956,15 @@ def annotate_tables(tables, model_type, tick, cycle=None, stage="early", referen
         cycle = tick
     if not np.allclose(tables.sites.position, np.floor(tables.sites.position)):
         raise ValueError(
-                "Site positions in this tree sequence are not at integer values, "
-                "but must be for loading into SLiM: generate mutations with "
-                "sim_mutations(..., discrete_genome=True), not simulate()."
+            "Site positions in this tree sequence are not at integer values, "
+            "but must be for loading into SLiM: generate mutations with "
+            "sim_mutations(..., discrete_genome=True), not simulate()."
         )
-    top_metadata = default_slim_metadata('tree_sequence')['SLiM']
-    top_metadata['model_type'] = model_type
-    top_metadata['tick'] = tick
-    top_metadata['cycle'] = cycle
-    top_metadata['stage'] = stage
+    top_metadata = default_slim_metadata("tree_sequence")["SLiM"]
+    top_metadata["model_type"] = model_type
+    top_metadata["tick"] = tick
+    top_metadata["cycle"] = cycle
+    top_metadata["stage"] = stage
     set_tree_sequence_metadata(tables, **top_metadata)
     set_metadata_schemas(tables)
     _annotate_nodes_individuals(tables, age=default_ages)
@@ -951,19 +974,20 @@ def annotate_tables(tables, model_type, tick, cycle=None, stage="early", referen
     if reference_sequence is not None:
         tables.reference_sequence.data = reference_sequence
 
+
 def next_slim_mutation_id(ts):
-    '''
-    Returns the next SLiM mutation ID for this tree sequence. This is useful 
-    because if you want to add more mutations to your SLiM tree sequence using 
-    :func:`msprime.sim_mutations`, you may need to specify the parameter 
-    `next_id` in your :class:`msprime.SLiMMutationModel` to be larger than any 
-    existing mutation IDs. Setting `next_id` equal to the output of this 
+    """
+    Returns the next SLiM mutation ID for this tree sequence. This is useful
+    because if you want to add more mutations to your SLiM tree sequence using
+    :func:`msprime.sim_mutations`, you may need to specify the parameter
+    `next_id` in your :class:`msprime.SLiMMutationModel` to be larger than any
+    existing mutation IDs. Setting `next_id` equal to the output of this
     function will allow the mutated tree sequence to be read in by SLiM.
     To do this, recall that the "derived state" of SLiM's mutations are
     comma-separated strings of mutation IDs; this function just parses all derived
     states and returns one larger than the largest integer found. It will return an error
     if it encounters derived states that are not comma-separated strings of integers.
-    '''
+    """
     max_id = 0
     for mut in ts.mutations():
         ds = mut.derived_state
@@ -972,14 +996,16 @@ def next_slim_mutation_id(ts):
                 try:
                     max_id = max(max_id, int(d))
                 except ValueError:
-                    raise ValueError(f"The derived state of a mutation ({ds}) in the tree "
-                                     "sequence is not a comma-separated list of values "
-                                     "coercible to int. This is not a valid SLiM tree sequence.")
+                    raise ValueError(
+                        f"The derived state of a mutation ({ds}) in the tree "
+                        "sequence is not a comma-separated list of values "
+                        "coercible to int. This is not a valid SLiM tree sequence."
+                    )
     return max_id + 1
 
 
 def _annotate_nodes_individuals(tables, age):
-    '''
+    """
     Adds to a TableCollection the information relevant to individuals required
     for SLiM to load in a tree sequence, that is found in Node and Individual
     tables.  This will replace the metadata in those tables. For this to work,
@@ -996,19 +1022,19 @@ def _annotate_nodes_individuals(tables, age):
 
     If you have other situations, like non-alive "remembered" individuals, you
     will need to edit the tables by hand, afterwards.
-    '''
+    """
     if len(tables.nodes.metadata) > 0:
         warnings.warn(
-                "The provided tree sequence already has some nodes with "
-                "metadata; this metadata will be overwritten."
+            "The provided tree sequence already has some nodes with "
+            "metadata; this metadata will be overwritten."
         )
     if len(tables.individuals.metadata) > 0:
         warnings.warn(
-                "The provided tree sequence already has some individuals with "
-                "metadata; this metadata will be overwritten."
+            "The provided tree sequence already has some individuals with "
+            "metadata; this metadata will be overwritten."
         )
     ind_population = np.full(tables.individuals.num_rows, -1, dtype="int")
-    ind_slim_id = np.full(tables.individuals.num_rows, 0, dtype='int')
+    ind_slim_id = np.full(tables.individuals.num_rows, 0, dtype="int")
     nid = 0
     node_metadata = []
     for j, n in enumerate(tables.nodes):
@@ -1026,12 +1052,11 @@ def _annotate_nodes_individuals(tables, age):
             md = None
         node_metadata.append(md)
     nms = tables.nodes.metadata_schema
-    tables.nodes.packset_metadata([
-        nms.validate_and_encode_row(x)
-        for x in node_metadata
-    ])
+    tables.nodes.packset_metadata(
+        [nms.validate_and_encode_row(x) for x in node_metadata]
+    )
 
-    slim_ind = (ind_slim_id != 0)
+    slim_ind = ind_slim_id != 0
     ind_slim_id = np.cumsum(ind_slim_id) - 1
 
     ind_metadata = []
@@ -1055,27 +1080,23 @@ def _annotate_nodes_individuals(tables, age):
         parents_offset=tables.individuals.parents_offset,
     )
     ims = tables.individuals.metadata_schema
-    tables.individuals.packset_metadata([
-            ims.validate_and_encode_row(x)
-            for x in ind_metadata
-    ])
-    tables.individuals.packset_location(
-            [[0.0] * 3 if si else [] for si in slim_ind]
+    tables.individuals.packset_metadata(
+        [ims.validate_and_encode_row(x) for x in ind_metadata]
     )
+    tables.individuals.packset_location([[0.0] * 3 if si else [] for si in slim_ind])
 
 
 def _annotate_populations(tables):
-    '''
+    """
     Adds to a TableCollection the information about populations required for SLiM
     to load a tree sequence. This will replace anything already in the Population
     table for populations referenced by nodes alive at time zero.
-    '''
-    alive_ind = (tables.individuals.flags & INDIVIDUAL_ALIVE > 0)
+    """
+    alive_ind = tables.individuals.flags & INDIVIDUAL_ALIVE > 0
     do_pops = np.unique(
         tables.nodes.population[
             np.logical_and(
-                tables.nodes.individual >= 0,
-                alive_ind[tables.nodes.individual]
+                tables.nodes.individual >= 0, alive_ind[tables.nodes.individual]
             )
         ]
     )
@@ -1089,7 +1110,7 @@ def _annotate_populations(tables):
 
 
 def _annotate_sites_mutations(tables):
-    '''
+    """
     Adds to a TableCollection the information relevant to mutations required
     for SLiM to load in a tree sequence. This means adding to the metadata column
     of the Mutation table,  It will also
@@ -1098,39 +1119,48 @@ def _annotate_sites_mutations(tables):
     This will replace any information already in the metadata or derived state
     columns of the Mutation table. We set slim_time in metadata so that
     - tick = floor(tskit time) + slim_time
-    '''
+    """
     if len(tables.mutations.metadata) > 0:
         warnings.warn(
-                "The provided tree sequence already has some mutations with "
-                "metadata; this metadata will be overwritten."
+            "The provided tree sequence already has some mutations with "
+            "metadata; this metadata will be overwritten."
         )
     num_mutations = tables.mutations.num_rows
     default_mut = default_slim_metadata("mutation_list_entry")
     dsb, dso = tskit.pack_bytes([str(j).encode() for j in range(num_mutations)])
-    slim_time = tables.metadata["SLiM"]["tick"] - np.floor(tables.mutations.time).astype("int")
+    slim_time = tables.metadata["SLiM"]["tick"] - np.floor(tables.mutations.time).astype(
+        "int"
+    )
     mms = tables.mutations.metadata_schema
     mutation_metadata = [
-            mms.encode_row(
-                {"mutation_list": 
-                 [{"mutation_type": default_mut["mutation_type"],
-                  "selection_coeff": default_mut["selection_coeff"],
-                  "subpopulation": default_mut["subpopulation"],
-                  "slim_time": st,
-                  "nucleotide": default_mut["nucleotide"]
-                   }]
-                })
-            for st in slim_time]
+        mms.encode_row(
+            {
+                "mutation_list": [
+                    {
+                        "mutation_type": default_mut["mutation_type"],
+                        "selection_coeff": default_mut["selection_coeff"],
+                        "subpopulation": default_mut["subpopulation"],
+                        "slim_time": st,
+                        "nucleotide": default_mut["nucleotide"],
+                    }
+                ]
+            }
+        )
+        for st in slim_time
+    ]
     mdb, mdo = tskit.pack_bytes(mutation_metadata)
     tables.mutations.set_columns(
-            site=tables.mutations.site,
-            node=tables.mutations.node,
-            time=tables.mutations.time,
-            derived_state=dsb,
-            derived_state_offset=dso,
-            parent=tables.mutations.parent,
-            metadata=mdb,
-            metadata_offset=mdo)
+        site=tables.mutations.site,
+        node=tables.mutations.node,
+        time=tables.mutations.time,
+        derived_state=dsb,
+        derived_state_offset=dso,
+        parent=tables.mutations.parent,
+        metadata=mdb,
+        metadata_offset=mdo,
+    )
     tables.sites.set_columns(
-            position=tables.sites.position,
-            ancestral_state=np.array([], dtype='int8'),
-            ancestral_state_offset=np.zeros(tables.sites.num_rows + 1, dtype='uint32'))
+        position=tables.sites.position,
+        ancestral_state=np.array([], dtype="int8"),
+        ancestral_state_offset=np.zeros(tables.sites.num_rows + 1, dtype="uint32"),
+    )

@@ -1,19 +1,17 @@
-import msprime
-import tskit
-import json
-import warnings
 import numpy as np
+import tskit
 
-from ._version import *
-from .slim_metadata import _old_metadata_schema
 from pyslim import NUCLEOTIDES
+
+from ._version import *  # noqa F403
+
 
 def load(*args, **kwargs):
     raise RuntimeError("This method has been removed: use tskit.load( ) instead.")
 
 
 def mutation_at(ts, node, position, time=None):
-    '''
+    """
     Finds the mutation present in the genome of ``node`` at ``position``,
     returning -1 if there is no such mutation recorded in the tree
     sequence.  Warning: if ``node`` is not actually in the tree sequence
@@ -28,7 +26,7 @@ def mutation_at(ts, node, position, time=None):
         in which case the ``time`` of ``node`` is used.
 
     :returns: Index of the mutation in question, or -1 if none.
-    '''
+    """
     if position < 0 or position >= ts.sequence_length:
         raise ValueError("Position {} not valid.".format(position))
     if node < 0 or node >= ts.num_nodes:
@@ -56,12 +54,13 @@ def mutation_at(ts, node, position, time=None):
             for mut in site.mutations:
                 if mut.node == n and mut.time >= time:
                     # BUG: this can fail if a mutation has two children
-                    assert(out == tskit.NULL or out == mut.parent)
+                    assert out == tskit.NULL or out == mut.parent
                     out = mut.id
     return out
 
+
 def nucleotide_at(ts, node, position, time=None):
-    '''
+    """
     Finds the nucleotide present in the genome of ``node`` at ``position``.
     Warning: if ``node`` is not actually in the tree sequence (e.g., not
     ancestral to any samples) at ``position``, then this function will
@@ -76,7 +75,7 @@ def nucleotide_at(ts, node, position, time=None):
         in which case the ``time`` of ``node`` is used.
 
     :returns: Index of the nucleotide in ``NUCLEOTIDES`` (0=A, 1=C, 2=G, 3=T).
-    '''
+    """
     if not ts.has_reference_sequence():
         raise ValueError("This tree sequence has no reference sequence.")
     mut_id = mutation_at(ts, node, position, time)

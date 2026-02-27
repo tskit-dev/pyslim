@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import division
-
 import numpy as np
 
 #: Used in ``individual.flags`` to denote the individual is alive
@@ -22,7 +19,7 @@ INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
 #: Mutation metadata records the nucleotide as an integer,
 #: translated to ACGT by indexing this array,
 #: so a nucleotide value of ``k`` actually means NUCLEOTIDES[k].
-NUCLEOTIDES = ['A', 'C', 'G', 'T']
+NUCLEOTIDES = ["A", "C", "G", "T"]
 
 #: A value used in node metadata ("genome_type") to indicate the node is an autosome.
 #: **DEPRECATED.**
@@ -58,10 +55,9 @@ INDIVIDUAL_FLAG_MIGRATED = np.uint32(1 << 1)
 #: flag is not expected to be set).
 NODE_IS_VACANT_SAMPLE = np.uint32(1 << 16)
 
-from pyslim.slim_metadata import *       # NOQA
+from pyslim.slim_metadata import *  # NOQA
 from pyslim.slim_tree_sequence import *  # NOQA
-from pyslim.provenance import *          # NOQA
-from pyslim.methods import *             # NOQA
-from pyslim.spatial import *             # NOQA
-from pyslim._version import pyslim_version as __version__
-
+from pyslim.provenance import *  # NOQA
+from pyslim.methods import *  # NOQA
+from pyslim.spatial import *  # NOQA
+from pyslim._version import pyslim_version as __version__  # NOQA

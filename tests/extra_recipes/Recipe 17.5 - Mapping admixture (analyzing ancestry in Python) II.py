@@ -2,12 +2,12 @@
 
 # This is a Python recipe; note that it runs the SLiM model internally, below
 
-import subprocess, tskit
 import matplotlib.pyplot as plt
 import numpy as np
+import tskit
 
 # Run the SLiM model and load the resulting .trees file
-#subprocess.check_output(["slim", "-m", "-s", "0", "./recipe_17.5.slim"])
+# subprocess.check_output(["slim", "-m", "-s", "0", "./recipe_17.5.slim"])
 ts = tskit.load("./recipe_17.5.trees")
 
 # Load the .trees file and assess true local ancestry
@@ -16,7 +16,9 @@ ancestry = np.zeros(ts.num_trees + 1)
 for tree in ts.trees():
     subpop_sum, subpop_weights = 0, 0
     for root in tree.roots:
-        leaves_count = tree.num_samples(root) - 1  # subtract one for the root, which is a sample
+        leaves_count = (
+            tree.num_samples(root) - 1
+        )  # subtract one for the root, which is a sample
         subpop_sum += tree.population(root) * leaves_count
         subpop_weights += leaves_count
     breaks[tree.index] = tree.interval[0]
