@@ -29,6 +29,9 @@ jobs:
       - name: Install SLiM
         run: micromamba install -y slim
 
+      - name: Add SLiM to PATH
+        run: echo "$MAMBA_ROOT_PREFIX/envs/slim-env/bin" >> $GITHUB_PATH
+
       - name: Verify SLiM
         run: slim -v
 
