@@ -7,67 +7,58 @@ on:
   merge_group:
 
 jobs:
-
-  test:
+  Docs:
     name: Build docs
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        shell: bash
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
+      - uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4.2.2
         with:
           submodules: true
+          fetch-depth: 0
 
-      - name: Cache conda and dependencies
-        id: cache
-        uses: actions/cache@v4.2.2
-        env:
-          # Increase this to reset the cache if the key hasn't changed.
-          CACHE_NUM: 3
+      - name: Install SLiM
+        uses: mamba-org/setup-micromamba@v2.0.4
         with:
-          path: |
-            /usr/share/miniconda/envs/anaconda-client-env
-            ~/osx-conda
-            ~/.profile
-          key: conda-v${{ env.CACHE_NUM }}-${{ hashFiles('pyproject.toml') }}
+          environment-name: slim-env
+          cache-environment: true
+          create-args: slim
 
-      - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v3.1.1
-        if: steps.cache.outputs.cache-hit != 'true'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
         with:
-          activate-environment: anaconda-client-env
-          python-version: "3.11"
-          channels: conda-forge
-          channel-priority: strict
-          auto-update-conda: true
+          version: "0.8.15"
 
-      - name: Install slim
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: bash -l {0} #We need a login shell to get conda
-        run: |
-          conda install --yes slim
+      - name: Install doc deps
+        run: uv sync --no-default-groups --project=. --locked --group docs
 
-      - name: Install uv and pip deps
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: bash -l {0}
+      - name: Set build version
+        shell: bash
         run: |
-          pip install uv
-          uv sync --locked --group docs --no-default-groups
-          # Install current pyslim as editable to ensure we get the latest version
-          uv pip install --system -e .
+          set -euo pipefail
+          PKG_VERSION="$(
+          uv run --no-default-groups --project . python - <<PY
+          import tomllib
+          import pathlib
+          import importlib.metadata as m
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+          name = data['project']['name']
+          print(m.version(name))
+          PY
+          )"
+          echo "PKG_VERSION=$PKG_VERSION"
+          sed -i s/__PKG_VERSION__/${PKG_VERSION}/g docs/_config.yml
 
-      - name: Build docs
+      - name: Build documentation
+        run: cd docs && make
+
+      - name: Trigger tskit-site rebuild
+        if: github.ref == 'refs/heads/main'
         run: |
-          source ~/.profile
-          conda activate anaconda-client-env
-          export PATH=$PWD/SLiM/Release:$PATH
-          slim -v
-          pip list
-          cd docs && make
+          curl -X POST https://api.github.com/repos/tskit-dev/tskit-site/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u AdminBot-tskit:${{ secrets.ADMINBOT_TOKEN }} \
+          --data '{"event_type":"build-docs"}'
