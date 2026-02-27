@@ -1,10 +1,5 @@
-from __future__ import print_function
-
-import platform
-import warnings
 import json
-import msprime
-import tskit
+import platform
 
 from . import _version
 
@@ -45,7 +40,7 @@ def slim_provenance_version(provenance):
             file_version = record["file_version"]
         except:
             pass
-    is_slim = (software_name == "SLiM")
+    is_slim = software_name == "SLiM"
     return is_slim, file_version
 
 
@@ -55,11 +50,8 @@ def get_environment():
     currently running.
     """
     env = {
-        "libraries": {
-        },
-        "parameters" : {
-            "command" : []
-        },
+        "libraries": {},
+        "parameters": {"command": []},
         "os": {
             "system": platform.system(),
             "node": platform.node(),
@@ -70,7 +62,7 @@ def get_environment():
         "python": {
             "implementation": platform.python_implementation(),
             "version": platform.python_version_tuple(),
-        }
+        },
     }
     return env
 
@@ -82,12 +74,10 @@ def make_pyslim_provenance_dict():
     document = {
         "schema_version": "1.0.0",
         "software": {
-            "name" : "pyslim",
+            "name": "pyslim",
             "version": __version__,
-            },
-        "parameters": {
-            "command": {}
-            },
-        "environment": get_environment()
+        },
+        "parameters": {"command": {}},
+        "environment": get_environment(),
     }
     return document

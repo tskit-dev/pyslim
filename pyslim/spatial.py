@@ -1,13 +1,12 @@
-import msprime
-import tskit
 import warnings
+
 import numpy as np
 
-from .methods import individual_ages, individuals_alive_at
+from .methods import individual_ages
 
 
 def _in_location_bin(locations, x0, x1, y0, y1):
-    '''
+    """
     Takes the locations of individuals and tests if each is within [x0, x1) and
     [y0, y1). Returns a list the same length as the number of individuals with
     True if the corresponding individual is within the bounds and False
@@ -20,20 +19,15 @@ def _in_location_bin(locations, x0, x1, y0, y1):
     :param float x1: The upper x coordinate boundary.
     :param float y0: The lower y coordinate boundary.
     :param float y1: The upper y coordinate boundary.
-    '''
+    """
     return np.logical_and(
-            np.logical_and(
-                locations[:,0] < x1,
-                locations[:,0] >= x0),
-            np.logical_and(
-                locations[:,1] < y1,
-                locations[:,1] >= y0
-            )
-        )
+        np.logical_and(locations[:, 0] < x1, locations[:, 0] >= x0),
+        np.logical_and(locations[:, 1] < y1, locations[:, 1] >= y0),
+    )
 
 
 def _average_time_alive(birth_times, death_times, t0, t1):
-    '''
+    """
     Calculates the average population size in the time interval [`t0`, `t1`)
     from birth times and death times of individuals. This is a helper function for
     `population_size`, and may change or be removed in the future.
@@ -63,15 +57,15 @@ def _average_time_alive(birth_times, death_times, t0, t1):
     :param float t0: Lower time endpoint.
     :param float t1: Upper time endpoint. t1 is greater than t0.
 
-    '''
+    """
     # length of the segment of time in [t0, t1) that the individual
     # was alive for, i.e., of the intersection with [birth, death].
-    a = np.maximum(0, np.minimum(t1, 1 + birth_times) -  np.maximum(t0, death_times))
-    return sum(a)/(t1-t0)
+    a = np.maximum(0, np.minimum(t1, 1 + birth_times) - np.maximum(t0, death_times))
+    return sum(a) / (t1 - t0)
 
 
-def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stage=None):
-    '''
+def population_size(ts, x_bins, y_bins, time_bins, stage="late", remembered_stage=None):
+    """
     Calculates the population size in each of the spatial bins defined by grid lines
     at ``x_bins`` and ``y_bins``, averaged over each of the time intervals separated by
     ``time_bins``. To obtain actual (census) sizes, the tree sequence must contain
@@ -100,38 +94,39 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
     :param str remembered_stage: The stage in the SLiM life cycle during which
         individuals were Remembered (defaults to the stage the tree sequence was
         recorded at, stored in metadata).
-    '''
+    """
 
     # TODO: make a helper function to do this
     if stage not in ("late", "early"):
-        raise ValueError(f"Unknown stage '{stage}': "
-                          "should be either 'early' or 'late'.")
+        raise ValueError(f"Unknown stage '{stage}': should be either 'early' or 'late'.")
 
     if remembered_stage is None:
-        remembered_stage = ts.metadata['SLiM']['stage']
+        remembered_stage = ts.metadata["SLiM"]["stage"]
 
     if remembered_stage not in ("late", "early"):
-        raise ValueError(f"Unknown remembered_stage '{remembered_stage}': "
-                          "should be either 'early' or 'late'.")
-    if remembered_stage != ts.metadata['SLiM']['stage']:
-        warnings.warn(f"Provided remembered_stage '{remembered_stage}' does not"
-                      " match the stage at which the tree sequence was saved"
-                      f" ('{ts.metadata['SLiM']['stage']}'). This is not necessarily"
-                      " an error, but mismatched stages will lead to inconsistencies:"
-                      " make sure you know what you're doing.")
+        raise ValueError(
+            f"Unknown remembered_stage '{remembered_stage}': "
+            "should be either 'early' or 'late'."
+        )
+    if remembered_stage != ts.metadata["SLiM"]["stage"]:
+        warnings.warn(
+            f"Provided remembered_stage '{remembered_stage}' does not"
+            " match the stage at which the tree sequence was saved"
+            f" ('{ts.metadata['SLiM']['stage']}'). This is not necessarily"
+            " an error, but mismatched stages will lead to inconsistencies:"
+            " make sure you know what you're doing."
+        )
 
     # see individuals_alive_at for explanation
-    if stage == "early" and ts.metadata['SLiM']['model_type'] == "WF":
+    if stage == "early" and ts.metadata["SLiM"]["model_type"] == "WF":
         birth_offset = 1
     else:
         birth_offset = 0
     birth_times = ts.individuals_time - birth_offset
-    if (ts.metadata['SLiM']['model_type'] == "WF"
-            or stage == remembered_stage):
+    if ts.metadata["SLiM"]["model_type"] == "WF" or stage == remembered_stage:
         age_offset = 0
     else:
-        if (remembered_stage == "early"
-                and stage == "late"):
+        if remembered_stage == "early" and stage == "late":
             age_offset = -1
         else:
             age_offset = 1
@@ -157,10 +152,10 @@ def population_size(ts, x_bins, y_bins, time_bins, stage='late', remembered_stag
             for k in np.arange(ntbins):
                 t0, t1 = time_breaks[k], time_breaks[k + 1]
                 popsize[i, j, k] = _average_time_alive(
-                        birth_times[in_bin],
-                        death_times[in_bin],
-                        t0,
-                        t1,
+                    birth_times[in_bin],
+                    death_times[in_bin],
+                    t0,
+                    t1,
                 )
 
     return popsize

@@ -1,7 +1,9 @@
 # Keywords: Python, nucleotide-based, nucleotide sequence, sequence-based mutation rate
 
-import tskit, pyslim
 import numpy as np
+import tskit
+
+import pyslim
 
 ts = tskit.load("recipe_nucleotides.trees")
 
@@ -15,11 +17,11 @@ for mut in ts.mutations():
         parent_nuc = pyslim.NUCLEOTIDES.index(acgt)
     else:
         parent_mut = ts.mutation(mut.parent)
-        assert(parent_mut.site == mut.site)
+        assert parent_mut.site == mut.site
         parent_nuc = parent_mut.metadata["mutation_list"][0]["nucleotide"]
     M[parent_nuc][derived_nuc] += 1
 
-print("{}\t{}\t{}".format('ancestral', 'derived', 'count'))
+print("{}\t{}\t{}".format("ancestral", "derived", "count"))
 for j, a in enumerate(pyslim.NUCLEOTIDES):
     for k, b in enumerate(pyslim.NUCLEOTIDES):
         print("{}\t{}\t{}".format(a, b, M[j][k]))

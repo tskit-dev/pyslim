@@ -1,4 +1,6 @@
-import tskit, pyslim
+import tskit
+
+import pyslim
 
 """
 Takes an old tree sequence and update the metadata *without* properly updating
@@ -9,12 +11,12 @@ ts = tskit.load("recipe_WF.v3.5.trees")
 tables = ts.dump_tables()
 
 tables.populations.clear()
-tables.populations.metadata_schema = pyslim.slim_metadata_schemas['population']
+tables.populations.metadata_schema = pyslim.slim_metadata_schemas["population"]
 for p in ts.populations():
     tables.populations.append(p)
 
 tables.individuals.clear()
-tables.individuals.metadata_schema = pyslim.slim_metadata_schemas['individual']
+tables.individuals.metadata_schema = pyslim.slim_metadata_schemas["individual"]
 d = pyslim.default_slim_metadata("individual")
 for i in ts.individuals():
     d.update(i.metadata)
@@ -22,7 +24,7 @@ for i in ts.individuals():
     tables.individuals.append(ii)
 
 tables.mutations.clear()
-tables.mutations.metadata_schema = pyslim.slim_metadata_schemas['mutation']
+tables.mutations.metadata_schema = pyslim.slim_metadata_schemas["mutation"]
 d = pyslim.default_slim_metadata("mutation")
 for m in ts.mutations():
     tables.mutations.append(m)
