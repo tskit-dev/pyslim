@@ -106,7 +106,7 @@ jobs:
       - name: Run tests
         run: |
           export PATH=$PWD/SLiM/Release:$PATH
-          uv run --no-default-groups python -m pytest \
+          uv run --no-default-groups --group test pytest \
             -n 0 -v \
             --cov=pyslim --cov-branch \
             --cov-report=xml \
