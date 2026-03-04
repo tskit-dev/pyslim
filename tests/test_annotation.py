@@ -891,7 +891,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 out_md = ot.population(j).metadata
                 assert in_md["name"] == out_md["name"]
 
-    @pytest.mark.skipif(sys.platform == "Windows", reason="Issue #412")
+    @pytest.mark.skipif(sys.platform == "win32", reason="Issue #412")
     @pytest.mark.parametrize(
         "restart_name, recipe", restarted_recipe_eq("no_op"), indirect=["recipe"]
     )
