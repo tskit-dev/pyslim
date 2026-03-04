@@ -1,68 +1,14 @@
-name: Docs
 
+name: Docs
 on:
   pull_request:
   push:
     branches: [main]
+    tags:
+      - '*'
   merge_group:
-
 jobs:
   Docs:
-    name: Build docs
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: styfle/cancel-workflow-action@0.12.1
-        with:
-          access_token: ${{ github.token }}
-
-      - uses: actions/checkout@v4.2.2
-        with:
-          submodules: true
-          fetch-depth: 0
-
-      - name: Set up micromamba
-        uses: mamba-org/setup-micromamba@v2.0.4
-
-      - name: Install SLiM
-        run: |
-          micromamba install -n base -y slim
-          echo "$MAMBA_ROOT_PREFIX/bin" >> $GITHUB_PATH
-
-      - name: Verify SLiM
-        run: slim -v
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.8.15"
-
-      - name: Install doc deps
-        run: uv sync --no-default-groups --project=. --locked --group docs
-
-      - name: Set build version
-        shell: bash
-        run: |
-          set -euo pipefail
-          PKG_VERSION="$(
-          uv run --no-default-groups --project . python - <<PY
-          import tomllib
-          import pathlib
-          import importlib.metadata as m
-          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
-          name = data['project']['name']
-          print(m.version(name))
-          PY
-          )"
-          echo "PKG_VERSION=$PKG_VERSION"
-          sed -i s/__PKG_VERSION__/${PKG_VERSION}/g docs/_config.yml
-
-      - name: Build documentation
-        run: cd docs && make
-
-      - name: Trigger tskit-site rebuild
-        if: github.ref == 'refs/heads/main'
-        run: |
-          curl -X POST https://api.github.com/repos/tskit-dev/tskit-site/dispatches \
-          -H 'Accept: application/vnd.github.everest-preview+json' \
-          -u AdminBot-tskit:${{ secrets.ADMINBOT_TOKEN }} \
-          --data '{"event_type":"build-docs"}'
+    uses: tskit-dev/.github/.github/workflows/docs.yml@main
+    with:
+      install-slim: true
