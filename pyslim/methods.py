@@ -772,7 +772,7 @@ def set_slim_state(ts, time=0, individuals=None):
     :param tskit.TreeSequence ts: A SLiM-compatible TreeSequence.
     :param int time: The number of time units (ticks) into the past to shift
         times.  (Default: zero; can be positive or negative.)
-    :param np.ndarray individuals: An array of the tskit IDs of the individuals
+    :param numpy.ndarray individuals: An array of the tskit IDs of the individuals
         that should be marked as alive (all others will be not alive).
         (Default: leave unchanged.)
     """

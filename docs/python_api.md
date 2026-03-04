@@ -174,7 +174,7 @@ underlying tables), which can then be modified and loaded into SLiM.
 .. autodata:: NUCLEOTIDES
 ```
 
-This is a flag used in `node.flags` (see {meth}`.remove_vacant`):
+This is a flag used in `node.flags` (see {func}`.remove_vacant`):
 
 ```{eval-rst}
 .. autodata:: NODE_IS_VACANT_SAMPLE
@@ -207,4 +207,3 @@ Finally, these are used in ``individual.flags``:
 
 .. autodata:: INDIVIDUAL_RETAINED
 ```
-

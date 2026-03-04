@@ -109,7 +109,7 @@ So, `ts.mutation(12).metadata["mutation_list"]` is a list, each of whose entries
 ## Metadata tools
 
 The dictionaries describing the schema for these metadata entries
-are available in {data}`.slim_metadata_schemas`.
+are available in `pyslim.slim_metadata_schemas`.
 Furthermore, this method may be useful in working with metadata:
 
 ```{eval-rst}

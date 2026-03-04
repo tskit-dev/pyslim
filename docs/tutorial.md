@@ -1026,7 +1026,7 @@ ts = tables.tree_sequence()
 
 Next, we need to generate a reference sequence
 and nucleotides for each mutation.
-This is easy with {meth}`.generate_nucleotides`:
+This is easy with {func}`.generate_nucleotides`:
 
 ```{code-cell}
 ts = pyslim.generate_nucleotides(ts)

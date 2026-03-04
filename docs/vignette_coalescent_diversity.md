@@ -124,7 +124,7 @@ ots = pyslim.annotate(ots, model_type="WF", tick=1, stage="late")
 This method adds default metadata to everything that needs it:
 in this case, all individuals, all nodes that are part of alive individuals,
 and all populations referenced by nodes.
-These default values are returned by {func}`.slim_default_metadata`
+These default values are returned by {func}`.default_slim_metadata`
 (e.g., all individuals are hermaphrodite, all chromosomes are autosomal);
 see {func}`.annotate` for more information.
 
@@ -328,7 +328,7 @@ s = np.array([sum([sum([md["selection_coeff"] for md in m.metadata["mutation_lis
                   for m in site.mutations]) for site in ts.sites()])
 ```
 
-To do this, we used the `time=t` argument to {func}`tskit.TreeSequence.samples`
+To do this, we used the `time=t` argument to {meth}`tskit.TreeSequence.samples`
 to find the nodes alive at each of the two times (0 and 100 generations ago);
 then computed an array ``p`` of allele frequencies, with one row per site,
 the first column giving the frequency among the initial generation,
