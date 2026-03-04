@@ -4,6 +4,7 @@ Test cases for tree sequences.
 
 import json
 import random
+import sys
 
 import msprime
 import numpy as np
@@ -80,6 +81,7 @@ class TestNextMutationID(tests.PyslimTestCase):
             max_mt_id = max(mt_ids)
             assert max_mt_id + 1 == pyslim.next_slim_mutation_id(ts)
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Issue #412")
     @pytest.mark.parametrize(
         "recipe",
         recipe_eq("adds_mutations", exclude="multichrom"),  # <-- TODO
