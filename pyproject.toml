@@ -64,11 +64,9 @@ docs = [
     "matplotlib",
     "msprime",
     "pandas",
-    "PyGithub",
     "setuptools-scm",
     "sphinx-argparse",
     "sphinx-issues",
-    "tskit",
 ]
 
 lint = [
