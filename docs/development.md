@@ -15,46 +15,21 @@ kernelspec:
 
 # Development
 
+All contributions, bug reports, documentation improvements and ideas are welcome. If you think
+there is anything missing, please open an [issue](https://github.com/tskit-dev/pyslim/issues)
+or [pull request](https://github.com/tskit-dev/pyslim/pulls) on GitHub.
 
-To install a particular version of ``pyslim`` from source, e.g., to obtain a recent update:
+See the [tskit developer documentation](https://tskit.dev/tskit/docs/stable/development.html)
+for the general development workflow (git, prek, testing, documentation).
 
-```bash
-git clone https://github.com/tskit-dev/pyslim.git
-cd pyslim
-python -m pip install -e ".[dev]"
-```
-
-
-Then, to run the tests to make sure everything is working, do:
+Install development dependencies with:
 
 ```bash
-python -m pytest tests
+uv sync
 ```
 
-*Note:* if you use ``python3`` you may need to replace ``python`` with ``python3`` above.
-
-If you would like to add some features to ``pyslim``, please read the
-following. If you think there is anything missing,
-please open an [issue](http://github.com/tskit-dev/pyslim/issues) or
-[pull request](http://github.com/tskit-dev/pyslim/pulls) on GitHub!
-
-## Quickstart
-
-- Make your own fork of the pyslim repo on [GitHub](http://github.com/tskit-dev/pyslim)
-- Clone your fork into a local directory:
+Run the tests with:
 
 ```bash
-git clone git@github.com:YOUR_GITHUB/pyslim.git
+uv run pytest
 ```
-
-- Install the development requirements using
-  ``python3 -m pip install -e ".[dev]"``.
-- Run the tests to ensure everything has worked: ``python3 -m pytest tests``. These should
-  all pass.
-- Make your changes in a local branch, and open a pull request on GitHub when you
-  are ready. Please make sure that (a) the tests pass before you open the pull request; and
-  (b) your code passes PEP8 checks before opening the pull request.
-
-For a more detailed walkthrough of development methods,
-see [the stdpopsim documentation](https://popsim-consortium.github.io/stdpopsim-docs/latest/development.html#github-workflow)
-and/or [the tskit documentation](https://tskit.dev/tskit/docs/latest/development.html#workflow).
