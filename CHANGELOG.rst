@@ -1,9 +1,11 @@
-******************
-UPCOMING - [1.1.1]
-******************
+********************
+[1.1.1] - 2026-03-06
+********************
 
-- Drop Python 3.9 support, require Python >= 3.10 (:pr:`397`, :user:`benjeffery`)
+Maintenance release.
 
+- Improved performance on remove_vacant (:issue:`393`)
+- Require Python >= 3.11
 
 ********************
 [1.1.0] - 2025-08-16
