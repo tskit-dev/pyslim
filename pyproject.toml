@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -55,7 +55,6 @@ test = [
     "filelock",
     "tskit",
     "msprime",
-    "matplotlib",
     "pandas",
 ]
 
@@ -64,7 +63,6 @@ docs = [
     "matplotlib",
     "msprime",
     "pandas",
-    "setuptools-scm",
     "sphinx-argparse",
     "sphinx-issues",
 ]
