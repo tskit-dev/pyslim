@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -44,8 +44,8 @@ repository = "https://github.com/tskit-dev/pyslim"
 packages = ["pyslim"]
 include-package-data = true
 
-[tool.setuptools.dynamic]
-version = {attr = "pyslim._version.pyslim_version"}
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
 
 [dependency-groups]
 test = [
