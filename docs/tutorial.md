@@ -431,6 +431,21 @@ see below for what's going on in that code and what you probably
 actually want to do;
 see also {meth}`tskit.TreeSequence.write_vcf` for more options.
 
+For instance, if you want to use the SLiM pedigree IDs for the names in the VCF file,
+we could do:
+
+```{code-cell}
+pedigree_ids = [
+    f"ind_{ts.individual(i).metadata['pedigree_id']}" for i in sample_indivs
+]
+with open("example_sim2.vcf", "w") as vcffile:
+    nts.write_vcf(
+        vcffile,
+        individuals=sample_indivs[:5],
+        individual_names=pedigree_ids[:5],
+    )
+```
+
 
 (sec_extracting_individuals)=
 
