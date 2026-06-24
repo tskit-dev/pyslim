@@ -98,9 +98,10 @@ class TestNextMutationID(tests.PyslimTestCase):
                 keep_vacant=True,
             )
             next_id = pyslim.next_slim_mutation_id(rts)
+            T = max(1, rts.segregating_sites(mode="branch", span_normalise=False))
             mts = msprime.sim_mutations(
                 rts,
-                rate=6e-4,
+                rate=max(6e-4, 10 / T),
                 keep=True,
                 model=msprime.SLiMMutationModel(type=1, next_id=next_id),
                 random_seed=135,

@@ -37,9 +37,9 @@ def verify_slim_restart_equality(in_ts_dict, out_ts_dict, check_prov=True):
         if check_prov:
             assert in_ts.num_provenances + 1 == out_ts.num_provenances
         in_tables = in_ts.dump_tables()
-        in_tables.sort()
+        in_tables.canonicalise()
         out_tables = out_ts.dump_tables()
-        out_tables.sort()
+        out_tables.canonicalise()
         in_tables.assert_equals(out_tables, ignore_provenance=True)
 
 
@@ -204,6 +204,7 @@ class TestAnnotate(tests.PyslimTestCase):
 
         # check other tables have been remapped
         # (uses the fact that no additional simulation has been done)
+
         assert ts.num_nodes == rts.num_nodes
         for n, rn in zip(ts.nodes(), rts.nodes()):
             n.population = fwd_map[n.population]
@@ -219,7 +220,13 @@ class TestAnnotate(tests.PyslimTestCase):
             assert m == rm
 
         assert ts.num_mutations == rts.num_mutations
-        for m, rm in zip(ts.mutations(), rts.mutations()):
+        # mutations may have changed order
+        tsm = {m.derived_state: m for m in ts.mutations()}
+        rtsm = {m.derived_state: m for m in rts.mutations()}
+        for x in tsm:
+            assert x in rtsm
+            m = tsm[x]
+            rm = rtsm[x]
             md = m.metadata
             rmd = rm.metadata
             assert len(md["mutation_list"]) == len(rmd["mutation_list"])
