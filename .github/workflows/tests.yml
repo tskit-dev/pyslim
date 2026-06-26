@@ -6,6 +6,9 @@ on:
     branches: [main]
   merge_group:
 
+permissions:
+  contents: read
+
 jobs:
   packaging:
     name: Python packaging
@@ -42,15 +45,17 @@ jobs:
         shell: bash -l {0}
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
+        uses: styfle/cancel-workflow-action@d07a454dad7609a92316b57b23c9ccfd4f59af66  # 0.13.1
         with:
           access_token: ${{ github.token }}
 
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install Conda
-        uses: mamba-org/setup-micromamba@v2.0.4
+        uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476  # v3.0.0
         with:
           environment-name: anaconda-client-env
           cache-environment: true
@@ -58,7 +63,7 @@ jobs:
             python=${{ matrix.python }}
 
       - name: Setup MSYS2 ${{matrix.sys}}
-        uses: msys2/setup-msys2@v2.27.0
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884  # v2.32.0
         if: matrix.os == 'windows-latest'
         with:
           msystem: ${{matrix.sys}}
@@ -76,7 +81,7 @@ jobs:
       - name: Cache SLiM build
         if: matrix.os == 'windows-latest'
         id: cache-slim
-        uses: actions/cache@v4.2.2
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8  # v6.0.0
         with:
           path: D:\a\pyslim\pyslim\SLiM
           key: ${{runner.os}}-${{matrix.sys}}-${{matrix.env}}-key
@@ -113,7 +118,7 @@ jobs:
             tests
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7.0.0
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
