@@ -8,4 +8,6 @@ on:
 
 jobs:
   Lint:
+    permissions:
+      contents: read
     uses: tskit-dev/.github/.github/workflows/lint.yml@v17
