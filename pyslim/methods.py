@@ -472,34 +472,37 @@ def add_mutation_metadata_tables(tables, mutation_type=0, remove_unused=False):
             "Top-level metadata schema is not correct: "
             "do you need to run pyslim.annotate()?"
         )
+    num_traits = len(ts_metadata["SLiM"]["traits"])
     existing_muts = {x["mutation_id"] for x in ts_metadata["SLiM_mutation_list"]}
     mut_ids = [
         (int(j), mut.time)
         for mut in tables.mutations
         for j in mut.metadata["derived_states"]
     ]
-    mut_ids.sort()
-    mut_ids = np.array(mut_ids, dtype="int")  # floors times
-    # remove duplicate IDs, keeping the last (most recent)
-    keep = np.full(len(mut_ids), True, dtype="bool")
-    keep[np.where(np.diff(mut_ids[:, 0]) == 0)[0]] = False
-    mut_ids = mut_ids[keep, :]
-    mut_ids[:, 1] = slim_time(
-        tables, mut_ids[:, 1], stage="late", ts_metadata=ts_metadata
-    )
-    # this assumes mutations were added in late(), which is what SLiM does
-    ts_metadata["SLiM_mutation_list"].extend(
-        [
-            default_slim_metadata(
-                "mutation_list_entry",
-                mutation_id=int(j),
-                mutation_type=mutation_type,
-                slim_time=int(t),
-            )
-            for j, t in mut_ids
-            if j not in existing_muts
-        ]
-    )
+    if len(mut_ids) > 0:
+        mut_ids.sort()
+        mut_ids = np.array(mut_ids, dtype="int")  # floors times
+        # remove duplicate IDs, keeping the last (most recent)
+        keep = np.full(len(mut_ids), True, dtype="bool")
+        keep[np.where(np.diff(mut_ids[:, 0]) == 0)[0]] = False
+        mut_ids = mut_ids[keep, :]
+        mut_ids[:, 1] = slim_time(
+            tables, mut_ids[:, 1], stage="late", ts_metadata=ts_metadata
+        )
+        # this assumes mutations were added in late(), which is what SLiM does
+        ts_metadata["SLiM_mutation_list"].extend(
+            [
+                default_slim_metadata(
+                    "mutation_list_entry",
+                    num_traits=num_traits,
+                    mutation_id=int(j),
+                    mutation_type=mutation_type,
+                    slim_time=int(t),
+                )
+                for j, t in mut_ids
+                if j not in existing_muts
+            ]
+        )
     if remove_unused and len(mut_ids) < len(ts_metadata["SLiM_mutation_list"]):
         ts_metadata["SLiM_mutation_list"] = [
             x for x in ts_metadata["SLiM_mutation_list"] if x["mutation_id"] in mut_ids

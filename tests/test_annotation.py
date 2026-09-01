@@ -1106,20 +1106,61 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
         with pytest.raises(ValueError, match="metadata schema is not"):
             _ = pyslim.add_mutation_metadata(bad_ts)
 
-    def test_add_mutation_metadata_mutation_type(self):
+    def test_no_mutations(self):
+        ts = pyslim.annotate(
+            msprime.sim_ancestry(10, random_seed=5),
+            model_type="nonWF",
+            tick=1,
+        )
+        ats = pyslim.add_mutation_metadata(ts)
+        ts.tables.assert_equals(ats.tables)
+
+    @pytest.mark.parametrize("num_traits", [1, 3])
+    def test_mutation_type(self, num_traits):
         ts = msprime.sim_ancestry(10, random_seed=5)
         ts = msprime.sim_mutations(
             ts, rate=5, random_seed=3, model=msprime.SLiMv6MutationModel()
         )
+        assert ts.num_mutations > 0
         t = ts.dump_tables()
-        t.metadata_schema = pyslim.slim_metadata_schemas["tree_sequence"]
-        t.metadata = pyslim.default_slim_metadata("tree_sequence")
+        t.metadata_schema = pyslim.slim_tree_sequence_metadata_schema(
+            num_traits=num_traits
+        )
+        t.metadata = pyslim.default_slim_metadata("tree_sequence", num_traits=num_traits)
         t.mutations.metadata_schema = pyslim.slim_metadata_schemas["mutation"]
         ts = t.tree_sequence()
         for k in (0, 1, 5):
             new_ts = pyslim.add_mutation_metadata(ts, mutation_type=k)
             for x in new_ts.metadata["SLiM_mutation_list"]:
                 assert x["mutation_type"] == k
+                assert len(x["per_trait"]) == num_traits
+
+    @pytest.mark.parametrize("recipe", recipe_eq("traits"), indirect=True)
+    def test_num_traits(self, recipe):
+        for _, ts in recipe["ts"].items():
+            ts_metadata = ts.metadata
+            num_traits = len(ts_metadata["SLiM"]["traits"])
+            if ts.num_mutations > 0:
+                assert (
+                    len(ts_metadata["SLiM_mutation_list"][0]["per_trait"]) == num_traits
+                )
+            mu = 20 / ts.sequence_length / ts.segregating_sites(mode="branch")
+            ts2 = pyslim.add_mutation_metadata(
+                msprime.sim_mutations(
+                    ts,
+                    rate=mu,
+                    random_seed=123,
+                    model=msprime.SLiMv6MutationModel(),
+                    keep=True,
+                ),
+                mutation_type=5,
+            )
+            assert ts2.num_mutations > ts.num_mutations
+            mut_metadata = pyslim.mutation_metadata(ts)
+            mut_metadata2 = pyslim.mutation_metadata(ts2)
+            for k in mut_metadata:
+                assert k in mut_metadata2
+                self.assert_trait_metadata_equal(mut_metadata[k], mut_metadata2[k])
 
     @pytest.mark.parametrize(
         "recipe",

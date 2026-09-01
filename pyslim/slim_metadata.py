@@ -777,6 +777,12 @@ def default_slim_metadata(name, num_chromosomes=1, num_traits=1, **kwargs):
     :rtype dict:
     """
     if name == "tree_sequence":
+        if num_traits == 1:
+            trait_names = [
+                "simT",
+            ]
+        else:
+            trait_names = [f"trait{j}" for j in range(num_traits)]
         out = {
             "SLiM": {
                 "model_type": "nonWF",
@@ -797,7 +803,10 @@ def default_slim_metadata(name, num_chromosomes=1, num_traits=1, **kwargs):
                     "type": "A",
                 },
                 "chromosomes": [{"id": 1, "index": 0, "symbol": "A", "type": "A"}],
-                "traits": [{"index": 0, "name": "simT", "type": "multiplicative"}],
+                "traits": [
+                    {"index": j, "name": n, "type": "multiplicative"}
+                    for j, n in enumerate(trait_names)
+                ],
             },
             "SLiM_mutation_list": [],
         }

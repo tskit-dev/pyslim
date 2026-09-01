@@ -93,6 +93,48 @@ class TestMetadataSchemas(tests.PyslimTestCase):
                 decoded = schema.decode_row(encoded)
                 assert entry == decoded
 
+    @pytest.mark.parametrize("num_traits", [1, 5])
+    def test_ts_metadata(self, num_traits):
+        schema = pyslim.slim_tree_sequence_metadata_schema(num_traits=num_traits)
+        entry = pyslim.default_slim_metadata("tree_sequence", num_traits=num_traits)
+        assert len(entry["SLiM"]["traits"]) == num_traits
+        trait_names = []
+        for j, x in enumerate(entry["SLiM"]["traits"]):
+            assert x["name"] not in trait_names
+            trait_names.append(x["name"])
+            assert x["index"] == j
+        encoded = schema.validate_and_encode_row(entry)
+        decoded = schema.decode_row(encoded)
+        assert entry == decoded
+        for _ in range(5):
+            entry["SLiM_mutation_list"].append(
+                pyslim.default_slim_metadata(
+                    "mutation_list_entry", num_traits=num_traits
+                )
+            )
+            encoded = schema.validate_and_encode_row(entry)
+            decoded = schema.decode_row(encoded)
+        for x in entry["SLiM_mutation_list"]:
+            assert len(x["per_trait"]) == num_traits
+
+    @pytest.mark.parametrize("num_traits", [1, 5])
+    def test_ind_metadata(self, num_traits):
+        schema = pyslim.slim_individual_metadata_schema(num_traits=num_traits)
+        entry = pyslim.default_slim_metadata("individual", num_traits=num_traits)
+        assert len(entry["per_trait"]) == num_traits
+        encoded = schema.validate_and_encode_row(entry)
+        decoded = schema.decode_row(encoded)
+        assert_nan_equal(entry, decoded)
+
+    @pytest.mark.parametrize("num_chroms", [1, 3, 50])
+    def test_node_metadata(self, num_chroms):
+        schema = pyslim.slim_node_metadata_schema(num_chromosomes=num_chroms)
+        entry = pyslim.default_slim_metadata("node", num_chromosomes=num_chroms)
+        assert len(entry["is_vacant"]) == pyslim.is_vacant_num_bytes(num_chroms)
+        encoded = schema.validate_and_encode_row(entry)
+        decoded = schema.decode_row(encoded)
+        assert entry == decoded
+
     @pytest.mark.skipif(
         sys.platform.startswith("win"),
         reason="failing because of dict and OrderedDict comparison?",
