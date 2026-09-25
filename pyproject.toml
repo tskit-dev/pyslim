@@ -67,7 +67,8 @@ docs = [
     "tskit>=1.0.3",
     "pandas",
     "plotnine",
-    "sphinx-argparse",
+    # https://github.com/sphinx-doc/sphinx-argparse/issues/97
+    "sphinx-argparse<0.6",
     "sphinx-issues",
 ]
 
