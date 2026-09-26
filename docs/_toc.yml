@@ -21,4 +21,5 @@ parts:
   - file: python_api
 - caption: Miscellaneous
   chapters:
+  - file: changelogs
   - file: development
