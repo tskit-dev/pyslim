@@ -10,4 +10,4 @@ jobs:
   Lint:
     permissions:
       contents: read
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v21
+    uses: tskit-dev/.github/.github/workflows/lint.yml@v22
