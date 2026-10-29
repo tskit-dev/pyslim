@@ -21,7 +21,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:
-          version: "0.10.0"
+          version: "0.13.6"
           enable-cache: false
 
       - name: Build
@@ -46,11 +46,11 @@ jobs:
 
       - name: Publish to TestPyPI
         if: github.event_name == 'push' && github.ref_name == 'test-publish'
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3
         with:
           repository-url: https://test.pypi.org/legacy/
           verbose: true
 
       - name: Publish to PyPI
         if: github.event_name == 'release'
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3
